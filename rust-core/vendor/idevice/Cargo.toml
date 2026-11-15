@@ -24,7 +24,7 @@ plist = { version = "1.8" }
 plist-macro = { version = "0.1.6" }
 serde = { version = "1", features = ["derive"] }
 ns-keyed-archive = { version = "0.1.5", optional = true }
-jktcp = { version = "0.1.6", optional = true, default-features = false }
+jktcp = { path = "../jktcp", version = "0.1.6", optional = true, default-features = false }
 
 thiserror = { version = "2" }
 tracing = { version = "0.1.41" }
@@ -290,3 +290,6 @@ full = [
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
+
+[target.'cfg(target_os = "wasi")'.dependencies]
+rootshell-runtime = { path = "../rootshell-runtime" }

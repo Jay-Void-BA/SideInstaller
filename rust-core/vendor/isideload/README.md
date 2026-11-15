@@ -773,3 +773,9 @@ re-vendor from `main` would bring the 503 back.
 
 Upstream's `README.md` is a symlink to the workspace root, which doesn't exist
 here; this file replaces it, and `readme` in `Cargo.toml` points at it.
+
+## rootshell WASI port (siboot 0.21.0)
+
+Maintained by Jay-Void-BA, based on FrizzleM/siboot and this dependency's credited upstream authors. WASI HTTP/WebSocket requests use rootshell-http over the host TLS ABI with certificate validation. RSA/SHA-256 CSR generation uses RustCrypto; native targets retain rcgen. WASI extraction streams files and records link metadata, and avoids unsupported std::env::temp_dir and blocking thread pools. Native targets keep their original transports and scheduling.
+
+The offline release gate runs the pinned original rootshell Worker and checks full CMS signing, links, encrypted storage, HTTP/WebSocket, and software TCP transport. Real Apple Account and iPhone end-to-end installation is not covered by this gate.

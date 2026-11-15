@@ -1,44 +1,35 @@
-# Minis／siboot 定制源码
+# siboot 定制源码：rootshell 与 Minis
 
-维护：**Jay-Void-BA**。上游：[FrizzleM/siboot](https://github.com/FrizzleM/siboot)。
+维护与移植：**Jay-Void-BA**。原作者：[FrizzleM/siboot](https://github.com/FrizzleM/siboot)。补丁基线为 `82b808de3a407619be7fbe54b3f313932bb80ade`，许可证及原作者信息保留。
 
-- 补丁基线：`82b808de3a407619be7fbe54b3f313932bb80ade`。
-- 完整补丁：[retry-local-ipa.patch](retry-local-ipa.patch)，包含 Minis 源码、中文词条、页面和文档。
-- 依赖本 fork 的共享 Rust 核心，请通过脚本准备完整源码。
+[retry-local-ipa.patch](retry-local-ipa.patch) 包含当前 rootshell 完整安装器、保留的 Minis 安装器、共享中文词条及上游仓库文档。共享核心位于本仓库的 `rust-core/`；准备脚本将其接入源码树。
 
-## 当前行为
-
-- 只签名、安装本地 IPA，移除 SideInstaller IPA 自动下载、下载按钮和默认地址。IPA URL 在登录前拒绝。
-- 默认中文，页面可切换 English；`SIBOOT_LANG=en` 使用英文终端。原始协议详情保留原文。
-- 运行时显示 `Jay-Void-BA`，保留上游署名。密码与解锁口令可显示／隐藏，默认隐藏；实时终端 Ctrl+V 切换查看，日志与页面事件不记录秘密输入。
-- 页面与 `renew` 命令支持快速续签上次应用，缓存原始 IPA、复用有效配对，仍需重新签名和安装；使用相同开发者团队。
-- 大文件按 1 MiB 读取与发送，显示上传、核对、iOS 安装耗时，保留完整上传检查。
-- 失败后重试当前步骤，保留已完成结果。安装重试复用签名结果并重建隧道。
-- 加密保存 Apple／iCloud 登录、会话、私钥和 anisette 缓存。独立口令解锁，可更新密码、临时切换账号或清除登录。
-- 浏览 Minis／iSH 的配对文件，验证后以 `0600` 原子保存至程序同目录的 `rp_pairing_file.plist`，保留源文件及失败时的旧配对。
-- 完整递归签名 Mach-O 和嵌套代码包，封存并校验 `.config` 等普通资源，上传保留符号链接。
-
-当前网络连接方式仍需要 LocalDevVPN；Minis 1.16+ 可直接配对，无需先安装 SideInstaller 或 rootshell。
-
-## 准备、测试、预览
+## 准备与构建
 
 在本仓库根目录运行：
 
 ```sh
 bash scripts/prepare-minis.sh /tmp/siboot-source
-cd /tmp/siboot-source/minis
-cargo test --locked --all-targets
-cargo clippy --locked --all-targets -- -D warnings
-cargo run --locked --example screens -- local-ipa --web
-cargo run --locked --example screens -- secure-setup --web
+rustup target add wasm32-wasip1
+cargo build --manifest-path /tmp/siboot-source/rootshell/Cargo.toml --release --locked --target wasm32-wasip1 --bins --examples
+cargo test --manifest-path /tmp/siboot-source/rootshell/Cargo.toml --locked --bin siboot
+bash scripts/check-rootshell-runtime.sh /tmp/siboot-source/rootshell/target/wasm32-wasip1/release/siboot.wasm /tmp/siboot-source/rootshell/target/wasm32-wasip1/release/examples/runtime_check.wasm
 ```
 
-预览不联系 Apple 或真实设备，只应输入测试密码。`locales/zh-CN.json` 同时供终端和页面使用；语言切换仅修改展示文本，不修改输入内容。
+脚本名称为兼容已有开发流程保留，准备的源码同时包含 `rootshell/` 与 `minis/`。
 
-## 发布
+## 当前行为
 
-`.github/siboot-release.json` 声明版本，`release-siboot.yml` 在 CI 通过后构建 ARM64 musl 静态程序。发布前在 Minis 所用 iSH 引擎中执行版本与中文帮助检查，然后仅上传 `siboot-aarch64` 并记录 SHA-256。不会自动下载或打包新的 SideInstaller IPA。
+rootshell 0.21.0 内完成本地 IPA 选择、设备配对、Apple 登录、完整签名、上传核对、安装和快速续签。运行时不需要 Minis。使用 rootshell 原生的 socket/TLS、文件和终端 ABI，不执行 Linux ELF，不转发安装任务。
 
-上游 `minis/bin/` 和旧 `install.sh` 是基线内容，不能代替本 fork 的 Release 成品。
+两端保留中文／英文、Jay-Void-BA 与 FrizzleM 署名、密码查看／隐藏、独立口令加密登录及签名缓存、失败步骤重试、原始 IPA 续签缓存、配对文件验证后保存到程序同目录。只接受本地 IPA，移除 SideInstaller IPA 下载入口。
 
-真实 Apple 账号登录及 iPhone 安装仍需要真机验证。
+签名核心递归处理主程序、扩展、Framework、dylib 和其他 Mach-O，并封存 `.config` 等资源。rootshell 缺少原生符号链接，WASI 文件层保留链接元数据，签名器按链接封印，AFC 安装时重建。原生平台继续使用操作系统链接、Rayon 和 mmap。
+
+Minis／iSH 与 rootshell 不能直接访问对方的沙盒。已有文件先通过“文件”复制进目标应用，再选择导入。设备连接仍需要 LocalDevVPN。
+
+## CI 与发布
+
+`.github/siboot-release.json` 声明当前版本。`checks.yml` 检查共享核心、Minis 和 rootshell；rootshell 额外进行 WASI 编译及固定版本原版 Worker 中的离线运行测试。`release-siboot.yml` 仅针对通过全部检查的同一源码提交构建，复验后发布 `siboot.wasm`、`SHA256SUMS`，并标记 Latest。
+
+实际 Apple 登录及 iPhone 安装仍需真机验证。Minis 0.20.0 的 `siboot-aarch64` 保留在历史 Release；基线中已有的二进制和安装脚本不作为本 fork 当前的发布成品。

@@ -3,10 +3,13 @@ use crate::file_bytes::read_file_bytes;
 use crate::macho::{DEFAULT_CMS_BLOB_RESERVATION, MachOSigningConfig, sign_macho_file};
 use crate::signature::CmsSigner;
 use plist::{Dictionary, Value};
-use rayon::prelude::*;
+use crate::parallel::prelude::*;
 use sha1::Digest as _;
 use std::collections::BTreeMap;
+#[cfg(not(target_os = "wasi"))]
 use std::fs;
+#[cfg(target_os = "wasi")]
+use rootshell_runtime::vfs as fs;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 
@@ -52,11 +55,11 @@ impl Bundle {
     pub fn open(path: impl Into<PathBuf>) -> Result<Self> {
         let path = path.into();
         let info_path = path.join("Info.plist");
-        if !info_path.exists() {
+        if !fs::exists(&info_path).unwrap_or(false) {
             return Err(CodeSignError::MissingInfoPlist(info_path));
         }
-        let root = path.canonicalize().map_err(|source| CodeSignError::io(&path, source))?;
-        let info_target = info_path.canonicalize().map_err(|source| CodeSignError::io(&info_path, source))?;
+        let root = fs::canonicalize(&path).map_err(|source| CodeSignError::io(&path, source))?;
+        let info_target = fs::canonicalize(&info_path).map_err(|source| CodeSignError::io(&info_path, source))?;
         if !info_target.starts_with(root) { return Err(CodeSignError::macho(&info_path, "Info.plist escapes its bundle")); }
 
         let file =
@@ -87,8 +90,8 @@ impl Bundle {
         if name.is_empty() || Path::new(name).components().any(|c| !matches!(c, std::path::Component::Normal(_))) {
             return Err(CodeSignError::macho(&self.path, "invalid executable path"));
         }
-        let image = self.path.join(name).canonicalize().map_err(|source| CodeSignError::io(self.path.join(name), source))?;
-        let root = self.path.canonicalize().map_err(|source| CodeSignError::io(&self.path, source))?;
+        let image = fs::canonicalize(self.path.join(name)).map_err(|source| CodeSignError::io(self.path.join(name), source))?;
+        let root = fs::canonicalize(&self.path).map_err(|source| CodeSignError::io(&self.path, source))?;
         if !image.starts_with(root) { return Err(CodeSignError::macho(&self.path, "executable escapes its bundle")); }
         Ok(name)
     }
@@ -143,7 +146,7 @@ impl Bundle {
                 .map_err(|source| CodeSignError::io(&profile_path, source))?;
         }
 
-        let (sub_results, bundle_files) = rayon::join(
+        let (sub_results, bundle_files) = crate::parallel::join(
             || sign_sub_bundles(&self.path, sub_bundles, settings),
             || collect_own_bundle_files(&self.path, &executable, &sub_bundles_for_hashing),
         );
@@ -205,9 +208,10 @@ impl Bundle {
                     || path == self.path.join(CODE_SIGNATURE_DIR) || path == self.path.join(FAIRPLAY_DIR) { continue; }
                 let info = path.join("Info.plist");
                 let known_code_bundle = matches!(path.extension().and_then(|e| e.to_str()), Some("app" | "appex" | "framework" | "xpc"));
-                let executable_bundle = if info.is_file() {
-                    match plist::from_file::<_, Dictionary>(&info) {
-                        Ok(dict) => dict.get("CFBundleExecutable").and_then(Value::as_string).is_some(),
+                let executable_bundle = if fs::metadata(&info).is_ok_and(|m| m.is_file()) {
+                    match plist::from_file::<_, Dictionary>(fs::canonicalize(&info).map_err(|source| CodeSignError::io(&info, source))?) {
+                        Ok(dict) => dict.get("CFBundleExecutable").and_then(Value::as_string)
+                            .is_some_and(|name| fs::metadata(path.join(name)).is_ok_and(|m| m.is_file())),
                         Err(error) if known_code_bundle => return Err(error.into()),
                         Err(_) => false,
                     }
@@ -261,8 +265,8 @@ fn merge_sub_bundle_resources(
     )?);
     let executable = sub.path.join(&sub.executable);
     if fs::symlink_metadata(&executable).map_err(|source| CodeSignError::io(&executable, source))?.file_type().is_symlink() {
-        let target = executable.canonicalize().map_err(|source| CodeSignError::io(&executable, source))?;
-        let root = parent_path.canonicalize().map_err(|source| CodeSignError::io(parent_path, source))?;
+        let target = fs::canonicalize(&executable).map_err(|source| CodeSignError::io(&executable, source))?;
+        let root = fs::canonicalize(parent_path).map_err(|source| CodeSignError::io(parent_path, source))?;
         let relative = target.strip_prefix(root).map_err(|_| CodeSignError::macho(&target, "nested executable escapes its bundle"))?;
         maps.insert_hash(hash_bundle_file(parent_path, &parent_path.join(relative))?);
     }
@@ -372,7 +376,7 @@ fn collect_own_bundle_files(
 ) -> Result<BundleFiles> {
     let mut resource_files = Vec::new();
     let mut libraries = Vec::new();
-    let main_image = bundle_path.join(executable).canonicalize().ok();
+    let main_image = fs::canonicalize(bundle_path.join(executable)).ok();
 
     walk_files_pruned(
         bundle_path,
@@ -380,8 +384,8 @@ fn collect_own_bundle_files(
             && dir != bundle_path.join(CODE_SIGNATURE_DIR) && dir != bundle_path.join(FAIRPLAY_DIR),
         &mut |path| {
             let relative = relative_path_string(bundle_path, path)?;
-            let canonical = path.canonicalize().map_err(|source| CodeSignError::io(path, source))?;
-            let root = bundle_path.canonicalize().map_err(|source| CodeSignError::io(bundle_path, source))?;
+            let canonical = fs::canonicalize(path).map_err(|source| CodeSignError::io(path, source))?;
+            let root = fs::canonicalize(bundle_path).map_err(|source| CodeSignError::io(bundle_path, source))?;
             if !canonical.starts_with(&root) { return Err(CodeSignError::macho(path, "symlink escapes the app bundle")); }
             let symbolic = fs::symlink_metadata(path).map_err(|source| CodeSignError::io(path, source))?.file_type().is_symlink();
             let is_main = main_image.as_ref() == Some(&canonical);
@@ -509,14 +513,14 @@ fn hash_bundle_file(bundle_path: &Path, path: &Path) -> Result<FileHash> {
 pub fn verify_bundle_resources(path: &Path) -> Result<()> {
     let bundle = Bundle::open(path)?;
     let executable = bundle.executable_name()?;
-    let main = path.join(executable).canonicalize().map_err(|source| CodeSignError::io(path, source))?;
+    let main = fs::canonicalize(path.join(executable)).map_err(|source| CodeSignError::io(path, source))?;
     let sealed: Dictionary = plist::from_file(path.join(CODE_SIGNATURE_DIR).join(CODE_RESOURCES_FILE))?;
     let files = sealed.get("files2").and_then(Value::as_dictionary).ok_or_else(|| CodeSignError::macho(path, "missing resource seal"))?;
     walk_files_pruned(path,
         &mut |dir| dir != path.join(CODE_SIGNATURE_DIR) && dir != path.join(FAIRPLAY_DIR),
         &mut |file| {
             let relative = relative_path_string(path, file)?;
-            if omit_from_files2(&relative) || file.canonicalize().ok().as_ref() == Some(&main) { return Ok(()); }
+            if omit_from_files2(&relative) || fs::canonicalize(file).ok().as_ref() == Some(&main) { return Ok(()); }
             let entry = files.get(&relative).and_then(Value::as_dictionary)
                 .ok_or_else(|| CodeSignError::macho(file, "resource was not sealed"))?;
             let actual = hash_bundle_file(path, file)?;
@@ -531,7 +535,7 @@ pub fn verify_bundle_resources(path: &Path) -> Result<()> {
 
 fn hash_file_data(data: &[u8]) -> ([u8; 20], [u8; 32]) {
     if data.len() >= 1024 * 1024 {
-        rayon::join(
+        crate::parallel::join(
             || sha1::Sha1::digest(data).into(),
             || sha2::Sha256::digest(data).into(),
         )

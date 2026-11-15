@@ -1,6 +1,6 @@
 name: checks
 
-# Checks every pull request, and every push to main, in three jobs that run
+# Checks every pull request and push to main. Rust, iOS, translations, Minis and rootshell run
 # side by side:
 #
 #   rust          the Rust tests (scripts/test-rust.sh: rust-core's own, then
@@ -234,3 +234,49 @@ jobs:
       - name: Clippy
         working-directory: ${{ runner.temp }}/siboot/minis
         run: cargo clippy --locked --all-targets -- -D warnings
+
+  rootshell:
+    name: Rootshell WASI installer and runtime
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      CARGO_INCREMENTAL: "0"
+      CARGO_PROFILE_DEV_DEBUG: "0"
+      CARGO_TARGET_DIR: ${{ github.workspace }}/rust-core/target
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+
+      - name: Prepare both installer targets
+        run: bash scripts/prepare-minis.sh "$RUNNER_TEMP/siboot"
+
+      - name: Install WASI target
+        run: rustup target add wasm32-wasip1
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            rust-core/target
+          key: rootshell-${{ runner.os }}-${{ hashFiles('patches/siboot/retry-local-ipa.patch', 'rust-core/Cargo.lock') }}
+          restore-keys: rootshell-${{ runner.os }}-
+
+      - name: Test the complete installer and bounded HTTP transport
+        run: |
+          cargo test --locked --manifest-path "$RUNNER_TEMP/siboot/rootshell/Cargo.toml" --bin siboot
+          cargo test --locked --manifest-path rust-core/vendor/rootshell-http/Cargo.toml
+
+      - name: Clippy on native and WASI targets
+        run: |
+          cargo clippy --locked --manifest-path "$RUNNER_TEMP/siboot/rootshell/Cargo.toml" --bin siboot -- -D warnings
+          cargo clippy --locked --manifest-path "$RUNNER_TEMP/siboot/rootshell/Cargo.toml" --target wasm32-wasip1 --bin siboot -- -D warnings
+
+      - name: Build the release module and offline probes
+        run: cargo build --locked --release --manifest-path "$RUNNER_TEMP/siboot/rootshell/Cargo.toml" --target wasm32-wasip1 --bins --examples
+
+      - name: Verify in rootshell's pinned original Worker
+        run: bash scripts/check-rootshell-runtime.sh "$CARGO_TARGET_DIR/wasm32-wasip1/release/siboot.wasm" "$CARGO_TARGET_DIR/wasm32-wasip1/release/examples/runtime_check.wasm"

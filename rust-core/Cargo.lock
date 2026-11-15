@@ -144,6 +144,7 @@ dependencies = [
  "pem-rfc7468 0.7.0",
  "plist",
  "rayon",
+ "rootshell-runtime",
  "rsa",
  "sha1 0.11.0",
  "sha2 0.10.9",
@@ -1557,6 +1558,7 @@ dependencies = [
  "plist-macro",
  "rand 0.10.2",
  "reqwest",
+ "rootshell-runtime",
  "rsa",
  "rustls",
  "serde",
@@ -1705,10 +1707,13 @@ dependencies = [
  "rcgen",
  "reqwest",
  "rootcause",
+ "rootshell-http",
+ "rootshell-runtime",
  "rsa",
  "serde",
  "serde_json",
  "sha1 0.11.0",
+ "sha2 0.10.9",
  "sha2 0.11.0",
  "srp",
  "thiserror",
@@ -1752,8 +1757,6 @@ checksum = "8f42a60cbdf9a97f5d2305f08a87dc4e09308d1276d28c869c684d7777685682"
 [[package]]
 name = "jktcp"
 version = "0.1.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "54408d8a86952b9f1cc009782ad7bbb4007a7caaba0599db441e0eae8785288c"
 dependencies = [
  "futures",
  "getrandom 0.3.4",
@@ -2748,6 +2751,27 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4d0df4f84d119d09b5c9c9e8db0fe9bfb5b47b04d0bb95b0763cf81bd9baa559"
 dependencies = [
  "triomphe",
+]
+
+[[package]]
+name = "rootshell-http"
+version = "0.21.0"
+dependencies = [
+ "flate2",
+ "futures-util",
+ "http",
+ "rootshell-runtime",
+ "serde",
+ "serde_json",
+ "tungstenite",
+ "url",
+]
+
+[[package]]
+name = "rootshell-runtime"
+version = "0.21.0"
+dependencies = [
+ "tokio",
 ]
 
 [[package]]

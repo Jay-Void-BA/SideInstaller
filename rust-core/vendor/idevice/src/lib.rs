@@ -34,11 +34,11 @@ pub use services::*;
 /// because `tokio::time` panics at runtime there (no timer backend).
 #[allow(unused_imports)]
 pub(crate) mod time {
-    #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
     pub use tokio::time::*;
-    #[cfg(target_arch = "wasm32")]
+    #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
     pub use wasmtimer::std::Instant;
-    #[cfg(target_arch = "wasm32")]
+    #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
     pub use wasmtimer::tokio::*;
 }
 
@@ -1075,3 +1075,8 @@ impl IdeviceError {
         }
     }
 }
+
+#[cfg(target_os = "wasi")]
+use rootshell_runtime::fs as portable_fs;
+#[cfg(not(target_arch = "wasm32"))]
+use tokio::fs as portable_fs;

@@ -6,8 +6,11 @@ use crate::signature::{
 };
 use byteorder::{BigEndian, ByteOrder, LittleEndian};
 use plist::Dictionary;
-use rayon::prelude::*;
+use crate::parallel::prelude::*;
+#[cfg(not(target_os = "wasi"))]
 use std::fs;
+#[cfg(target_os = "wasi")]
+use rootshell_runtime::vfs as fs;
 use std::path::{Path, PathBuf};
 
 const MH_MAGIC: u32 = 0xfeed_face;

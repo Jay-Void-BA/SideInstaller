@@ -113,3 +113,9 @@ logging is on, but the switch exists for exactly the runs where it is.
 
 A re-vendor moves the pin in `rust-core/Cargo.toml` and `vendor/idevice-ffi` to
 the same revision.
+
+## rootshell WASI port (siboot 0.21.0)
+
+Maintained by Jay-Void-BA, based on FrizzleM/siboot and this dependency's credited upstream authors. WASI Preview 1 uses Tokio timers and rootshell file adapters; browser WASM keeps its JS timers. The vendored jktcp likewise uses Tokio spawning/timers on WASI, enabling a current-thread executor to drive the software TCP tunnel. Existing native and browser APIs remain supported.
+
+The offline release gate runs the pinned original rootshell Worker and checks full CMS signing, links, encrypted storage, HTTP/WebSocket, and software TCP transport. Real Apple Account and iPhone end-to-end installation is not covered by this gate.

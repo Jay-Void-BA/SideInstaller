@@ -13,7 +13,7 @@ use rootcause::prelude::*;
 use sha2::{Digest, Sha256};
 use std::fs::File;
 use std::path::PathBuf;
-use tokio::io::AsyncWriteExt;
+
 use tracing::{info, warn};
 use zip::ZipArchive;
 
@@ -37,7 +37,10 @@ impl Application {
         //let mut temp_path = PathBuf::new();
 
         if path.is_file() {
+            #[cfg(not(target_os = "wasi"))]
             let temp_dir = std::env::temp_dir();
+            #[cfg(target_os = "wasi")]
+            let temp_dir = std::env::var_os("TMPDIR").map(PathBuf::from).unwrap_or_else(|| PathBuf::from("/tmp"));
             let temp_path = temp_dir.join(
                 path.file_name()
                     .ok_or_report()?
@@ -54,9 +57,10 @@ impl Application {
             let file = File::open(&path).context("Failed to open application archive")?;
             let mut archive =
                 ZipArchive::new(file).context("Failed to open application archive")?;
-            archive
-                .extract(&temp_path)
-                .context("Failed to extract application archive")?;
+            #[cfg(not(target_os = "wasi"))]
+            archive.extract(&temp_path).context("Failed to extract application archive")?;
+            #[cfg(target_os = "wasi")]
+            super::wasi_archive::extract(&mut archive, &temp_path).context("Failed to extract application archive")?;
 
             let payload_folder = temp_path.join("Payload");
             if payload_folder.exists() && payload_folder.is_dir() {
@@ -273,10 +277,7 @@ impl Application {
                     .context("Failed to encode cert as p12")?;
                 let alt_cert_path = target_bundle.bundle_dir.join(cert_file_name);
 
-                let mut file = tokio::fs::File::create(&alt_cert_path)
-                    .await
-                    .context(format!("Failed to create {}", cert_file_name))?;
-                file.write_all(&p12_bytes)
+                crate::portable_fs::write(&alt_cert_path, &p12_bytes)
                     .await
                     .context(format!("Failed to write {}", cert_file_name))?;
             }
@@ -312,7 +313,7 @@ impl Application {
 
         info!("Bundling the pairing file into AltStore for Remote AltServer");
         let sealed = seal_pairing_file(pairing_file, machine_id)?;
-        tokio::fs::write(self.bundle.bundle_dir.join(ALT_PAIRING_FILE), sealed)
+        crate::portable_fs::write(self.bundle.bundle_dir.join(ALT_PAIRING_FILE), sealed)
             .await
             .context(format!("Failed to write {}", ALT_PAIRING_FILE))?;
         Ok(())

@@ -23,14 +23,12 @@ fs-storage = []
 idevice = { version = "0.1.61", optional = true, features = ["afc", "installation_proxy", "remote_pairing", "rsd"]}
 plist = "1.8"
 plist-macro = "0.1.4"
-reqwest = { version = "0.13.2", features = ["json", "gzip"] }
 thiserror = "2.0.17"
 async-trait = "0.1.89"
 serde = { version = "1.0.228", features = ["derive"] }
 rand = "0.8.5"
 uuid = {version = "1.20.0", features = ["v4"] }
 tracing = "0.1.44"
-tokio-tungstenite = { version = "0.29.0", features = ["rustls-tls-webpki-roots"] }
 rootcause = "0.12.0"
 futures-util = "0.3.31"
 serde_json = "1.0.149"
@@ -44,10 +42,9 @@ cbc = { version = "0.2.0", features = ["alloc"] }
 aes = "0.9.0"
 aes-gcm = "0.11.0-rc.3"
 rsa = { version = "0.9.10" }
-tokio = { version = "1.49.0", features = ["fs", "rt-multi-thread", "time"] }
+tokio = { version = "1.49.0", default-features = false, features = ["io-util", "rt", "time", "sync", "macros"] }
 keyring = { version = "3.6.3", features = ["apple-native", "linux-native-sync-persistent", "windows-native"], optional = true }
 x509-cert = "0.2.5"
-rcgen = { version = "0.14.7", default-features = false, features = ["aws_lc_rs", "pem"] }
 p12-keystore = { version = "0.3.0-rc4", package = "isideload-p12-keystore" }
 zip = { version = "8.3", default-features = false, features = ["deflate"] }
 apple-codesign-quick = "0.1.0"
@@ -58,3 +55,14 @@ sha1 = "0.11.0"
 # Using native-tls avoids the issue.
 [target.'cfg(windows)'.dependencies]
 reqwest = { version = "0.13.2", features = ["json", "gzip", "native-tls"] }
+
+[target.'cfg(not(target_os = "wasi"))'.dependencies]
+reqwest = { version = "0.13.2", features = ["json", "gzip"] }
+tokio-tungstenite = { version = "0.29.0", features = ["rustls-tls-webpki-roots"] }
+rcgen = { version = "0.14.7", default-features = false, features = ["aws_lc_rs", "pem"] }
+tokio = { version = "1.49.0", features = ["fs", "rt-multi-thread", "time"] }
+
+[target.'cfg(target_os = "wasi")'.dependencies]
+rootshell-http = { package = "rootshell-http", path = "../rootshell-http" }
+rootshell-runtime = { path = "../rootshell-runtime" }
+sha2-10 = { package = "sha2", version = "0.10", features = ["oid"] }

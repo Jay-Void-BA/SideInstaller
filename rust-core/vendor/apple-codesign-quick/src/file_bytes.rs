@@ -1,9 +1,14 @@
 use crate::error::{CodeSignError, Result};
+#[cfg(not(target_os = "wasi"))]
 use memmap2::{Mmap, MmapOptions};
+#[cfg(not(target_os = "wasi"))]
 use std::fs;
+#[cfg(target_os = "wasi")]
+use rootshell_runtime::vfs as fs;
 use std::path::Path;
 
 pub(crate) enum FileBytes {
+    #[cfg(not(target_os = "wasi"))]
     Mapped(Mmap),
     Owned(Vec<u8>),
 }
@@ -11,12 +16,14 @@ pub(crate) enum FileBytes {
 impl FileBytes {
     pub(crate) fn as_slice(&self) -> &[u8] {
         match self {
+            #[cfg(not(target_os = "wasi"))]
             Self::Mapped(map) => map,
             Self::Owned(bytes) => bytes,
         }
     }
 }
 
+#[cfg(not(target_os = "wasi"))]
 pub(crate) fn read_file_bytes(path: &Path) -> Result<FileBytes> {
     let file = fs::File::open(path).map_err(|source| CodeSignError::io(path, source))?;
     let len = file
@@ -41,4 +48,9 @@ pub(crate) fn read_file_bytes(path: &Path) -> Result<FileBytes> {
             .map(FileBytes::Owned)
             .map_err(|source| CodeSignError::io(path, source)),
     }
+}
+
+#[cfg(target_os = "wasi")]
+pub(crate) fn read_file_bytes(path: &Path) -> Result<FileBytes> {
+    fs::read(path).map(FileBytes::Owned).map_err(|source| CodeSignError::io(path, source))
 }

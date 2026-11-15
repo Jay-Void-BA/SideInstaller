@@ -1,5 +1,13 @@
 # Changelog
 
+## siboot 0.21.0 — rootshell
+
+- Jay-Void-BA 移植完整配对、Apple 登录、签名、安装和续签流程至 rootshell WASI；保留 FrizzleM 原作署名。
+- 原生 TLS、单线程签名和协作 TCP，完整处理 dylib、配置资源及版本化 Framework 的链接。
+- 中文／英文、密码查看、加密保存、配对导入和步骤重试保留，发布目标改为 `siboot.wasm`。
+- README 和 CI 重写，增加固定版本 rootshell 原版 Worker 的运行验证。
+
+
 All notable changes to SideInstaller are documented here.
 
 ## 2.1.0 (Jay-Void-BA fork)

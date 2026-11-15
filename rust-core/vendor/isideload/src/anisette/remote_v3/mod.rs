@@ -12,6 +12,8 @@ use reqwest::header::{CONTENT_TYPE, HeaderMap, HeaderValue};
 use rootcause::prelude::*;
 use serde::{Deserialize, Serialize};
 use tokio::time::{Duration, timeout};
+#[cfg(target_os = "wasi")]
+use reqwest::websocket as tokio_tungstenite;
 use tokio_tungstenite::tungstenite::Message;
 use tracing::{debug, info, warn};
 
@@ -651,9 +653,10 @@ impl RemoteV3AnisetteProvider {
 
         loop {
             let Some(msg) = ws_stream.next().await else {
-                continue;
+                bail!("Anisette provisioning socket closed unexpectedly");
             };
             let msg = msg.context("Failed to read anisette provisioning socket message")?;
+            if msg.is_ping() || msg.is_pong() { continue; }
             if msg.is_close() {
                 bail!("Anisette provisioning socket closed unexpectedly");
             }

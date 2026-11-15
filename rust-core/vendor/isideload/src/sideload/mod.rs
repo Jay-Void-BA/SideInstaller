@@ -7,3 +7,6 @@ pub mod install;
 pub mod sideloader;
 pub mod sign;
 pub use builder::{SideloaderBuilder, TeamSelection};
+
+#[cfg(target_os = "wasi")]
+mod wasi_archive;

@@ -176,9 +176,12 @@ impl Sideloader {
         // Extracting the archive is blocking work, so it runs off this task and
         // the requests above keep moving meanwhile.
         let bundle = async {
+            #[cfg(not(target_os = "wasi"))]
             let mut app = tokio::task::spawn_blocking(move || Application::new(app_path))
                 .await
                 .map_err(|e| report!("Failed to open application archive: {e}"))??;
+            #[cfg(target_os = "wasi")]
+            let mut app = Application::new(app_path)?;
             let special = app.get_special_app();
             let wanted_memory_limit = memory_limit;
             let memory_limit = wanted_memory_limit.for_app(special.as_ref());
@@ -347,7 +350,7 @@ impl Sideloader {
         .context("Failed to install app on device")?;
 
         if self.delete_app_after_install
-            && let Err(e) = tokio::fs::remove_dir_all(signed_app_path).await
+            && let Err(e) = crate::portable_fs::remove_dir_all(signed_app_path).await
         {
             tracing::warn!("Failed to remove temporary signed app file: {}", e);
         }

@@ -15,7 +15,7 @@ permissions:
 
 jobs:
   prepare:
-    name: Resolve the tested Minis release
+    name: Resolve the tested rootshell release
     if: >-
       github.event.workflow_run.conclusion == 'success' &&
       github.event.workflow_run.head_branch == github.event.repository.default_branch &&
@@ -33,7 +33,7 @@ jobs:
         with:
           ref: ${{ github.event.workflow_run.head_sha }}
 
-      - name: Resolve binary-only release metadata
+      - name: Resolve WASM release metadata
         id: meta
         run: |
           python3 - <<'PY'
@@ -67,91 +67,72 @@ jobs:
             echo 'ready=true' >> "$GITHUB_OUTPUT"
           fi
 
-  minis:
-    name: Build and verify siboot-aarch64
+  rootshell:
+    name: Build and verify siboot.wasm
     needs: prepare
     if: needs.prepare.outputs.ready == 'true'
-    runs-on: ubuntu-24.04-arm
-    timeout-minutes: 60
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
     outputs:
-      sha256: ${{ steps.verify.outputs.sha256 }}
+      sha256: ${{ steps.stage.outputs.sha256 }}
+    env:
+      CARGO_INCREMENTAL: "0"
+      CARGO_PROFILE_DEV_DEBUG: "0"
     steps:
       - uses: actions/checkout@v7
         with:
           ref: ${{ needs.prepare.outputs.source_sha }}
 
-      - name: Prepare the tested source
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+
+      - name: Prepare the exact tested source
         env:
           VERSION: ${{ needs.prepare.outputs.version }}
         run: |
           bash scripts/prepare-minis.sh "$RUNNER_TEMP/siboot"
-          python3 - <<'PY'
+          python3 - <<'PYVERSION'
           import os, pathlib, tomllib
-          manifest = pathlib.Path(os.environ['RUNNER_TEMP']) / 'siboot/minis/Cargo.toml'
+          manifest = pathlib.Path(os.environ['RUNNER_TEMP']) / 'siboot/rootshell/Cargo.toml'
           assert tomllib.loads(manifest.read_text())['package']['version'] == os.environ['VERSION']
-          PY
+          PYVERSION
+          rustup target add wasm32-wasip1
 
-      - name: Build a static ARM64 executable
-        run: |
-          set -euo pipefail
-          docker run --rm --platform linux/arm64 \
-            -v "$GITHUB_WORKSPACE:$GITHUB_WORKSPACE:ro" \
-            -v "$RUNNER_TEMP/siboot:$RUNNER_TEMP/siboot" \
-            -w "$RUNNER_TEMP/siboot/minis" \
-            -e 'RUSTFLAGS=-C target-feature=+crt-static -C relocation-model=static' \
-            rust:alpine sh -euc '
-              apk add --no-cache build-base cmake perl clang linux-headers
-              cargo build --release --locked --target aarch64-unknown-linux-musl
-            '
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            ${{ runner.temp }}/siboot/rootshell/target
+          key: rootshell-release-${{ runner.os }}-${{ hashFiles('patches/siboot/retry-local-ipa.patch', 'rust-core/Cargo.lock') }}
+          restore-keys: rootshell-release-${{ runner.os }}-
 
-      - name: Verify and stage the only release asset
-        id: verify
+      - name: Build the WASI installer and probes
+        working-directory: ${{ runner.temp }}/siboot/rootshell
+        run: cargo build --release --locked --target wasm32-wasip1 --bins --examples
+
+      - name: Recheck the module in rootshell's actual Worker
+        run: bash scripts/check-rootshell-runtime.sh "$RUNNER_TEMP/siboot/rootshell/target/wasm32-wasip1/release/siboot.wasm" "$RUNNER_TEMP/siboot/rootshell/target/wasm32-wasip1/release/examples/runtime_check.wasm"
+
+      - name: Stage the verified release assets
+        id: stage
         run: |
-          set -euo pipefail
-          binary="$RUNNER_TEMP/siboot/minis/target/aarch64-unknown-linux-musl/release/siboot"
-          file "$binary"
-          file "$binary" | grep -q 'ARM aarch64'
-          if readelf -l "$binary" | grep -q INTERP; then
-            echo '::error::The executable must be statically linked'
-            exit 1
-          fi
-          mkdir -p "$RUNNER_TEMP/siboot-asset"
-          cp "$binary" "$RUNNER_TEMP/siboot-asset/siboot-aarch64"
-          sha256sum "$RUNNER_TEMP/siboot-asset/siboot-aarch64"
-          echo "sha256=$(sha256sum "$binary" | cut -d ' ' -f 1)" >> "$GITHUB_OUTPUT"
+          mkdir -p "$RUNNER_TEMP/rootshell-release"
+          cp "$RUNNER_TEMP/siboot/rootshell/target/wasm32-wasip1/release/siboot.wasm" "$RUNNER_TEMP/rootshell-release/siboot.wasm"
+          cd "$RUNNER_TEMP/rootshell-release"
+          sha256sum siboot.wasm > SHA256SUMS
+          echo "sha256=$(cut -d ' ' -f 1 SHA256SUMS)" >> "$GITHUB_OUTPUT"
 
       - uses: actions/upload-artifact@v4
         with:
-          name: siboot-aarch64
-          path: ${{ runner.temp }}/siboot-asset/siboot-aarch64
+          name: rootshell-release
+          path: ${{ runner.temp }}/rootshell-release/
           if-no-files-found: error
-          retention-days: 14
-
-  runtime:
-    name: Check startup in the Minis iSH engine
-    needs: [prepare, minis]
-    if: needs.prepare.outputs.ready == 'true'
-    runs-on: xcode-27
-    timeout-minutes: 20
-    env:
-      HOMEBREW_NO_AUTO_UPDATE: '1'
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          ref: ${{ needs.prepare.outputs.source_sha }}
-      - uses: actions/download-artifact@v4
-        with:
-          name: siboot-aarch64
-          path: ${{ runner.temp }}/siboot-asset
-      - name: Run version and Chinese help in iSH
-        env:
-          VERSION: ${{ needs.prepare.outputs.version }}
-        run: bash scripts/check-minis-runtime.sh "$RUNNER_TEMP/siboot-asset/siboot-aarch64" "$VERSION"
 
   publish:
-    name: Publish siboot-aarch64 only
-    needs: [prepare, minis, runtime]
-    if: needs.prepare.outputs.ready == 'true'
+    name: Publish the verified rootshell release
+    needs: [prepare, rootshell]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -163,24 +144,37 @@ jobs:
 
       - uses: actions/download-artifact@v4
         with:
-          name: siboot-aarch64
-          path: ${{ runner.temp }}/siboot-asset
+          name: rootshell-release
+          path: ${{ runner.temp }}/rootshell-release
 
-      - name: Verify the digest and publish
+      - name: Publish and mark Latest
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
           TAG: ${{ needs.prepare.outputs.tag }}
-          NOTES: ${{ needs.prepare.outputs.notes }}
+          VERSION: ${{ needs.prepare.outputs.version }}
           SOURCE_SHA: ${{ needs.prepare.outputs.source_sha }}
-          SHA256: ${{ needs.minis.outputs.sha256 }}
+          NOTES: ${{ needs.prepare.outputs.notes }}
+          EXPECTED_SHA256: ${{ needs.rootshell.outputs.sha256 }}
         run: |
           set -euo pipefail
-          binary="$RUNNER_TEMP/siboot-asset/siboot-aarch64"
-          echo "$SHA256  $binary" | sha256sum --check
-          cp "$NOTES" "$RUNNER_TEMP/siboot-notes.md"
-          printf '\nSHA-256 (`siboot-aarch64`): `%s`\n\nSource: `%s`\n' "$SHA256" "$SOURCE_SHA" >> "$RUNNER_TEMP/siboot-notes.md"
-          gh release create "$TAG" "$binary" --draft --title "$TAG" \
-            --notes-file "$RUNNER_TEMP/siboot-notes.md" --target "$SOURCE_SHA"
-          gh release edit "$TAG" --draft=false --prerelease=false --latest=false
-          gh release view "$TAG" --json url --jq .url | tee -a "$GITHUB_STEP_SUMMARY"
+          cd "$RUNNER_TEMP/rootshell-release"
+          sha256sum --check SHA256SUMS
+          [[ "$(sha256sum siboot.wasm | cut -d ' ' -f 1)" == "$EXPECTED_SHA256" ]]
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "::notice::$TAG already exists; preserving the published release"
+            exit 0
+          fi
+          if git -C "$GITHUB_WORKSPACE" ls-remote --exit-code --tags origin "refs/tags/$TAG" >/dev/null 2>&1; then
+            echo "::error::$TAG exists without a release"
+            exit 1
+          fi
+          cp "$GITHUB_WORKSPACE/$NOTES" "$RUNNER_TEMP/rootshell-notes.md"
+          python3 - <<'PYNOTES'
+          import os, pathlib
+          notes = pathlib.Path(os.environ['RUNNER_TEMP']) / 'rootshell-notes.md'
+          with notes.open('a') as output:
+              output.write('\nSHA-256 (`siboot.wasm`): `' + os.environ['EXPECTED_SHA256'] + '`\n')
+              output.write('\nSource commit: `' + os.environ['SOURCE_SHA'] + '`\n')
+          PYNOTES
+          gh release create "$TAG" siboot.wasm SHA256SUMS --target "$SOURCE_SHA" --title "siboot $VERSION · rootshell" --notes-file "$RUNNER_TEMP/rootshell-notes.md" --latest

@@ -74,3 +74,9 @@ own, as `signs_app_extensions_in_extensions` checks here. Change 2 is not
 upstream: tangled.org's rewrite (`src/macho/thin.rs`) still refuses a signature
 with data after it, so a release has to pass this copy's change 2 tests before
 it replaces this copy.
+
+## rootshell WASI port (siboot 0.21.0)
+
+Maintained by Jay-Void-BA, based on FrizzleM/siboot and this dependency's credited upstream authors. WASI uses sequential equivalents of Rayon operations and owned file bytes instead of mmap. A link-aware file adapter preserves ZIP symlinks through signing and resource verification; native platforms retain Rayon, mmap and OS links. Versioned-framework Resources/Info.plist does not become a second executable bundle.
+
+The offline release gate runs the pinned original rootshell Worker and checks full CMS signing, links, encrypted storage, HTTP/WebSocket, and software TCP transport. Real Apple Account and iPhone end-to-end installation is not covered by this gate.

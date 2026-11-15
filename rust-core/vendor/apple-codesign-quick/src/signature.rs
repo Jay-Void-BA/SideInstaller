@@ -1,6 +1,6 @@
 use crate::error::{CodeSignError, Result};
 use plist::{Dictionary, Value};
-use rayon::prelude::*;
+use crate::parallel::prelude::*;
 use sha1::Digest as _;
 use std::borrow::Cow;
 
@@ -255,7 +255,7 @@ pub fn encode_embedded_signature(
     let code_hashes = hash_code_pages(&params.macho_data[..params.code_limit]);
     let (primary_code_directory, alternate_code_directory) =
         if should_parallelize_code_directory_encoding(params, code_hashes.len()) {
-            let (primary, alternate) = rayon::join(
+            let (primary, alternate) = crate::parallel::join(
                 || encode_code_directory(params, HashAlgorithm::Sha1, &code_hashes),
                 || encode_code_directory(params, HashAlgorithm::Sha256, &code_hashes),
             );

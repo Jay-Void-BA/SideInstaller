@@ -1,10 +1,13 @@
+#[cfg(not(target_os = "wasi"))]
+use std::fs;
+#[cfg(target_os = "wasi")]
+use rootshell_runtime::vfs as fs;
 // This file was made using https://github.com/Dadoum/Sideloader as a reference.
 // I'm planning on redoing this later to better handle entitlements, extensions, etc, but it will do for now
 
 use plist::{Dictionary, Value};
 use rootcause::prelude::*;
 use std::{
-    fs,
     path::{Path, PathBuf},
 };
 
@@ -32,7 +35,7 @@ impl Bundle {
 
         let info_plist_path = bundle_path.join("Info.plist");
         assert_bundle(
-            info_plist_path.exists(),
+            fs::exists(&info_plist_path).unwrap_or(false),
             &format!("No Info.plist here: {}", info_plist_path.display()),
         )?;
 
@@ -121,7 +124,7 @@ impl Bundle {
 
     pub fn write_info(&self) -> Result<(), Report> {
         let info_plist_path = self.bundle_dir.join("Info.plist");
-        plist::to_file_binary(&info_plist_path, &self.app_info).context(
+        plist::to_file_binary(fs::canonicalize(&info_plist_path)?, &self.app_info).context(
             SideloadError::InvalidBundle("Failed to write Info.plist".to_string()),
         )?;
         for child in self.app_extensions.iter().chain(self.frameworks.iter()) {
@@ -221,8 +224,9 @@ fn discover_children(root: &Path) -> Result<(Vec<Bundle>, Vec<Bundle>), Report> 
             let extension = path.extension().and_then(|s| s.to_str()).unwrap_or("");
             let known = matches!(extension, "app" | "appex" | "framework" | "xpc");
             let info = path.join("Info.plist");
-            let executable = plist::from_file::<_, Dictionary>(&info).ok()
-                .is_some_and(|d| d.get("CFBundleExecutable").and_then(Value::as_string).is_some());
+            let executable = fs::canonicalize(&info).ok().and_then(|path| plist::from_file::<_, Dictionary>(path).ok())
+                .is_some_and(|d| d.get("CFBundleExecutable").and_then(Value::as_string)
+                    .is_some_and(|name| fs::metadata(path.join(name)).is_ok_and(|m| m.is_file())));
             if known || executable {
                 let child = Bundle::new(path.clone())?;
                 if matches!(extension, "app" | "appex" | "xpc") { extensions.push(child); }

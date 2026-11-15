@@ -1,0 +1,11 @@
+[package]
+name = "rootshell-runtime"
+version = "0.21.0"
+edition = "2021"
+license = "MIT"
+description = "WASI Preview 1 sockets and file adapters for rootshell"
+
+[dependencies]
+tokio = { version = "1", default-features = false, features = ["io-util", "rt", "time", "sync", "macros"] }
+
+[workspace]

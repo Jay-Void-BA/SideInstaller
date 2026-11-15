@@ -1,3 +1,4 @@
+mod parallel;
 pub mod bundle;
 pub mod error;
 mod file_bytes;

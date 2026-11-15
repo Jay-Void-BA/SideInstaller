@@ -1,3 +1,6 @@
+
+#[cfg(target_os = "wasi")]
+extern crate rootshell_http as reqwest;
 #[cfg(feature = "install")]
 use idevice::IdeviceError;
 use rootcause::{
@@ -59,3 +62,8 @@ pub fn init() -> Result<(), Report> {
         .context("Failed to install error reporting hooks")?;
     Ok(())
 }
+
+#[cfg(target_os = "wasi")]
+use rootshell_runtime::fs as portable_fs;
+#[cfg(not(target_os = "wasi"))]
+use tokio::fs as portable_fs;

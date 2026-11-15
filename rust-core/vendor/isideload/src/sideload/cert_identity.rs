@@ -1,11 +1,12 @@
 use apple_codesign_quick::ProvisioningProfile;
 use hex::ToHex;
+#[cfg(not(target_os = "wasi"))]
 use rcgen::{CertificateParams, DistinguishedName, DnType, KeyPair, PKCS_RSA_SHA256};
 use rootcause::{option_ext::OptionExt, prelude::*};
 use rsa::{
     RsaPrivateKey,
     pkcs1::EncodeRsaPublicKey,
-    pkcs8::{DecodePrivateKey, EncodePrivateKey, LineEnding},
+    pkcs8::{DecodePrivateKey, EncodePrivateKey},
 };
 
 use sha1::Sha1;
@@ -395,7 +396,9 @@ impl CertificateIdentity {
         Err(report!("Reached max attempts to request certificate"))
     }
 
-    fn build_csr(private_key: &RsaPrivateKey) -> Result<String, Report> {
+    #[cfg(not(target_os = "wasi"))]
+    /// Create an RSA/SHA-256 PKCS#10 request for the Apple developer portal.
+    pub fn build_csr(private_key: &RsaPrivateKey) -> Result<String, Report> {
         let mut params = CertificateParams::new(vec![])?;
         let mut dn = DistinguishedName::new();
 
@@ -407,11 +410,37 @@ impl CertificateIdentity {
         params.distinguished_name = dn;
 
         let subject_key = KeyPair::from_pkcs8_pem_and_sign_algo(
-            &private_key.to_pkcs8_pem(LineEnding::LF)?,
+            &private_key.to_pkcs8_pem(rsa::pkcs8::LineEnding::LF)?,
             &PKCS_RSA_SHA256,
         )?;
 
         Ok(params.serialize_request(&subject_key)?.pem()?)
+    }
+
+    #[cfg(target_os = "wasi")]
+    /// Create an RSA/SHA-256 PKCS#10 request for the Apple developer portal.
+    pub fn build_csr(private_key: &RsaPrivateKey) -> Result<String, Report> {
+        use rsa::{pkcs1v15::SigningKey, signature::{Signer, SignatureEncoding}};
+        use x509_cert::{der::{asn1::BitString, EncodePem}, name::Name, request::{CertReq, CertReqInfo, Version}, spki::SubjectPublicKeyInfoOwned};
+        use rsa::pkcs8::EncodePublicKey;
+        let public = private_key.to_public_key().to_public_key_der()?;
+        let info = CertReqInfo {
+            version: Version::V1,
+            subject: "C=US,ST=STATE,L=LOCAL,O=ORGNIZATION,CN=CN".parse::<Name>()?,
+            public_key: SubjectPublicKeyInfoOwned::from_der(public.as_bytes())?,
+            attributes: Default::default(),
+        };
+        let signer = SigningKey::<sha2_10::Sha256>::new(private_key.clone());
+        let signature = signer.sign(&info.to_der()?);
+        let request = CertReq {
+            info,
+            algorithm: x509_cert::spki::AlgorithmIdentifierOwned {
+                oid: "1.2.840.113549.1.1.11".parse()?,
+                parameters: Some(x509_cert::der::asn1::Any::null()),
+            },
+            signature: BitString::from_bytes(&signature.to_vec())?,
+        };
+        Ok(request.to_pem(x509_cert::der::pem::LineEnding::LF)?)
     }
 
     async fn revoke_others(

@@ -1,6 +1,6 @@
 // Jackson Coxson
 
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 use std::path::Path;
 
 use ed25519_dalek::{SigningKey, VerifyingKey};
@@ -146,15 +146,15 @@ impl RpPairingFile {
         })
     }
 
-    #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
     pub async fn write_to_file(&self, path: impl AsRef<Path>) -> Result<(), IdeviceError> {
-        tokio::fs::write(path, self.to_bytes()).await?;
+        crate::portable_fs::write(path, self.to_bytes()).await?;
         Ok(())
     }
 
-    #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
     pub async fn read_from_file(path: impl AsRef<Path>) -> Result<Self, IdeviceError> {
-        let bytes = tokio::fs::read(path).await?;
+        let bytes = crate::portable_fs::read(path).await?;
         Self::from_bytes(&bytes)
     }
 }
