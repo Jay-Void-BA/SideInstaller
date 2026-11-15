@@ -141,6 +141,7 @@ let koreanStrings: [String: String] = [
     "Reinstall": "다시 설치",
     "Install %@": "%@ 설치",
     "Custom .ipa": "사용자 지정 .ipa",
+    "Install from Files": "파일에서 설치",
     "Import .ipa": ".ipa 가져오기",
     "Importing…": "가져오는 중…",
     "Replace": "교체",

@@ -142,6 +142,7 @@ let vietnameseStrings: [String: String] = [
     "Reinstall": "Cài đặt lại",
     "Install %@": "Cài đặt %@",
     "Custom .ipa": "IPA tùy chọn",
+    "Install from Files": "Cài đặt từ Tệp",
     "Import .ipa": "Nhập .ipa",
     "Importing…": "Đang nhập…",
     "Replace": "Thay",

@@ -650,7 +650,7 @@ final class Engine {
     /// has answered.
     @MainActor
     func runOneClick(afterProbe: Bool = false) {
-        guard !isRunning else { return }
+        guard !isRunning, !isImportingIPA else { return }
         // Nothing downstream works on an older iOS.
         guard osSupported else {
             log("⛔️ iOS \(osVersionText) isn't supported — SideInstaller needs iOS \(Engine.minimumTunnelOSText) or later.")
@@ -1776,7 +1776,7 @@ final class Engine {
     /// Copy a picked IPA in as the custom import, replacing any previous one.
     @MainActor
     func importCustomIPA(from url: URL) async {
-        guard !isImportingIPA else { return }
+        guard !isRunning, !isImportingIPA else { return }
         isImportingIPA = true
         // Delete the picker's temporary copy once the import is done.
         defer { isImportingIPA = false; Self.discardInboxCopy(url) }
@@ -1785,6 +1785,7 @@ final class Engine {
         do {
             let dest = try await Self.copyImport(from: url)
             showCustomImport(dest)
+            installSource = .custom
             // Clear the cached path so the next run uses the new file.
             if downloadedSource == .custom { downloadedIPAPath = nil }
             setGuide(nil)
@@ -1809,7 +1810,7 @@ final class Engine {
     @MainActor
     @discardableResult
     func importCustomIPA(fromLink text: String) async -> Bool {
-        guard !isImportingIPA else { return false }
+        guard !isRunning, !isImportingIPA else { return false }
         guard let url = Self.downloadLink(text) else {
             lastError = ErrorHelp.explained(L("That isn't a link SideInstaller can download. Paste the whole https:// address the .ipa downloads from."))
             log("⛔️ Import: \(lastError ?? "")")

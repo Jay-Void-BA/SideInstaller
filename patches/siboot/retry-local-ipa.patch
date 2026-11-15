@@ -1,0 +1,1100 @@
+diff --git a/minis/Cargo.lock b/minis/Cargo.lock
+index 3254ab0..3042a51 100644
+--- a/minis/Cargo.lock
++++ b/minis/Cargo.lock
+@@ -2835,6 +2835,7 @@ dependencies = [
+  "tracing",
+  "tracing-subscriber",
+  "uuid",
++ "zip",
+ ]
+ 
+ [[package]]
+diff --git a/minis/Cargo.toml b/minis/Cargo.toml
+index 38ec01e..5aac749 100644
+--- a/minis/Cargo.toml
++++ b/minis/Cargo.toml
+@@ -71,6 +71,8 @@ reqwest = { version = "0.13", features = ["json", "gzip"] }
+ rootcause = "0.12"
+ sha2 = "0.11"
+ hex = "0.4"
++# Already used by isideload; validates locally selected IPAs before signing.
++zip = { version = "8.3", default-features = false, features = ["deflate"] }
+ # No-echo password read from the terminal, for plain output.
+ rpassword = "7"
+ # The live screen: the terminal's size, and keys one at a time (termios). Already
+diff --git a/minis/README.md b/minis/README.md
+index 163b7d0..e759adb 100644
+--- a/minis/README.md
++++ b/minis/README.md
+@@ -44,6 +44,39 @@ SHA-256 the script carries, keeps it at `~/.siboot/bin/siboot` (and
+ `/usr/local/bin/siboot`), and runs it. After that, `siboot` on its own runs it
+ again without downloading.
+ 
++### Retry a failed step
++
++When a step fails, the page keeps the completed steps and offers **Retry step**
++or **Stop**. Retry repeats that step, then continues. The downloaded IPA and
++Apple session stay available; an install retry reuses the signed app and opens
++a fresh tunnel. A handover retry only sends the pairing file again, without
++reinstalling. Cancelled prompts and sign-ins stop without offering a retry.
++In the terminal the same choice is **Retry this step?**.
++
++### Install a local IPA
++
++The page first offers **Download SideInstaller**, or a file picker for an
++`.ipa` already in Files. Pick it and tap **Use selected IPA**. The file is copied
++into Minis in small chunks and checked before the run continues. A failed
++import leaves the picker open to try again. Local files skip the GitHub check
++and release download; signing still needs Apple's servers, an Apple Account
++and LocalDevVPN. The uploaded copy is removed when the run ends.
++
++In the terminal, choose **Install a local IPA** and enter its path inside
++Minis, or pass it directly (quote paths containing spaces):
++
++```sh
++siboot --ipa "/path/to/My App.ipa"
++```
++
++The original file is left alone. Any app can be signed and installed this
++way; only SideInstaller receives SideInstaller's pairing-file handover and
++the **Open SideInstaller** button.
++
++These changes require a newly built siboot binary. The `bin/siboot-aarch64`
++already in this checkout and the upstream install command still run the
++published build; see [Building](#building) to rebuild and update its checksum.
++
+ ## The screen
+ 
+ With `--terminal`, siboot keeps a small live area under what it has printed:
+@@ -126,7 +159,7 @@ on a Mac, once a browser has it open (`-- --web --open` opens it).
+ ## When it stops
+ 
+ When a run stops on a problem (not when you stop it: Ctrl-C, nothing typed, a
+-cancelled sign-in), siboot asks **Copy the log to the clipboard?** under the
++cancelled sign-in), and you decline retrying, siboot asks **Copy the log to the clipboard?** under the
+ box: `y` or return copies it, `n` doesn't. The log is what the screen showed,
+ as plain lines with the time since the start, the answers to its questions
+ (only that something was typed: never a password or a code), idevice's and
+@@ -301,6 +334,8 @@ closing. siboot-pair's own tests, with the same fake iPhone, are in
+ 
+ `cargo run --example screens` plays pairing in Minis as the page and the live
+ screen show it (`-- rootshell` plays rootshell's hand-off instead).
++`cargo run --example screens -- local-ipa --web` previews the file picker and a
++failed install's retry, without contacting an iPhone or Apple.
+ 
+ ## What's been tested
+ 
+diff --git a/minis/examples/screens.rs b/minis/examples/screens.rs
+index 160bcfa..81a5e90 100644
+--- a/minis/examples/screens.rs
++++ b/minis/examples/screens.rs
+@@ -6,6 +6,7 @@
+ //! cargo run --example screens -- rootshell     # taking rootshell's pairing
+ //! cargo run --example screens -- stop          # one that stops at Connect
+ //! cargo run --example screens -- old-minis     # in an Open Minis before 1.16
++//! cargo run --example screens -- local-ipa --web # Files picker and a failed step's retry
+ //! cargo run --example screens -- developer-mode
+ //! cargo run --example screens -- --plain       # the same, as plain lines
+ //! cargo run --example screens -- --web         # the same, as the page
+@@ -25,6 +26,8 @@
+ 
+ #[path = "../src/ui.rs"]
+ mod ui;
++#[path = "../src/ipa.rs"]
++mod ipa;
+ #[path = "../src/web.rs"]
+ mod web;
+ 
+@@ -54,7 +57,9 @@ fn main() {
+     }
+     let devmode = has("developer-mode");
+     let stop = has("stop");
+-    let code = if has("old-minis") {
++    let code = if has("local-ipa") {
++        if local_ipa() { 0 } else { 1 }
++    } else if has("old-minis") {
+         old_minis();
+         1
+     } else if run(devmode, stop, has("rootshell")) {
+@@ -86,6 +91,33 @@ fn main() {
+     std::process::exit(code);
+ }
+ 
++/// Exercises the real upload and retry UI, without signing in or an iPhone.
++fn local_ipa() -> bool {
++    ui::header("0.18.1", "Local IPA and retry preview (no install).");
++    let Some(page) = web::page() else {
++        ui::failure("Use local-ipa with --web.", "");
++        return false;
++    };
++    let folder = std::env::temp_dir().join(format!("siboot-preview-{}", std::process::id()));
++    let Some(path) = page.pick_ipa(&folder) else { return false };
++    let imported = path.map(ipa::Imported);
++    ui::plan(&["IPA", "Install"], 2);
++    ui::step(1, "Preparing the IPA");
++    ui::done(if imported.is_some() { "local IPA imported" } else { "release selected" });
++    ui::step(2, "Installing it");
++    wait(300);
++    if !ui::retry_step("The tunnel disconnected during the upload.", "connection reset (preview)") {
++        ui::failure("Install stopped.", "");
++        return false;
++    }
++    ui::step(2, "Installing it");
++    ui::done("installed (preview)");
++    ui::finish("Preview complete", &["The earlier step stayed complete while the install retried."]);
++    drop(imported);
++    let _ = std::fs::remove_dir(&folder);
++    true
++}
++
+ /// The stop in an Open Minis older than 1.16 (preflight.rs), with no log to
+ /// offer after it.
+ fn old_minis() {
+diff --git a/minis/src/ipa.rs b/minis/src/ipa.rs
+new file mode 100644
+index 0000000..32f6b78
+--- /dev/null
++++ b/minis/src/ipa.rs
+@@ -0,0 +1,171 @@
++//! Bounded uploads from Files into Minis, with a private staging file.
++
++use std::io::{self, Read, Write};
++use std::path::{Path, PathBuf};
++
++pub const CHUNK_SIZE: usize = 256 * 1024;
++pub const MAX_SIZE: u64 = 4 * 1024 * 1024 * 1024;
++
++/// Only a browser-uploaded copy is owned here; a --ipa path is never deleted.
++pub struct Imported(pub PathBuf);
++
++impl Drop for Imported {
++    fn drop(&mut self) {
++        let _ = std::fs::remove_file(&self.0);
++    }
++}
++
++pub struct Upload {
++    path: PathBuf,
++    file: std::fs::File,
++    total: u64,
++    received: u64,
++}
++
++impl Upload {
++    pub fn new(folder: &Path, total: u64) -> io::Result<Self> {
++        std::fs::create_dir_all(folder)?;
++        let path = folder.join(format!("{}.ipa.part", uuid::Uuid::new_v4()));
++        let mut options = std::fs::OpenOptions::new();
++        options.write(true).create_new(true);
++        #[cfg(unix)]
++        {
++            use std::os::unix::fs::OpenOptionsExt;
++            options.mode(0o600);
++        }
++        let file = options.open(&path)?;
++        Ok(Self {
++            path,
++            file,
++            total,
++            received: 0,
++        })
++    }
++
++    /// Each chunk must continue this upload exactly. A repeated first chunk
++    /// starts a new upload in the HTTP handler, so a broken transfer can retry.
++    pub fn append(
++        &mut self,
++        offset: u64,
++        total: u64,
++        bytes: &[u8],
++    ) -> Result<Option<PathBuf>, u16> {
++        if offset != self.received || total != self.total {
++            return Err(409);
++        }
++        if bytes.is_empty()
++            || bytes.len() > CHUNK_SIZE
++            || total == 0
++            || total > MAX_SIZE
++            || bytes.len() as u64 > total.saturating_sub(offset)
++        {
++            return Err(413);
++        }
++        self.file.write_all(bytes).map_err(|_| 500u16)?;
++        self.received += bytes.len() as u64;
++        if self.received < self.total {
++            return Ok(None);
++        }
++        self.file.flush().map_err(|_| 500u16)?;
++        validate(&self.path).map_err(|_| 422u16)?;
++        let dest = self.path.with_extension("");
++        std::fs::rename(&self.path, &dest).map_err(|_| 500u16)?;
++        Ok(Some(dest))
++    }
++}
++
++impl Drop for Upload {
++    fn drop(&mut self) {
++        let _ = std::fs::remove_file(&self.path);
++    }
++}
++
++/// Opening the ZIP's central directory also rejects truncated downloads. Only
++/// read the main app's small Info.plist; the signer handles the entire bundle.
++pub fn validate(path: &Path) -> io::Result<()> {
++    let invalid = |message| io::Error::new(io::ErrorKind::InvalidData, message);
++    let file = std::fs::File::open(path)?;
++    let mut archive = zip::ZipArchive::new(file).map_err(|e| invalid(e.to_string()))?;
++    let infos: Vec<String> = archive
++        .file_names()
++        .filter(|name| {
++            let parts: Vec<_> = name.split('/').collect();
++            parts.len() == 3
++                && parts[0] == "Payload"
++                && parts[1].ends_with(".app")
++                && parts[2] == "Info.plist"
++        })
++        .map(str::to_string)
++        .collect();
++    if infos.len() != 1 {
++        return Err(invalid(
++            "The IPA must contain one app in Payload.".to_string(),
++        ));
++    }
++    let info = archive
++        .by_name(&infos[0])
++        .map_err(|e| invalid(e.to_string()))?;
++    let mut bytes = Vec::new();
++    info.take(2 * 1024 * 1024 + 1).read_to_end(&mut bytes)?;
++    if bytes.len() > 2 * 1024 * 1024 {
++        return Err(invalid("The app's Info.plist is too large.".to_string()));
++    }
++    let info: plist::Dictionary = plist::from_bytes(&bytes).map_err(|e| invalid(e.to_string()))?;
++    if !info
++        .get("CFBundleIdentifier")
++        .and_then(|v| v.as_string())
++        .is_some_and(|id| !id.is_empty())
++    {
++        return Err(invalid("The app has no bundle identifier.".to_string()));
++    }
++    Ok(())
++}
++
++#[cfg(test)]
++pub mod tests {
++    use super::*;
++
++    pub fn fixture() -> Vec<u8> {
++        let mut zip = zip::ZipWriter::new(io::Cursor::new(Vec::new()));
++        zip.start_file(
++            "Payload/Demo.app/Info.plist",
++            zip::write::SimpleFileOptions::default(),
++        )
++        .unwrap();
++        let mut info = plist::Dictionary::new();
++        info.insert("CFBundleIdentifier".into(), "example.demo".into());
++        plist::to_writer_xml(&mut zip, &info).unwrap();
++        zip.finish().unwrap().into_inner()
++    }
++
++    #[test]
++    fn an_upload_requires_ordered_chunks_and_a_complete_ipa() {
++        let folder = std::env::temp_dir().join(format!("siboot-upload-{}", uuid::Uuid::new_v4()));
++        let bytes = fixture();
++        let total = bytes.len() as u64;
++        let mut upload = Upload::new(&folder, total).unwrap();
++        assert_eq!(upload.append(1, total, &bytes[..4]), Err(409));
++        assert_eq!(upload.append(0, total, &bytes[..4]), Ok(None));
++        assert_eq!(upload.append(4, total + 1, &bytes[4..]), Err(409));
++        let dest = upload.append(4, total, &bytes[4..]).unwrap().unwrap();
++        drop(upload);
++        assert_eq!(std::fs::read(&dest).unwrap(), bytes);
++        assert!(validate(&dest).is_ok());
++        assert!(dest.starts_with(&folder));
++        std::fs::remove_dir_all(folder).unwrap();
++    }
++
++    #[test]
++    fn incomplete_and_invalid_uploads_are_removed() {
++        let folder = std::env::temp_dir().join(format!("siboot-upload-{}", uuid::Uuid::new_v4()));
++        let mut partial = Upload::new(&folder, 100).unwrap();
++        partial.append(0, 100, b"PK\x03\x04").unwrap();
++        drop(partial);
++        assert_eq!(std::fs::read_dir(&folder).unwrap().count(), 0);
++        let mut invalid = Upload::new(&folder, 8).unwrap();
++        assert_eq!(invalid.append(0, 8, b"PK\x03\x04junk"), Err(422));
++        drop(invalid);
++        assert_eq!(std::fs::read_dir(&folder).unwrap().count(), 0);
++        std::fs::remove_dir_all(folder).unwrap();
++    }
++}
+diff --git a/minis/src/main.rs b/minis/src/main.rs
+index c61bcfe..85c504a 100644
+--- a/minis/src/main.rs
++++ b/minis/src/main.rs
+@@ -29,10 +29,12 @@ mod fail;
+ #[cfg(test)]
+ mod fake_iphone;
+ mod install;
++mod ipa;
+ mod keepalive;
+ mod pairing;
+ mod preflight;
+ mod report;
++mod retry;
+ mod seed;
+ mod sign;
+ mod tunnel;
+@@ -84,6 +86,7 @@ pub enum Command {
+     DeveloperMode,
+ }
+ 
++#[derive(Clone)]
+ pub struct Args {
+     pub command: Command,
+     /// With `developer-mode`: turn it on, not only show it.
+@@ -227,7 +230,8 @@ Open Minis, with your own Apple Account.
+       prompt that shows only dots.
+   {ipa}
+       Install this IPA instead of SideInstaller's
+-      latest release.
++      latest release. With no --ipa, the page
++      offers a local file picker too.
+   {anisette}
+       Sign in through this anisette server only.
+   {turn_on}
+@@ -461,6 +465,8 @@ where
+ async fn pipeline(args: &Args) -> Result<()> {
+     std::fs::create_dir_all(&args.home)
+         .map_err(|e| Fail::new(format!("Couldn't create {}.", args.home.display()), e.to_string()))?;
++    let (selected, _imported_ipa) = select_ipa(args)?;
++    let args = &selected;
+ 
+     let devmode = args.command == Command::DeveloperMode;
+     match args.command {
+@@ -477,30 +483,33 @@ async fn pipeline(args: &Args) -> Result<()> {
+     // tunnel.
+     let note = |f: Fail| if devmode { devmode::unreachable_note(f) } else { f };
+ 
+-    if devmode {
+-        ui::step(1, "Checking LocalDevVPN and this iPhone");
++    let check_title = if devmode {
++        "Checking LocalDevVPN and this iPhone"
+     } else {
+-        ui::step(1, "Checking LocalDevVPN, this iPhone and the internet");
+-    }
+-    let online = preflight::run(args).await.map_err(note)?;
++        "Checking LocalDevVPN, this iPhone and the internet"
++    };
++    let online = retry::step(1, check_title, async || preflight::run(args).await.map_err(note)).await?;
+     ui::done(if online { "online, and the iPhone answers" } else { "the iPhone answers" });
+     if args.command == Command::Check {
+         ui::finish("Ready", &["Run siboot to install SideInstaller."]);
+         return Ok(());
+     }
+ 
+-    ui::step(2, "Pairing this iPhone with siboot");
+     let pairing_path = args.pairing_path();
+-    let source = pairing::ensure(args, &pairing_path).await.map_err(note)?;
++    let source = retry::step(2, "Pairing this iPhone with siboot", async || {
++        pairing::ensure(args, &pairing_path).await.map_err(note)
++    }).await?;
+     ui::done(match source {
+         pairing::Source::Saved => "the saved pairing still works",
+         pairing::Source::Rootshell => "taken from rootshell",
+         pairing::Source::Minis => "paired here in Minis",
+     });
+ 
+-    ui::step(3, "Connecting to this iPhone through LocalDevVPN");
+-    let mut connection = tunnel::open(args.device, &pairing_path).await.map_err(note)?;
+-    let device = connection.describe().await.map_err(note)?;
++    let (connection, device) = retry::step(3, "Connecting to this iPhone through LocalDevVPN", async || {
++        let mut connection = tunnel::open(args.device, &pairing_path).await.map_err(note)?;
++        let device = connection.describe().await.map_err(note)?;
++        Ok((connection, device))
++    }).await?;
+     ui::ok(&format!(
+         "{} — {} on iOS {}",
+         device.name, device.product_type, device.ios_version
+@@ -512,48 +521,92 @@ async fn pipeline(args: &Args) -> Result<()> {
+         return Ok(());
+     }
+     if devmode {
+-        ui::step(4, "Asking this iPhone for Developer Mode");
+-        return developer_mode(args, &mut connection).await;
++        drop(connection);
++        return retry::step(4, "Asking this iPhone for Developer Mode", async || {
++            let mut connection = tunnel::open(args.device, &pairing_path).await?;
++            developer_mode(args, &mut connection).await
++        }).await;
+     }
+     // The connection is closed here: iOS drops an idle tunnel during sign-in and
+     // signing anyway, so a fresh one is opened to install (as Side by Side does).
+     drop(connection);
+ 
+-    ui::step(4, "Signing in to your Apple Account");
+-    let mut session = account::sign_in(args).await?;
++    let mut session = retry::step(4, "Signing in to your Apple Account", async || {
++        account::sign_in(args).await
++    }).await?;
+     ui::done(&format!("team {}", session.team));
+ 
+-    ui::step(5, "Signing SideInstaller for this iPhone");
+-    let ipa = sign::fetch_ipa(args).await?;
+-    let signed = sign::sign(&mut session, &ipa, &device).await?;
++    let mut ipa = None;
++    let signed = retry::step(5, "Signing the app for this iPhone", async || {
++        if ipa.is_none() {
++            ipa = Some(sign::fetch_ipa(args).await?);
++        }
++        sign::sign(&mut session, ipa.as_ref().unwrap(), &device).await
++    }).await?;
+     ui::done(&match &signed.version {
+         Some(version) => format!("{} {version} signed", signed.name),
+         None => format!("{} signed", signed.name),
+     });
+ 
+-    ui::step(6, "Installing it");
+-    let mut connection = tunnel::open(args.device, &pairing_path).await?;
+-    let uploaded = install::install(&mut connection, &signed.app_dir).await?;
++    let uploaded = retry::step(6, "Installing it", async || {
++        let mut connection = tunnel::open(args.device, &pairing_path).await?;
++        install::install(&mut connection, &signed.app_dir).await
++    }).await?;
+     ui::ok(&format!("{} installed ({})", signed.name, signed.bundle_id));
+     ui::done(&format!("installed · {uploaded}"));
+ 
+-    ui::step(7, "Handing SideInstaller the pairing");
+-    seed::hand_over(&mut connection, &signed.bundle_id, &pairing_path).await?;
+-    ui::done("SideInstaller has the pairing");
++    if signed.is_sideinstaller() {
++        retry::step(7, "Handing SideInstaller the pairing", async || {
++            let mut connection = tunnel::open(args.device, &pairing_path).await?;
++            seed::hand_over(&mut connection, &signed.bundle_id, &pairing_path).await
++        }).await?;
++        ui::done("SideInstaller has the pairing");
++    } else {
++        ui::step(7, "Finishing the install");
++        ui::done("not needed for this app");
++    }
+ 
+     // Its own URL scheme (ios-app/Info.plist): the page's button opens it.
+-    ui::link("Open SideInstaller", "sideinstaller://");
++    if signed.is_sideinstaller() {
++        ui::link("Open SideInstaller", "sideinstaller://");
++    }
+     ui::finish(
+-        "SideInstaller is installed",
++        &format!("{} is installed", signed.name),
+         &[
+             "Open it from your Home Screen. The first time, iOS asks you to trust your Apple \
+              Account: Settings › General › VPN & Device Management.",
+-            "Free accounts' apps last 7 days; SideInstaller can renew itself from then on.",
++            "Free accounts' apps last 7 days. Renew the app before it expires.",
+         ],
+     );
+     Ok(())
+ }
+ 
++fn select_ipa(args: &Args) -> Result<(Args, Option<ipa::Imported>)> {
++    use std::io::IsTerminal;
++    let mut selected = args.clone();
++    if args.command != Command::All || args.ipa.is_some() {
++        return Ok((selected, None));
++    }
++    if let Some(page) = web::page() {
++        let path = page.pick_ipa(&args.home.join("imports"))
++            .ok_or_else(|| Fail::by_user("No app selected."))?;
++        if let Some(path) = path {
++            selected.ipa = Some(path.to_string_lossy().into_owned());
++            return Ok((selected, Some(ipa::Imported(path))));
++        }
++    } else if std::io::stdin().is_terminal() {
++        let choice = ui::choose("choose an app to install", &[
++            "Download SideInstaller".to_string(), "Install a local IPA".to_string(),
++        ]).ok_or_else(|| Fail::by_user("No app selected."))?;
++        if choice == 1 {
++            selected.ipa = Some(ui::ask_text(
++                "path to the local IPA", "IPA path", "/path/to/App.ipa", "IPA path: ",
++            ).ok_or_else(|| Fail::by_user("No IPA selected."))?);
++        }
++    }
++    Ok((selected, None))
++}
++
+ /// Step 4 of `siboot developer-mode`, through the open tunnel.
+ async fn developer_mode(args: &Args, connection: &mut tunnel::Connection) -> Result<()> {
+     let request = if args.turn_on { devmode::Request::TurnOn } else { devmode::Request::Show };
+diff --git a/minis/src/pairing.rs b/minis/src/pairing.rs
+index 048e534..3225290 100644
+--- a/minis/src/pairing.rs
++++ b/minis/src/pairing.rs
+@@ -1340,8 +1340,7 @@ mod tests {
+         let started = std::time::Instant::now();
+         let failure = take(offer, &path, typing(&["481516"]), Duration::from_millis(300))
+             .await
+-            .err()
+-            .expect("a silent rootshell should end the wait");
++            .expect_err("a silent rootshell should end the wait");
+         assert!(started.elapsed() < Duration::from_secs(5));
+         assert!(failure.advice.contains("didn't answer"), "{}", failure.advice);
+         assert!(!path.exists());
+diff --git a/minis/src/preflight.rs b/minis/src/preflight.rs
+index bbd0adc..b6c717a 100644
+--- a/minis/src/preflight.rs
++++ b/minis/src/preflight.rs
+@@ -95,7 +95,7 @@ async fn check_online(args: &Args) -> Result<()> {
+     let downloads = args
+         .ipa
+         .as_deref()
+-        .is_none_or(|ipa| ipa.starts_with("http"));
++        .is_none_or(|ipa| ipa.starts_with("https://") || ipa.starts_with("http://"));
+     if downloads {
+         let url = args.ipa.as_deref().unwrap_or(crate::sign::RELEASE_IPA);
+         ui::activity("reaching GitHub");
+diff --git a/minis/src/retry.rs b/minis/src/retry.rs
+new file mode 100644
+index 0000000..e71151f
+--- /dev/null
++++ b/minis/src/retry.rs
+@@ -0,0 +1,93 @@
++//! A failed step waits for a deliberate retry, keeping earlier results alive.
++
++use crate::fail::{Fail, Result};
++use crate::ui;
++
++pub async fn step<T>(
++    number: usize,
++    title: &str,
++    mut attempt: impl AsyncFnMut() -> Result<T>,
++) -> Result<T> {
++    run(
++        async || {
++            ui::step(number, title);
++            attempt().await
++        },
++        |failure| ui::retry_step(&failure.advice, &failure.raw),
++    )
++    .await
++}
++
++async fn run<T>(
++    mut attempt: impl AsyncFnMut() -> Result<T>,
++    mut offer: impl FnMut(&Fail) -> bool,
++) -> Result<T> {
++    loop {
++        match attempt().await {
++            Ok(value) => return Ok(value),
++            Err(failure) => {
++                // Cancelling a prompt or sign-in must never start it again.
++                if failure.by_user || !offer(&failure) {
++                    return Err(failure);
++                }
++            }
++        }
++    }
++}
++
++#[cfg(test)]
++mod tests {
++    use super::*;
++
++    #[tokio::test]
++    async fn retries_only_the_failed_operation_and_keeps_earlier_work() {
++        let mut completed = Vec::new();
++        let mut attempts = 0;
++        let mut offered = 0;
++        let first = run(async || Ok("signed app"), |_| panic!("no failure"))
++            .await
++            .unwrap();
++        completed.push(first);
++        let installed = run(
++            async || {
++                attempts += 1;
++                assert_eq!(completed, ["signed app"]);
++                if attempts < 3 {
++                    Err(Fail::new("Tunnel disconnected", "reset"))
++                } else {
++                    Ok("installed app")
++                }
++            },
++            |failure| {
++                assert_eq!(failure.raw, "reset");
++                offered += 1;
++                true
++            },
++        )
++        .await
++        .unwrap();
++        assert_eq!(installed, "installed app");
++        assert_eq!(attempts, 3);
++        assert_eq!(offered, 2);
++    }
++
++    #[tokio::test]
++    async fn declining_a_retry_returns_the_original_failure() {
++        let failure = run::<()>(async || Err(Fail::new("No space", "disk full")), |_| false)
++            .await
++            .unwrap_err();
++        assert_eq!(failure.advice, "No space");
++        assert_eq!(failure.raw, "disk full");
++    }
++
++    #[tokio::test]
++    async fn cancellation_is_never_retried() {
++        let failure = run::<()>(
++            async || Err(Fail::by_user("Sign-in cancelled")),
++            |_| panic!("cancellation must not offer retry"),
++        )
++        .await
++        .unwrap_err();
++        assert!(failure.by_user);
++    }
++}
+diff --git a/minis/src/sign.rs b/minis/src/sign.rs
+index a3ef7e5..2564271 100644
+--- a/minis/src/sign.rs
++++ b/minis/src/sign.rs
+@@ -13,8 +13,10 @@ use crate::tunnel::DeviceInfo;
+ use crate::{ui, Args, VERSION};
+ 
+ /// The release Side by Side installs (`SideBySideView.releaseIPA`).
+-pub const RELEASE_IPA: &str =
+-    "https://github.com/FrizzleM/SideInstaller/releases/latest/download/SideInstaller.ipa";
++pub const RELEASE_IPA: &str = match option_env!("SIBOOT_DEFAULT_IPA_URL") {
++    Some(url) => url,
++    None => "https://github.com/FrizzleM/SideInstaller/releases/latest/download/SideInstaller.ipa",
++};
+ 
+ pub struct Signed {
+     /// The signed `.app` folder, ready to upload.
+@@ -25,6 +27,15 @@ pub struct Signed {
+     pub version: Option<String>,
+ }
+ 
++impl Signed {
++    /// Re-signing appends the developer team's identifier.
++    pub fn is_sideinstaller(&self) -> bool {
++        ["com.frizzlem.sideinstaller", "com.frizzle.sideinstaller"].iter().any(|base| {
++            self.bundle_id == *base || self.bundle_id.starts_with(&format!("{base}."))
++        })
++    }
++}
++
+ /// `--ipa` as a path, or the URL it names, or SideInstaller's latest release.
+ pub async fn fetch_ipa(args: &Args) -> Result<PathBuf> {
+     match args.ipa.as_deref() {
+@@ -111,23 +122,10 @@ async fn download(url: &str, dest: &Path) -> Result<PathBuf> {
+ /// An IPA is a zip: an error page or a truncated download isn't, and would
+ /// only fail later, inside the signer.
+ fn check_ipa(path: &Path) -> Result<()> {
+-    let mut magic = [0u8; 4];
+-    let read =
+-        std::fs::File::open(path).and_then(|mut f| std::io::Read::read_exact(&mut f, &mut magic));
+-    match read {
+-        Ok(()) if &magic == b"PK\x03\x04" => Ok(()),
+-        Ok(()) => Err(Fail::new(
+-            format!(
+-                "{} isn't an IPA. GitHub may have returned an error page: try again in a minute.",
+-                path.display()
+-            ),
+-            format!("first bytes {magic:02x?}"),
+-        )),
+-        Err(e) => Err(Fail::new(
+-            format!("Couldn't read {}.", path.display()),
+-            e.to_string(),
+-        )),
+-    }
++    crate::ipa::validate(path).map_err(|e| Fail::new(
++        format!("{} isn't an IPA that can be read. Pick a complete .ipa file, or download it again.", path.display()),
++        e.to_string(),
++    ))
+ }
+ 
+ pub async fn sign(session: &mut Session, ipa: &Path, device: &DeviceInfo) -> Result<Signed> {
+@@ -205,12 +203,20 @@ fn bundle_info(app_dir: &Path) -> Result<(String, String, Option<String>)> {
+ mod tests {
+     use super::*;
+ 
++    #[test]
++    fn only_sideinstaller_receives_the_pairing_file() {
++        for id in ["com.frizzlem.sideinstaller", "com.frizzle.sideinstaller.TEAM123456", "example.demo", "com.frizzle.sideinstaller-copy"] {
++            let signed = Signed { app_dir: PathBuf::new(), bundle_id: id.into(), name: "App".into(), version: None };
++            assert_eq!(signed.is_sideinstaller(), id == "com.frizzlem.sideinstaller" || id == "com.frizzle.sideinstaller.TEAM123456");
++        }
++    }
++
+     #[test]
+     fn only_a_zip_passes_as_an_ipa() {
+         let dir = std::env::temp_dir().join(format!("siboot-ipa-{}", std::process::id()));
+         std::fs::create_dir_all(&dir).unwrap();
+         let good = dir.join("good.ipa");
+-        std::fs::write(&good, b"PK\x03\x04rest").unwrap();
++        std::fs::write(&good, crate::ipa::tests::fixture()).unwrap();
+         assert!(check_ipa(&good).is_ok());
+         let page = dir.join("page.ipa");
+         std::fs::write(&page, b"<!DOCTYPE html>").unwrap();
+diff --git a/minis/src/ui.rs b/minis/src/ui.rs
+index 96b7dc1..8ed34e8 100644
+--- a/minis/src/ui.rs
++++ b/minis/src/ui.rs
+@@ -611,6 +611,29 @@ pub fn failure(advice: &str, raw: &str) {
+     ui.stopped = true;
+ }
+ 
++/// A failed attempt, without ending the run or discarding completed steps.
++pub fn retry_step(advice: &str, raw: &str) -> bool {
++    progress_end();
++    warn(advice);
++    if !raw.is_empty() {
++        detail(raw);
++    }
++    web::send(json!({"t": "step_failed"}));
++    {
++        let mut ui = ui();
++        if ui.mode == Mode::Live {
++            let above = ui.settle("✕", BAD, "failed; waiting for retry");
++            ui.paint(&above);
++        }
++    }
++    let answer = match web::page() {
++        Some(page) => page.retry(advice, raw),
++        None => confirm_prompt("retry this step?", true),
++    };
++    record_answer("retry this step?", Some(if answer { "Retry" } else { "Stop" }));
++    answer
++}
++
+ /// A button on the page, in the box the run ends in (`finish` or `failure`):
+ /// the app it installed, or the App Store for an update. Nothing on the
+ /// terminal.
+diff --git a/minis/src/web.html b/minis/src/web.html
+index 996d032..13b855f 100644
+--- a/minis/src/web.html
++++ b/minis/src/web.html
+@@ -285,6 +285,8 @@ footer{display:flex; align-items:center; justify-content:space-between; gap:12px
+     s.line.textContent = cap(title);
+     s.startedAt = at;
+     s.time.textContent = "0:00";
++    s.progress.hidden = true;
++    bar = null;
+     place();
+   }
+ 
+@@ -433,7 +435,56 @@ footer{display:flex; align-items:center; justify-content:space-between; gap:12px
+     const actions = make("div", "actions");
+     let focus = null;
+ 
+-    if (e.kind === "text" || e.kind === "secret" || e.kind === "line") {
++    if (e.kind === "ipa") {
++      actions.append(button("Download SideInstaller", "primary", "button", () => send({ release: true })));
++      const field = make("label", "field");
++      field.append(make("span", "field-label", "Or choose a local .ipa from Files"));
++      const input = make("input", "input");
++      input.type = "file";
++      input.accept = ".ipa";
++      field.append(input);
++      askEl.append(field);
++      const status = make("p", "hint");
++      status.setAttribute("role", "status");
++      askEl.append(status);
++      const useFile = button("Use selected IPA", "secondary", "button", async () => {
++        const file = input.files[0];
++        if (!file) { status.textContent = "Choose an .ipa file first."; return; }
++        if (!/\.ipa$/i.test(file.name) || file.size === 0 || file.size > e.maxSize) {
++          status.textContent = "Choose a complete .ipa file smaller than 4 GB.";
++          return;
++        }
++        busy(true);
++        try {
++          const chunkSize = 256 * 1024;
++          for (let offset = 0; offset < file.size; offset += chunkSize) {
++            status.textContent = "Importing " + file.name + "… " + Math.floor(100 * offset / file.size) + "%";
++            const reply = await fetch("upload", {
++              method: "POST",
++              headers: {
++                "Content-Type": "application/octet-stream",
++                "X-Siboot-Question": String(e.id),
++                "X-Siboot-Offset": String(offset),
++                "X-Siboot-Total": String(file.size),
++              },
++              body: file.slice(offset, offset + chunkSize),
++              cache: "no-store",
++            });
++            if (!reply.ok) throw new Error(reply.status === 422
++              ? "This isn't a complete IPA. Choose another file."
++              : "Couldn't import the IPA (" + reply.status + "). Select the file and try again.");
++          }
++          status.textContent = "IPA imported.";
++        } catch (error) {
++          if (asking && asking.id === e.id) {
++            busy(false);
++            status.textContent = error.message || "Couldn't import the IPA. Try again.";
++          }
++        }
++      });
++      actions.append(useFile);
++      actions.append(button("Cancel", "quiet", "button", () => send({ cancel: true })));
++    } else if (e.kind === "text" || e.kind === "secret" || e.kind === "line") {
+       const field = make("label", "field");
+       if (e.label) field.append(make("span", "field-label", e.label));
+       const input = make("input", "input");
+@@ -508,6 +559,15 @@ footer{display:flex; align-items:center; justify-content:space-between; gap:12px
+       }
+       actions.append(button(e.button || "Start", "primary", "button", () => send({ go: true })));
+       actions.append(button("Cancel", "quiet", "button", () => send({ cancel: true })));
++    } else if (e.kind === "retry") {
++      askEl.append(make("p", null, e.advice));
++      if (e.cause) {
++        const more = make("details", "cause");
++        more.append(make("summary", null, "Details"), make("p", null, e.cause));
++        askEl.append(more);
++      }
++      actions.append(button("Retry step", "primary", "button", () => send({ yes: true })));
++      actions.append(button("Stop", "quiet", "button", () => send({ yes: false })));
+     } else if (e.kind === "confirm") {
+       actions.append(button("Yes", e.default ? "primary" : "secondary", "button", () => send({ yes: true })));
+       actions.append(button("No", e.default ? "secondary" : "primary", "button", () => send({ yes: false })));
+@@ -580,6 +640,7 @@ footer{display:flex; align-items:center; justify-content:space-between; gap:12px
+       case "step": begin(e.n, e.title, e.at); break;
+       case "status": setStatus(e.text); break;
+       case "done": settle("done", e.summary); break;
++      case "step_failed": settle("failed", "Waiting for retry"); break;
+       case "ok": case "note": case "warn": case "detail": item(e.t, e.text); break;
+       case "progress": progress(e); break;
+       case "progress_end": progressEnd(); break;
+diff --git a/minis/src/web.rs b/minis/src/web.rs
+index 9066841..642a469 100644
+--- a/minis/src/web.rs
++++ b/minis/src/web.rs
+@@ -29,6 +29,7 @@ use std::collections::HashMap;
+ use std::fmt::Write as _;
+ use std::io::{self, BufRead, BufReader, Read, Write};
+ use std::net::{Ipv4Addr, TcpListener, TcpStream};
++use std::path::{Path, PathBuf};
+ use std::process::{Command, Stdio};
+ use std::sync::atomic::{AtomicUsize, Ordering};
+ use std::sync::{Arc, Condvar, Mutex, MutexGuard, OnceLock};
+@@ -186,6 +187,9 @@ struct State {
+     /// The progress last sent, so a bar sends one event a percent.
+     progress: Option<(String, u64)>,
+     ended: bool,
++    ipa_folder: Option<PathBuf>,
++    upload: Option<crate::ipa::Upload>,
++    imported_ipa: Option<PathBuf>,
+ }
+ 
+ /// A six-digit code, or what the page asked for instead.
+@@ -341,6 +345,32 @@ impl Server {
+         answer["yes"].as_bool().unwrap_or(false)
+     }
+ 
++    pub fn retry(&self, advice: &str, cause: &str) -> bool {
++        let answer = self.ask(json!({
++            "kind": "retry", "question": "Retry this step?", "advice": advice, "cause": cause,
++        }));
++        answer["yes"] == json!(true)
++    }
++
++    /// None cancels; Some(None) downloads the release. Paths can only come
++    /// from this question's upload, never from a browser-supplied filename.
++    pub fn pick_ipa(&self, folder: &Path) -> Option<Option<PathBuf>> {
++        self.shared.lock().ipa_folder = Some(folder.to_path_buf());
++        let answer = self.ask(json!({
++            "kind": "ipa", "question": "Choose an app to install", "maxSize": crate::ipa::MAX_SIZE,
++        }));
++        let mut state = self.shared.lock();
++        state.ipa_folder = None;
++        state.upload = None;
++        let imported = state.imported_ipa.take();
++        if answer["uploaded"] == json!(true) {
++            imported.map(Some)
++        } else {
++            if let Some(path) = imported { let _ = std::fs::remove_file(path); }
++            if answer["release"] == json!(true) { Some(None) } else { None }
++        }
++    }
++
+     /// What to do elsewhere, as numbered `steps` with `notes` under them, and
+     /// `button` to start: true when it's tapped, false on Cancel.
+     pub fn ready(&self, title: &str, steps: &[&str], notes: &[&str], button: &str) -> bool {
+@@ -558,7 +588,12 @@ fn read_request(stream: &TcpStream) -> Result<Request, u16> {
+     };
+     if let Some(length) = request.header("content-length") {
+         let length: usize = length.parse().map_err(|_| 400u16)?;
+-        if length > MAX_BODY {
++        let max = if request.method == "POST" && request.target.ends_with("/upload") {
++            crate::ipa::CHUNK_SIZE
++        } else {
++            MAX_BODY
++        };
++        if length > max {
+             return Err(413);
+         }
+         let mut body = vec![0; length];
+@@ -606,8 +641,9 @@ fn handle(shared: &Shared, stream: TcpStream) -> io::Result<()> {
+         ),
+         ("GET", "/events") => events(shared, &stream, &request),
+         ("POST", "/answer") => answer(shared, &stream, &request),
++        ("POST", "/upload") => upload(shared, &stream, &request),
+         ("POST", "/stop") => stop(shared, &stream, &request),
+-        (_, "" | "/" | "/events" | "/answer" | "/stop") => refuse(&stream, 405),
++        (_, "" | "/" | "/events" | "/answer" | "/stop" | "/upload") => refuse(&stream, 405),
+         _ => refuse(&stream, 404),
+     }
+ }
+@@ -641,6 +677,9 @@ fn answer(shared: &Shared, stream: &TcpStream, request: &Request) -> io::Result<
+     };
+     let taken = {
+         let mut state = shared.lock();
++        if state.ipa_folder.is_some() && !cancelled(&given) && given["release"] != json!(true) {
++            return refuse(stream, 400);
++        }
+         if state.asking == Some(id) && state.answer.is_none() {
+             state.answer = Some(given);
+             shared.changed.notify_all();
+@@ -653,6 +692,50 @@ fn answer(shared: &Shared, stream: &TcpStream, request: &Request) -> io::Result<
+     respond(stream, if taken { 204 } else { 409 }, &[], b"")
+ }
+ 
++/// One bounded binary chunk from Files. The key, Host and Origin checks also
++/// apply here; only the currently displayed IPA question can receive it.
++fn upload(shared: &Shared, stream: &TcpStream, request: &Request) -> io::Result<()> {
++    if !request.header("origin").is_some_and(|origin| shared.is_own_origin(origin)) {
++        return refuse(stream, 403);
++    }
++    if request.header("content-type") != Some("application/octet-stream") {
++        return refuse(stream, 415);
++    }
++    let number = |name| request.header(name).and_then(|v| v.parse::<u64>().ok());
++    let (Some(id), Some(offset), Some(total)) = (
++        number("x-siboot-question"), number("x-siboot-offset"), number("x-siboot-total"),
++    ) else { return refuse(stream, 400); };
++    if total == 0 || total > crate::ipa::MAX_SIZE || request.body.is_empty() {
++        return refuse(stream, 413);
++    }
++    let mut state = shared.lock();
++    if state.asking != Some(id) || state.answer.is_some() || state.ipa_folder.is_none() {
++        return refuse(stream, 409);
++    }
++    if offset == 0 {
++        state.upload = None;
++        match crate::ipa::Upload::new(state.ipa_folder.as_ref().unwrap(), total) {
++            Ok(upload) => state.upload = Some(upload),
++            Err(_) => return refuse(stream, 500),
++        }
++    }
++    let Some(upload) = state.upload.as_mut() else { return refuse(stream, 409); };
++    match upload.append(offset, total, &request.body) {
++        Ok(Some(path)) => {
++            state.imported_ipa = Some(path);
++            state.upload = None;
++            state.answer = Some(json!({"uploaded": true}));
++            shared.changed.notify_all();
++            respond(stream, 204, &[], b"")
++        }
++        Ok(None) => respond(stream, 204, &[], b""),
++        Err(status) => {
++            state.upload = None;
++            refuse(stream, status)
++        }
++    }
++}
++
+ fn stop(shared: &Shared, stream: &TcpStream, request: &Request) -> io::Result<()> {
+     if let Err(status) = posted_json(shared, request) {
+         return refuse(stream, status);
+@@ -788,7 +871,9 @@ fn reason(status: u16) -> &'static str {
+         409 => "Conflict",
+         413 => "Payload Too Large",
+         415 => "Unsupported Media Type",
++        422 => "Unprocessable Content",
+         431 => "Request Header Fields Too Large",
++        500 => "Internal Server Error",
+         _ => "Error",
+     }
+ }
+@@ -1054,6 +1139,83 @@ mod tests {
+         )
+     }
+ 
++    fn upload_chunk(server: &Server, id: u64, offset: u64, total: u64, bytes: &[u8], origin: &str) -> u16 {
++        let mut stream = TcpStream::connect(("127.0.0.1", server.shared.port)).unwrap();
++        stream.set_read_timeout(Some(Duration::from_secs(5))).unwrap();
++        write!(stream,
++            "POST {}/upload HTTP/1.1\r\nHost: {}\r\nOrigin: {}\r\n\
++             Content-Type: application/octet-stream\r\nContent-Length: {}\r\n\
++             X-Siboot-Question: {id}\r\nX-Siboot-Offset: {offset}\r\nX-Siboot-Total: {total}\r\n\r\n",
++            base(server), host(server), origin, bytes.len()).unwrap();
++        stream.write_all(bytes).unwrap();
++        let mut first = String::new();
++        BufReader::new(stream).read_line(&mut first).unwrap();
++        first.split_whitespace().nth(1).unwrap().parse().unwrap()
++    }
++
++    #[test]
++    fn local_ipas_are_uploaded_only_for_the_current_question_from_its_own_page() {
++        let server = leaked();
++        let folder = std::env::temp_dir().join(format!("siboot-web-ipa-{}", uuid::Uuid::new_v4()));
++        let selected_folder = folder.clone();
++        let mut reader = subscribe(server, None);
++        let selected = asked(server, move |s| s.pick_ipa(&selected_folder));
++        let question = until(&mut reader, "ask");
++        assert_eq!(question["kind"], "ipa");
++        let id = question["id"].as_u64().unwrap();
++        let bytes = crate::ipa::tests::fixture();
++        let total = bytes.len() as u64;
++        let origin = format!("http://{}", host(server));
++        assert_eq!(reply(server, id, json!({"uploaded": true, "value": "/etc/passwd"})), 400);
++        assert_eq!(upload_chunk(server, id, 0, total, &bytes, "http://elsewhere.test"), 403);
++        assert_eq!(upload_chunk(server, id + 1, 0, total, &bytes, &origin), 409);
++        assert_eq!(upload_chunk(server, id, 0, 8, b"PK\x03\x04junk", &origin), 422);
++        assert_eq!(upload_chunk(server, id, 0, total, &bytes[..4], &origin), 204);
++        assert_eq!(upload_chunk(server, id, 4, total, &bytes[4..], &origin), 204);
++        let path = selected.join().unwrap().unwrap().unwrap();
++        assert!(path.starts_with(&folder));
++        assert_eq!(std::fs::read(path).unwrap(), bytes);
++        assert_eq!(upload_chunk(server, id, 0, total, &bytes, &origin), 409);
++        std::fs::remove_dir_all(folder).unwrap();
++    }
++
++    #[test]
++    fn choosing_the_release_or_cancelling_cleans_up_partial_uploads() {
++        for release in [true, false] {
++            let server = leaked();
++            let folder = std::env::temp_dir().join(format!("siboot-web-ipa-{}", uuid::Uuid::new_v4()));
++            let selected_folder = folder.clone();
++            let mut reader = subscribe(server, None);
++            let selected = asked(server, move |s| s.pick_ipa(&selected_folder));
++            let question = until(&mut reader, "ask");
++            let id = question["id"].as_u64().unwrap();
++            let origin = format!("http://{}", host(server));
++            assert_eq!(upload_chunk(server, id, 0, 100, b"PK\x03\x04", &origin), 204);
++            let answer = if release { json!({"release": true}) } else { json!({"cancel": true}) };
++            assert_eq!(reply(server, id, answer), 204);
++            assert_eq!(selected.join().unwrap(), if release { Some(None) } else { None });
++            assert_eq!(std::fs::read_dir(&folder).unwrap().count(), 0);
++            std::fs::remove_dir_all(folder).unwrap();
++        }
++    }
++
++    #[test]
++    fn a_failed_step_waits_for_an_explicit_retry_or_stop() {
++        let server = leaked();
++        let mut reader = subscribe(server, None);
++        for again in [true, false] {
++            let retry = asked(server, |s| s.retry("Tunnel disconnected", "connection reset"));
++            let question = until(&mut reader, "ask");
++            assert_eq!(question["kind"], "retry");
++            assert_eq!(question["advice"], "Tunnel disconnected");
++            assert_eq!(question["cause"], "connection reset");
++            let id = question["id"].as_u64().unwrap();
++            assert_eq!(reply(server, id + 1, json!({"yes": true})), 409);
++            assert_eq!(reply(server, id, json!({"yes": again})), 204);
++            assert_eq!(retry.join().unwrap(), again);
++        }
++    }
++
+     #[test]
+     fn a_question_waits_for_its_answer() {
+         let server = leaked();

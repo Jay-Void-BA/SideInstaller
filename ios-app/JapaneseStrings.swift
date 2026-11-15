@@ -140,6 +140,7 @@ let japaneseStrings: [String: String] = [
     "Reinstall": "再インストール",
     "Install %@": "%@ をインストール",
     "Custom .ipa": "カスタム .ipa",
+    "Install from Files": "ファイルからインストール",
     "Import .ipa": ".ipa をインポート",
     "Importing…": "インポート中…",
     "Replace": "置き換え",

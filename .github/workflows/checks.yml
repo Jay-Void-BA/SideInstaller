@@ -195,6 +195,39 @@ jobs:
                git fetch --no-tags --depth=1 origin "$BEFORE" 2>/dev/null; then
             base="$BEFORE"
           fi
+
+  minis:
+    name: Minis tests and release configuration
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      CARGO_INCREMENTAL: "0"
+      CARGO_PROFILE_DEV_DEBUG: "0"
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Validate release configuration and installer packaging
+        run: python3 -m unittest discover -s scripts/tests -v
+
+      - name: Prepare the patched Minis source
+        run: bash scripts/prepare-minis.sh "$RUNNER_TEMP/siboot"
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            ${{ runner.temp }}/siboot/minis/target
+          key: minis-test-${{ runner.os }}-${{ hashFiles('patches/siboot/retry-local-ipa.patch', 'rust-core/Cargo.lock') }}
+          restore-keys: minis-test-${{ runner.os }}-
+
+      - name: Test Minis
+        working-directory: ${{ runner.temp }}/siboot/minis
+        run: cargo test --locked --all-targets
+
+      - name: Clippy
+        working-directory: ${{ runner.temp }}/siboot/minis
+        run: cargo clippy --locked --all-targets -- -D warnings
           if [[ -n "$base" ]]; then
             python3 scripts/check_translations.py --base "$base"
           else

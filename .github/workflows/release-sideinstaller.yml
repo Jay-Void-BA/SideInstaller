@@ -1,63 +1,30 @@
 name: release-sideinstaller
 
-# Builds SideInstaller's unsigned IPA on GitHub and ships it as a release:
-#
-#   1. asks for the version and the changelog (Actions › release-sideinstaller
-#      › Run workflow),
-#   2. builds the IPA from the branch it's run on, unsigned
-#      (scripts/build-ipa.sh: Rust library, Xcode project from project.yml,
-#      Release build), with that version,
-#   3. publishes release v<version> with the IPA attached as SideInstaller.ipa
-#      and the changelog as its notes,
-#   4. runs notify-signer, which asks FrizzleM/SideInstaller-Signed to sign
-#      it: every certificate in the pool signs it there, the signed IPAs go on
-#      a release of that repository under the same tag, and the install page
-#      (sideinstaller.net) is rebuilt and deployed from there,
-#   5. on the stable channel, runs update-altsource, so frizzlem.json lists it.
-#
-# Steps 4 and 5 are what publishing a release by hand sets off. A release this
-# workflow makes can't set them off itself (GitHub starts no workflows for
-# events made with a run's own token), so they're called from here instead.
-#
-# Nothing here signs anything or commits an IPA: the unsigned IPA lives on the
-# release, the signed ones on SideInstaller-Signed's releases.
-#
-# The changelog is Markdown: # / ## / ### for heading sizes, **bold**, *italic*,
-# - for a list. The box on the Run workflow form is a single line, so type \n
-# where a line break goes and \n\n for a blank line (scripts/release_notes.py).
-# From the command line the notes can keep their line breaks as they are:
-#
-#   gh workflow run release-sideinstaller.yml -f version=1.6.0 -f changelog="$(cat notes.md)"
-#
-# Tick "dry_run" to build the IPA only: it's kept on the run page for 14 days,
-# the notes are previewed in the run summary, and nothing is published.
-#
-# A version that already has a release or tag is refused, so a release can't
-# be overwritten. The in-app update banner reads the latest stable release's
-# tag, so publishing a stable release here is all it takes to show it.
-
+# A main-branch version change is released only after the checks workflow
+# succeeds. Every job checks out that exact tested SHA, including workflow_run
+# events, whose github.sha otherwise points at the newest default-branch tip.
 on:
+  workflow_run:
+    workflows: [checks]
+    types: [completed]
+    branches: [main]
   workflow_dispatch:
     inputs:
       version:
-        description: "Version, e.g. 1.6.0 (released as v1.6.0). A beta may add a suffix: 1.6.0-beta.1"
-        required: true
+        description: "Version (blank uses .github/release.json)"
+        required: false
         type: string
       changelog:
-        description: 'Changelog in Markdown: # / ## / ### for headings, **bold**, *italic*, - for a list. Type \n for a line break, \n\n for a blank line.'
-        required: true
+        description: 'Markdown notes; blank uses the versioned notes file. Literal \n is accepted.'
+        required: false
         type: string
       channel:
-        description: "stable: public release, index.html and the AltSource. beta: prerelease and beta.html"
-        required: true
+        description: "Release channel"
         type: choice
         default: stable
-        options:
-          - stable
-          - beta
+        options: [stable, beta]
       dry_run:
-        description: "Only build the IPA (kept on the run page): no release, no signing"
-        required: false
+        description: "Build artifacts without publishing"
         type: boolean
         default: false
 
@@ -69,96 +36,93 @@ permissions:
   contents: read
 
 env:
-  # The Xcode to build with: the one the app is developed on. The code needs
-  # the iOS 27 SDK, which only the xcode-27 runner has for now; when GitHub's
-  # macos-latest gets Xcode 27, `runs-on` below can move to it. Built with an
-  # SDK older than 27.1, the iPhone Duo would show the app in a window instead
-  # of full screen, so scripts/build-ipa.sh stops on one.
   XCODE_VERSION: "27.1"
   HOMEBREW_NO_AUTO_UPDATE: "1"
   HOMEBREW_NO_INSTALL_CLEANUP: "1"
 
 jobs:
-  build:
-    name: Build the unsigned IPA
-    runs-on: xcode-27
-    # A cold build (Rust from scratch) takes the longest; this also stops the
-    # run if the xcode-27 label goes away and no runner ever picks it up.
-    timeout-minutes: 90
-    permissions:
-      contents: write   # create the release and its tag
+  prepare:
+    name: Resolve the tested release
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_branch == github.event.repository.default_branch &&
+       github.event.workflow_run.head_repository.full_name == github.repository)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
     outputs:
+      ready: ${{ steps.existing.outputs.ready }}
       tag: ${{ steps.meta.outputs.tag }}
+      marketing_version: ${{ steps.meta.outputs.marketing_version }}
+      source_sha: ${{ steps.meta.outputs.source_sha }}
+      channel: ${{ steps.meta.outputs.channel }}
+      dry_run: ${{ steps.meta.outputs.dry_run }}
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v7
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
-      # Inputs reach the scripts through env only, never pasted into a script,
-      # so #, *, quotes, backticks and $ in the changelog stay plain text.
-      - name: Check the version and changelog
+      - name: Resolve version and notes
         id: meta
-        shell: bash
         env:
           VERSION_INPUT: ${{ inputs.version }}
-          CHANGELOG: ${{ inputs.changelog }}
-          CHANNEL: ${{ inputs.channel }}
-          DRY_RUN: ${{ inputs.dry_run }}
+          CHANGELOG_INPUT: ${{ inputs.changelog }}
+          CHANNEL_INPUT: ${{ inputs.channel }}
+          DRY_RUN_INPUT: ${{ inputs.dry_run }}
+        run: python3 scripts/release_config.py "$RUNNER_TEMP/release-metadata"
+
+      - name: Require passing checks and refuse existing tags
+        id: existing
+        env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
+          TAG: ${{ steps.meta.outputs.tag }}
+          SOURCE_SHA: ${{ steps.meta.outputs.source_sha }}
+          DRY_RUN: ${{ steps.meta.outputs.dry_run }}
           DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        shell: bash
         run: |
           set -euo pipefail
-          version="$(printf '%s' "$VERSION_INPUT" | tr -d '[:space:]')"
-          version="${version#[vV]}"
-          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+(\.[0-9]+)?(-[0-9A-Za-z][0-9A-Za-z.]*)?$ ]]; then
-            echo "::error::Version must look like 1.6.0, or 1.6.0-beta.1 for a beta (got: $VERSION_INPUT)"
-            exit 1
+          if [[ "$DRY_RUN" != true ]]; then
+            [[ "$GITHUB_REF_NAME" == "$DEFAULT_BRANCH" ]] || { echo '::error::Release from the default branch only'; exit 1; }
+            if [[ "$GITHUB_EVENT_NAME" == workflow_dispatch ]]; then
+              result="$(gh run list --workflow checks.yml --commit "$SOURCE_SHA" --limit 1 --json conclusion,status --jq '.[0] | .status + ":" + .conclusion')"
+              [[ "$result" == completed:success ]] || { echo '::error::The exact release commit must pass checks first'; exit 1; }
+            fi
           fi
-          # The app reports the numbers only; a suffix goes on the tag.
-          marketing="${version%%-*}"
-          tag="v$version"
-
-          # Releases are cut from the default branch only, so every tag is on
-          # the history everyone builds from.
-          if [[ "$DRY_RUN" != "true" && "$GITHUB_REF_NAME" != "$DEFAULT_BRANCH" ]]; then
-            echo "::error::Run releases from $DEFAULT_BRANCH (this run is on $GITHUB_REF_NAME). A dry run works on any branch."
-            exit 1
-          fi
-
-          if gh release view "$tag" >/dev/null 2>&1 ||
-             git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null 2>&1; then
-            if [[ "$DRY_RUN" == "true" ]]; then
-              echo "::warning::$tag already exists; a real run would stop here."
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            if [[ "$DRY_RUN" == true ]]; then
+              echo "::notice::$TAG exists; this run only builds artifacts"
+            elif [[ "$GITHUB_EVENT_NAME" == workflow_run ]]; then
+              echo "ready=false" >> "$GITHUB_OUTPUT"
+              echo "::notice::$TAG is already released; no release will be overwritten"
+              exit 0
             else
-              echo "::error::$tag already has a release or tag. Pick another version, or delete that release and its tag first."
+              echo "::error::$TAG already has a release"
               exit 1
             fi
+          elif git ls-remote --exit-code --tags origin "refs/tags/$TAG" >/dev/null 2>&1; then
+            [[ "$DRY_RUN" == true ]] || { echo "::error::$TAG already exists"; exit 1; }
           fi
+          echo "ready=true" >> "$GITHUB_OUTPUT"
 
-          notes="$RUNNER_TEMP/release-notes.md"
-          python3 scripts/release_notes.py "$notes"
+      - uses: actions/upload-artifact@v4
+        if: steps.existing.outputs.ready == 'true'
+        with:
+          name: release-metadata
+          path: ${{ runner.temp }}/release-metadata/
+          if-no-files-found: error
 
-          {
-            echo "tag=$tag"
-            echo "marketing_version=$marketing"
-            echo "notes_file=$notes"
-          } >> "$GITHUB_OUTPUT"
-
-          {
-            if [[ "$DRY_RUN" == "true" ]]; then
-              echo "## $tag ($CHANNEL), dry run: nothing is published"
-            else
-              echo "## $tag ($CHANNEL)"
-            fi
-            echo
-            echo "App version $marketing, built from \`${GITHUB_SHA:0:7}\` on $GITHUB_REF_NAME. The release notes, as they'll show:"
-            echo
-            echo "---"
-            echo
-            cat "$notes"
-          } >> "$GITHUB_STEP_SUMMARY"
-          echo "Release $tag ($CHANNEL), app version $marketing. Notes:"
-          cat "$notes"
+  ios:
+    name: Build the unsigned IPA
+    needs: prepare
+    if: needs.prepare.outputs.ready == 'true'
+    runs-on: xcode-27
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.prepare.outputs.source_sha }}
 
       - name: Select Xcode
         shell: bash
@@ -171,102 +135,153 @@ jobs:
           if [[ -z "$app" ]]; then
             app="$(xcode-select -p)"
             app="${app%/Contents/Developer}"
-            echo "::warning::Xcode $XCODE_VERSION isn't on this runner; building with $app"
-            ls -d /Applications/Xcode*.app
+            echo "::warning::Xcode $XCODE_VERSION wasn't found; the build script will verify the selected SDK"
           fi
           echo "DEVELOPER_DIR=$app/Contents/Developer" >> "$GITHUB_ENV"
           DEVELOPER_DIR="$app/Contents/Developer" xcodebuild -version
 
       - name: Install build tools
-        shell: bash
         run: |
-          set -euo pipefail
           command -v xcodegen >/dev/null || brew install xcodegen
           rustup target add aarch64-apple-ios
-          echo "xcodegen $(xcodegen --version 2>/dev/null | tail -1)"
-          rustc --version
-          cargo --version
 
-      # The Rust library only changes with rust-core/, so it's kept between
-      # runs and the Rust build is skipped when nothing there moved. This has
-      # to come before the build-folder cache below, which puts rust-core/target
-      # in place and would end up in the hash.
-      - name: Restore the Rust library
-        id: ffi-cache
-        uses: actions/cache@v4
-        with:
-          path: SideInstallerFFI.xcframework
-          key: ffi-ios-${{ env.XCODE_VERSION }}-${{ hashFiles('rust-core/**', 'build-rust.sh') }}
-
-      - name: Restore the Rust build folder
-        if: steps.ffi-cache.outputs.cache-hit != 'true'
-        uses: actions/cache@v4
+      - uses: actions/cache@v4
         with:
           path: |
-            ~/.cargo/registry/index
-            ~/.cargo/registry/cache
-            ~/.cargo/git/db
+            ~/.cargo/registry
+            ~/.cargo/git
             rust-core/target
           key: cargo-ios-${{ hashFiles('rust-core/Cargo.lock') }}
           restore-keys: cargo-ios-
 
-      - name: Build the IPA
-        shell: bash
+      - name: Build IPA
         env:
-          VERSION: ${{ steps.meta.outputs.marketing_version }}
+          VERSION: ${{ needs.prepare.outputs.marketing_version }}
           OUTPUT: ${{ runner.temp }}/ipa/SideInstaller.ipa
           DERIVED_DATA: ${{ runner.temp }}/DerivedData
         run: bash scripts/build-ipa.sh
 
-      - name: Keep the IPA on the run page
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
-          name: SideInstaller-${{ steps.meta.outputs.tag }}-unsigned
+          name: release-ios
           path: ${{ runner.temp }}/ipa/SideInstaller.ipa
           if-no-files-found: error
           retention-days: 14
 
-      - name: Publish the release
-        if: ${{ !inputs.dry_run }}
+  minis:
+    name: Build the Minis ARM64 installer
+    needs: prepare
+    if: needs.prepare.outputs.ready == 'true'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.prepare.outputs.source_sha }}
+
+      - name: Prepare Minis source
+        run: bash scripts/prepare-minis.sh "$RUNNER_TEMP/siboot"
+
+      - name: Build a native ARM64 musl static executable
+        env:
+          IPA_URL: https://github.com/${{ github.repository }}/releases/download/${{ needs.prepare.outputs.tag }}/SideInstaller.ipa
         shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm --platform linux/arm64 \
+            -v "$GITHUB_WORKSPACE:$GITHUB_WORKSPACE:ro" \
+            -v "$RUNNER_TEMP/siboot:$RUNNER_TEMP/siboot" \
+            -w "$RUNNER_TEMP/siboot/minis" \
+            -e SIBOOT_DEFAULT_IPA_URL="$IPA_URL" \
+            -e 'RUSTFLAGS=-C target-feature=+crt-static -C relocation-model=static' \
+            rust:alpine sh -euc '
+              apk add --no-cache build-base cmake perl clang linux-headers
+              cargo build --release --locked --target aarch64-unknown-linux-musl
+            '
+          binary="$RUNNER_TEMP/siboot/minis/target/aarch64-unknown-linux-musl/release/siboot"
+          file "$binary"
+          file "$binary" | grep -q 'ARM aarch64'
+          if readelf -l "$binary" | grep -q INTERP; then
+            echo '::error::The Minis executable must be statically linked'
+            exit 1
+          fi
+
+      - name: Package the installer and matching checksums
+        env:
+          RELEASE_TAG: ${{ needs.prepare.outputs.tag }}
+        run: |
+          python3 scripts/package_minis.py "$RUNNER_TEMP/siboot/minis" \
+            "$RUNNER_TEMP/siboot/minis/target/aarch64-unknown-linux-musl/release/siboot" \
+            "$RUNNER_TEMP/minis-assets"
+          cp patches/siboot/retry-local-ipa.patch "$RUNNER_TEMP/minis-assets/"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-minis
+          path: ${{ runner.temp }}/minis-assets/
+          if-no-files-found: error
+          retention-days: 14
+
+  publish:
+    name: Publish verified release assets
+    needs: [prepare, ios, minis]
+    if: needs.prepare.outputs.dry_run == 'false'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    outputs:
+      tag: ${{ needs.prepare.outputs.tag }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: release-*
+          merge-multiple: true
+          path: ${{ runner.temp }}/release
+
+      - name: Verify artifacts and publish
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-          TAG: ${{ steps.meta.outputs.tag }}
-          NOTES: ${{ steps.meta.outputs.notes_file }}
-          CHANNEL: ${{ inputs.channel }}
-          IPA: ${{ runner.temp }}/ipa/SideInstaller.ipa
+          TAG: ${{ needs.prepare.outputs.tag }}
+          SOURCE_SHA: ${{ needs.prepare.outputs.source_sha }}
+          CHANNEL: ${{ needs.prepare.outputs.channel }}
+        working-directory: ${{ runner.temp }}/release
+        shell: bash
         run: |
           set -euo pipefail
-          if [[ "$CHANNEL" == "beta" ]]; then
-            kind=(--prerelease)
+          python3 - <<'PY'
+          import json, os, pathlib, zipfile
+          data = json.loads(pathlib.Path('release.json').read_text())
+          assert data['source_sha'] == os.environ['SOURCE_SHA']
+          assert data['tag'] == os.environ['TAG']
+          with zipfile.ZipFile('SideInstaller.ipa') as ipa:
+              assert 'Payload/SideInstaller.app/Info.plist' in ipa.namelist()
+          PY
+          sha256sum SideInstaller.ipa siboot-aarch64 install-minis.sh retry-local-ipa.patch > SHA256SUMS
+          sha256sum --check SHA256SUMS
+          gh release create "$TAG" SideInstaller.ipa siboot-aarch64 install-minis.sh retry-local-ipa.patch SHA256SUMS \
+            --draft --title "$TAG" --notes-file release-notes.md --target "$SOURCE_SHA"
+          if [[ "$CHANNEL" == beta ]]; then
+            gh release edit "$TAG" --draft=false --prerelease
           else
-            kind=(--latest)
+            gh release edit "$TAG" --draft=false --prerelease=false --latest
           fi
-          # The tag is made on the commit that was just built.
-          gh release create "$TAG" "$IPA" --title "$TAG" --notes-file "$NOTES" \
-            --target "$GITHUB_SHA" "${kind[@]}"
-          echo "Published $(gh release view "$TAG" --json url -q .url)" | tee -a "$GITHUB_STEP_SUMMARY"
+          gh release view "$TAG" --json url --jq .url | tee -a "$GITHUB_STEP_SUMMARY"
 
-  # Same as a release published by hand: SideInstaller-Signed is told the tag,
-  # signs that release's IPA with every certificate and deploys the install
-  # page. Whether it's a beta is read from the release's prerelease flag.
   sign:
-    name: Ask SideInstaller-Signed to sign it
-    needs: build
-    if: ${{ !inputs.dry_run }}
-    permissions:
-      contents: read
+    name: Notify the upstream signer (upstream repository only)
+    needs: publish
+    if: github.repository == 'FrizzleM/SideInstaller'
     uses: ./.github/workflows/notify-signer.yml
     with:
-      tag: ${{ needs.build.outputs.tag }}
+      tag: ${{ needs.publish.outputs.tag }}
     secrets: inherit
 
-  # The AltSource lists stable releases only.
   altsource:
-    name: Update the AltSource
-    needs: build
-    if: ${{ !inputs.dry_run && inputs.channel == 'stable' }}
+    name: Update the upstream AltSource
+    needs: [prepare, publish]
+    if: github.repository == 'FrizzleM/SideInstaller' && needs.prepare.outputs.channel == 'stable'
     permissions:
       contents: write
     uses: ./.github/workflows/update-altsource.yml

@@ -4,8 +4,6 @@ import SwiftUI
 struct SideInstallerApp: App {
     // The one engine, handed to every screen through the environment.
     @State private var engine = Engine.shared
-    // Checks GitHub for a newer release and drives the update banner.
-    @StateObject private var updateChecker = UpdateChecker()
     // Held here so every screen redraws when the language setting changes.
     @StateObject private var localizer = Localizer.shared
     // The saved Apple IDs, shared by every screen that signs in.
@@ -34,10 +32,8 @@ struct SideInstallerApp: App {
                 if hasAcceptedTOS && hasCompletedAccountSetup {
                     RootView()
                         .environment(engine)
-                        .environmentObject(updateChecker)
                         .environmentObject(localizer)
                         .environmentObject(accounts)
-                        .task { await updateChecker.check() }
                         .transition(.opacity)
                 } else {
                     // The terms, the sideinstaller.net question and the Apple
@@ -68,7 +64,6 @@ struct SideInstallerApp: App {
                 if ["mobiledevicepairing", "plist"].contains(url.pathExtension.lowercased()) {
                     Task { await engine.importPairingFile(from: url) }
                 } else {
-                    engine.installSource = .custom
                     Task { await engine.importCustomIPA(from: url) }
                 }
             }

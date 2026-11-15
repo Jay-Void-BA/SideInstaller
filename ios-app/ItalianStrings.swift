@@ -141,6 +141,7 @@ let italianStrings: [String: String] = [
     "Reinstall": "Reinstalla",
     "Install %@": "Installa %@",
     "Custom .ipa": "IPA personalizzato",
+    "Install from Files": "Installa da File",
     "Import .ipa": "Importa .ipa",
     "Importing…": "Importazione…",
     "Replace": "Sostituisci",

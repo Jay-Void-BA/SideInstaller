@@ -5,7 +5,6 @@ import UniformTypeIdentifiers
 /// The Install screen: an Apple ID, a build, and a step timeline while it runs.
 struct ContentView: View {
     @Environment(Engine.self) private var engine
-    @EnvironmentObject private var updateChecker: UpdateChecker
     /// Observed so labels redraw when the language changes.
     @EnvironmentObject private var loc: Localizer
     @Environment(\.openURL) private var openURL
@@ -32,9 +31,6 @@ struct ContentView: View {
             ScrollView {
                 VStack(spacing: 16) {
                     header.cascadeItem(0)
-                    if updateChecker.showBanner {
-                        updateBanner.transition(.cardAppear)
-                    }
                     appCard.cascadeItem(1)
                     // Below iOS 27 a pairing file must be imported, so show the
                     // import card.
@@ -84,7 +80,6 @@ struct ContentView: View {
                 .padding(20)
                 .pageColumn()
                 // One modifier per piece of state, so only its own card animates.
-                .animation(.smooth(duration: 0.35), value: updateChecker.showBanner)
                 .animation(.smooth(duration: 0.35), value: engine.vpnConnected)
                 .animation(.smooth(duration: 0.35), value: engine.wifiConnected)
                 // The surface's change of shape, and what it pushes along.
@@ -197,77 +192,6 @@ struct ContentView: View {
             .padding(.top, 8)
     }
 
-    // MARK: Update banner
-
-    /// Notice shown when GitHub advertises a newer version than this build.
-    private var updateBanner: some View {
-        PanelCard {
-            VStack(alignment: .leading, spacing: 12) {
-                HStack(alignment: .top, spacing: 12) {
-                    Image(systemName: "arrow.up.circle")
-                        .font(.title3)
-                        .foregroundStyle(Theme.accent)
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(L("Update available"))
-                            .font(.subheadline.weight(.medium))
-                        Text(L("SideInstaller %@ is available — you're on %@.",
-                               updateChecker.latestVersion ?? "", updateChecker.currentVersion))
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                    Spacer(minLength: 4)
-                    Button {
-                        updateChecker.dismiss()
-                    } label: {
-                        Image(systemName: "xmark")
-                            .font(.footnote.weight(.semibold))
-                            .foregroundStyle(.secondary)
-                            .frame(width: 28, height: 28)
-                            .background(Circle().fill(Theme.control))
-                            .contentShape(Circle())
-                    }
-                    .buttonStyle(.plain, sound: .dismiss)
-                }
-                Menu {
-                    updateOptions
-                } label: {
-                    HStack(spacing: 4) {
-                        Text(L("Get the latest version"))
-                        Image(systemName: "chevron.down")
-                    }
-                    .font(.footnote.weight(.medium))
-                    .foregroundStyle(Theme.accent)
-                }
-            }
-        }
-    }
-
-    /// The ways to get the new version: the website's signed build, the
-    /// release signed and installed here with the Apple ID's certificate, or,
-    /// with LiveContainer on this iPhone, the release installed inside it.
-    @ViewBuilder
-    private var updateOptions: some View {
-        Button {
-            if let url = URL(string: UpdateChecker.installPageURL) { openURL(url) }
-        } label: {
-            Label(L("From the website"), systemImage: "safari")
-        }
-        Button {
-            if let url = URL(string: UpdateChecker.releaseIPAURL) { engine.installLinkedIPA(url) }
-        } label: {
-            Label(L("Sign it with your Apple ID"), systemImage: "signature")
-        }
-        .disabled(engine.isRunning || engine.isImportingIPA)
-        if engine.liveContainerInstalled {
-            Button {
-                if let url = URL(string: UpdateChecker.releaseIPAURL) { engine.installInLiveContainer(url) }
-            } label: {
-                Label(L("Install it in LiveContainer"), systemImage: "shippingbox")
-            }
-        }
-    }
-
     // MARK: App picker
 
     private var appCard: some View {
@@ -326,12 +250,22 @@ struct ContentView: View {
                     }
                     .transition(.opacity)
                 }
+                if engine.installSource != .custom {
+                    Button {
+                        linkFieldFocused = false
+                        showImporter = true
+                    } label: {
+                        Label(L("Install from Files"), systemImage: "folder")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(SecondaryButtonStyle(), sound: .tap)
+                }
             }
             // On the whole card, so it also resizes smoothly when the slot goes.
             .animation(.smooth(duration: 0.28), value: engine.installSource)
             .animation(.smooth(duration: 0.28), value: engine.stableReleased)
         }
-        .disabled(engine.isRunning)
+        .disabled(engine.isRunning || engine.isImportingIPA)
         // Madeira offers Stable only once its first stable release is out.
         .task(id: engine.installSource) { await engine.checkStableRelease(for: engine.installSource) }
     }
@@ -499,6 +433,7 @@ struct ContentView: View {
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(PressReportingButtonStyle(isPressed: $installPressed), sound: .press)
+                .disabled(engine.isImportingIPA)
                 .transition(.surfaceSwap)
             }
         }
@@ -544,6 +479,7 @@ struct ContentView: View {
     private var installButton: some View {
         Button(action: startInstall) { installLabel }
             .buttonStyle(PrimaryButtonStyle())
+            .disabled(engine.isImportingIPA)
     }
 
     private var installLabel: some View {

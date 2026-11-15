@@ -143,6 +143,7 @@ let spanishStrings: [String: String] = [
     "Reinstall": "Reinstalar",
     "Install %@": "Instalar %@",
     "Custom .ipa": "IPA personalizado",
+    "Install from Files": "Instalar desde Archivos",
     "Import .ipa": "Importar .ipa",
     "Importing…": "Importando…",
     "Replace": "Sustituir",

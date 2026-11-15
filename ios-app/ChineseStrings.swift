@@ -140,6 +140,7 @@ let chineseStrings: [String: String] = [
     "Reinstall": "重新安装",
     "Install %@": "安装 %@",
     "Custom .ipa": "自定义 .ipa",
+    "Install from Files": "从文件安装",
     "Import .ipa": "导入 .ipa",
     "Importing…": "正在导入…",
     "Replace": "更换",

@@ -2,6 +2,18 @@
 
 All notable changes to SideInstaller are documented here.
 
+## 2.1.0 (Jay-Void-BA fork)
+
+### Added
+- A visible **Install from Files** action. A successful IPA import selects the custom app automatically.
+- Minis step retries that retain completed work, plus local IPA selection and chunked imports.
+- CI checks for the Minis patch and release automation that publishes the iOS IPA and a matching static Minis installer only after checks pass.
+
+### Changed
+- Removed SideInstaller's launch-time software update check and update banner.
+- Prevented installs and IPA imports from starting concurrently.
+- Ordinary local IPAs in Minis skip SideInstaller-specific pairing-file handover.
+
 ## 2.0.1
 
 ### Changed

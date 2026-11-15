@@ -1,0 +1,5 @@
+# Public-preview runner documented by actions/runner-images#14404. Older
+# actionlint releases do not yet include it in their hosted-runner list.
+self-hosted-runner:
+  labels:
+    - xcode-27

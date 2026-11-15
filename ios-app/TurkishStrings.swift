@@ -117,6 +117,7 @@ let turkishStrings: [String: String] = [
     "Reinstall": "Yeniden yükle",
     "Install %@": "%@ yükle",
     "Custom .ipa": "Özel .ipa",
+    "Install from Files": "Dosyalardan yükle",
     "Import .ipa": ".ipa içe aktar",
     "Importing…": "İçe aktarılıyor…",
     "Replace": "Değiştir",

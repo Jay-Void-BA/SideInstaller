@@ -7,7 +7,7 @@
 **Install SideStore and LiveContainer directly on your iPhone. No PC required.**
 
 [![Install](https://img.shields.io/badge/Install-SideInstaller-2ea44f?style=for-the-badge)](https://sideinstaller.net/)
-[![Version](https://img.shields.io/badge/version-2.0.1-2669ed?style=for-the-badge)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-2.1.0-2669ed?style=for-the-badge)](CHANGELOG.md)
 [![Platform](https://img.shields.io/badge/platform-iOS-lightgrey?style=for-the-badge&logo=apple)](#requirements)
 [![License](https://img.shields.io/badge/license-Custom-orange?style=for-the-badge)](LICENSE.md)
 
@@ -95,6 +95,23 @@ Developer Mode on. [sideinstaller.net](https://sideinstaller.net/) shows steps 1
    **Settings › General › VPN & Device Management**.
 4. **Open SideInstaller.** With LocalDevVPN connected, log in with your Apple account and tap
    **Install SideStore** or **Install SideStore + LiveContainer**.
+
+To install an IPA already saved on your iPhone, tap **Install from Files** on
+the Install page and select it. A successful import selects **Custom .ipa**
+automatically; tap **Install** to sign it with your Apple ID and install it.
+Cancelling the picker or choosing an invalid file keeps the current selection.
+This build does not check for SideInstaller updates or show an update banner.
+
+The Minis installer's retry and local-file changes are maintained separately
+in siboot. [The accompanying patch](patches/siboot/README.md) contains those
+changes and instructions for applying and building them.
+
+For this fork, [GitHub Releases](https://github.com/Jay-Void-BA/SideInstaller/releases)
+includes the unsigned IPA and a matching Minis installer. Run the release's
+`install-minis.sh` in Open Minis to install this fork. CI checks the iOS app,
+Rust core, translations and patched Minis source before publishing a version
+from `.github/release.json`; the release assets are built from that exact
+tested commit.
 
 Once paired, `siboot developer-mode` in Open Minis asks the iPhone to show the Developer Mode switch
 in Settings, or with `--turn-on` to turn it on ([details](https://github.com/FrizzleM/siboot/blob/main/minis/README.md#developer-mode)).

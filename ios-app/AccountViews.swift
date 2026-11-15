@@ -12,7 +12,7 @@ import SwiftUI
 struct OfficialSourceCheck: View {
     /// Set once the user says the app came from sideinstaller.net.
     static let defaultsKey = "confirmedOfficialSource"
-    static let websiteURL = URL(string: UpdateChecker.installPageURL)!
+    static let websiteURL = URL(string: "https://sideinstaller.net/")!
 
     @EnvironmentObject private var loc: Localizer
     @State private var unofficial = false
