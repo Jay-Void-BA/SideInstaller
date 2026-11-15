@@ -1552,13 +1552,32 @@ mod unreachable_tests {
     use super::is_unreachable;
     use rootcause::prelude::*;
 
+    struct MissingHost;
+
+    impl reqwest::dns::Resolve for MissingHost {
+        fn resolve(&self, _: reqwest::dns::Name) -> reqwest::dns::Resolving {
+            Box::pin(async {
+                Err(std::io::Error::new(std::io::ErrorKind::NotFound, "test host has no DNS record").into())
+            })
+        }
+    }
+
     fn get(url: &str) -> Report {
         tokio::runtime::Builder::new_current_thread()
             .enable_all()
             .build()
             .unwrap()
             .block_on(async {
-                reqwest::get(url)
+                // A proxy may answer even for .invalid domains. Keep this
+                // test local and make DNS fail without consulting a server.
+                reqwest::Client::builder()
+                    .no_proxy()
+                    .dns_resolver(std::sync::Arc::new(MissingHost))
+                    .timeout(std::time::Duration::from_secs(2))
+                    .build()
+                    .unwrap()
+                    .get(url)
+                    .send()
                     .await
                     .context("Failed to ask")
                     .unwrap_err()
