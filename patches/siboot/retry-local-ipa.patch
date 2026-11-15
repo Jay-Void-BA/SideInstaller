@@ -1,5 +1,5 @@
 diff --git a/minis/Cargo.lock b/minis/Cargo.lock
-index 3254ab0..8c87d38 100644
+index 3254ab0..f208883 100644
 --- a/minis/Cargo.lock
 +++ b/minis/Cargo.lock
 @@ -2812,7 +2812,7 @@ checksum = "f8fadd59c855ef2080decdef8ff161eb6661b86933c9d82e5ba29dc602a55aba"
@@ -7,7 +7,7 @@ index 3254ab0..8c87d38 100644
  [[package]]
  name = "siboot"
 -version = "0.18.1"
-+version = "0.19.0"
++version = "0.20.0"
  dependencies = [
   "base64 0.22.1",
   "chacha20poly1305",
@@ -29,17 +29,20 @@ index 3254ab0..8c87d38 100644
  
  [[package]]
 diff --git a/minis/Cargo.toml b/minis/Cargo.toml
-index 38ec01e..8b43a71 100644
+index 38ec01e..6364bd9 100644
 --- a/minis/Cargo.toml
 +++ b/minis/Cargo.toml
-@@ -1,6 +1,6 @@
+@@ -1,8 +1,8 @@
  [package]
  name = "siboot"
 -version = "0.18.1"
-+version = "0.19.0"
++version = "0.20.0"
  edition = "2021"
- description = "PC-free bootstrap that pairs and installs SideInstaller onto the iPhone it runs on, from Open Minis's Linux shell"
+-description = "PC-free bootstrap that pairs and installs SideInstaller onto the iPhone it runs on, from Open Minis's Linux shell"
++description = "Local IPA signing and installation in Minis by Jay-Void-BA, based on FrizzleM/siboot"
  license = "MIT"
+ publish = false
+ 
 @@ -71,6 +71,12 @@ reqwest = { version = "0.13", features = ["json", "gzip"] }
  rootcause = "0.12"
  sha2 = "0.11"
@@ -64,165 +67,489 @@ index 38ec01e..8b43a71 100644
  # isideload signs with apple-codesign-quick; SideInstaller's vendored copy also
  # signs ExtensionKit extensions (#110). Patches only apply at a workspace root,
 diff --git a/minis/README.md b/minis/README.md
-index 163b7d0..cab99f4 100644
+index 163b7d0..0934f28 100644
 --- a/minis/README.md
 +++ b/minis/README.md
-@@ -4,7 +4,8 @@ Installs SideInstaller onto the iPhone it runs on, signed with your own Apple
- Account, from the Linux shell of [Open Minis](https://apps.apple.com/app/id6759188481)
- (free, App Store): no computer, no certificate, no other app to pair with. Since
- Open Minis 1.16 (App Store, 2026-11-14) siboot pairs the iPhone with itself too
+@@ -1,388 +1,105 @@
+-# siboot for Open Minis
++# siboot for Minis · Jay-Void-BA
+ 
+-Installs SideInstaller onto the iPhone it runs on, signed with your own Apple
+-Account, from the Linux shell of [Open Minis](https://apps.apple.com/app/id6759188481)
+-(free, App Store): no computer, no certificate, no other app to pair with. Since
+-Open Minis 1.16 (App Store, 2026-11-14) siboot pairs the iPhone with itself too
 -([below](#pairing-in-minis)), so it needs 1.16 or later.
-+([below](#pairing-in-minis)). Existing RPPairing files can also be imported from
-+the Minis/iSH filesystem, including in older Minis versions.
++此定制版在 Minis 中直接签名并安装**本地 IPA**，无需先安装 SideInstaller 或 rootshell。当前设备连接仍需要 LocalDevVPN；Minis 1.16+ 可直接配对，旧版可选择已有 RPPairing 文件。
  
- ## Running it
+-## Running it
++上游：[FrizzleM/siboot](https://github.com/FrizzleM/siboot)。此版本由 [Jay-Void-BA](https://github.com/Jay-Void-BA) 维护，使用其 SideInstaller fork 的共享 Rust 核心。
  
-@@ -29,11 +30,10 @@ iOS pauses it in the background. The first time, trust your Apple Account in
- Settings › General › VPN & Device Management. Free accounts' apps last 7 days;
- SideInstaller can renew itself from then on.
+-Needs iOS 27 or later, Developer Mode on, Wi-Fi, LocalDevVPN (App Store)
+-connected, and Open Minis 1.16 or later. Then, in Open Minis's terminal:
++## 获取和使用
++
++从 [siboot-v0.20.0 Release](https://github.com/Jay-Void-BA/SideInstaller/releases/tag/siboot-v0.20.0) 下载 `siboot-aarch64`，核对发布页 SHA-256 后运行：
++
++```sh
++chmod +x ./siboot-aarch64
++./siboot-aarch64
++```
++
++网页选择本地 IPA，或直接传入 Minis 内的路径：
++
++```sh
++./siboot-aarch64 --ipa '/root/My App.ipa'
++```
++
++不再提供 SideInstaller IPA 自动下载、默认下载源或 IPA URL 安装。请自行准备 IPA。`bin/` 与旧 `install.sh` 保留上游基线内容，不代表此 fork 的新成品，请使用上述 Release。
++
++需要 iOS 27+、Wi-Fi、开发者模式、LocalDevVPN 和可联网验证的 Apple 账号。保持 Minis 在前台，完成签名、完整上传检查和安装后，再从主屏幕打开应用。
++
++## 中文和密码查看
++
++网页默认中文，顶部可切换 English 并记住选择。终端和 `--help` 默认中文，英文可运行：
++
++```sh
++SIBOOT_LANG=en ./siboot-aarch64
++```
++
++Apple 密码与解锁口令默认隐藏，页面提供显示／隐藏按钮；实时终端用 Ctrl+V 切换查看。简洁模式保持隐藏。切换语言不会改变输入，密码不会写入日志或页面事件。
++
++## 配对文件
++
++在页面中浏览 Minis／iSH 内的目录或输入路径，也可指定：
++
++```sh
++./siboot-aarch64 --pairing-file /root/Phone.plist --ipa /root/App.ipa
++```
++
++支持 XML／二进制 RPPairing plist 和对应 JSON，要求公私钥匹配。通过真实设备验证后，副本以 `0600` 权限原子保存到程序同目录的 `rp_pairing_file.plist`。源文件和导入失败时的旧配对均保留。传统 lockdown 配对文件不适用于此隧道。
++
++## 加密登录
++
++成功登录后可选择保存，使用独立于 Apple 密码、至少 12 个字符的解锁口令。scrypt 派生密钥，XChaCha20-Poly1305 认证加密账号、密码、开发者会话、私钥和 anisette 缓存。口令不保存；下次需要解锁。可更新密码、临时使用其他账号或删除本地登录数据，删除数据不撤销 Apple 证书。
++
++默认存储 `~/.siboot`，`--home` 可更改。文件权限 `0600`，目录 `0700`。账号认证需要联系 Apple，网络和 anisette 服务仍可能影响登录。
++
++## 签名和重试
++
++递归签名深层 dylib、无扩展名 Mach-O 和嵌套 app／appex／framework／xpc，封存 `.config`、隐藏文件及其他资源，最后核对签名清单。上传保留符号链接，检查完整性后安装。
++
++失败时可重试当前步骤，保留已完成的结果。安装重试复用签名结果并重建隧道；普通 IPA 无需 SideInstaller 的专用交接。
++
++## 快速续签
++
++成功安装后缓存上次应用的原始 IPA。页面可点击“快速续签 应用名”，或运行：
  
+ ```sh
+-wget -qO- https://raw.githubusercontent.com/FrizzleM/siboot/main/minis/install.sh | sh
++./siboot-aarch64 renew
+ ```
+ 
+-siboot opens a page over the terminal, in Minis's own browser
+-([below](#the-page)), that shows each step and asks its questions. The first
+-time, it pairs this iPhone with itself: the page says what to do, and when you
+-tap **Start pairing**, open Settings › Privacy & Security › Developer Mode,
+-scroll to the bottom, tap **Pair with siboot**, and enter your passcode, then
+-the 6-digit code siboot shows (it also comes as a notification). A player opens
+-over Minis meanwhile: leave it open, it keeps Minis running while you're in
+-Settings. Go back to Minis once Settings says it's paired. After that siboot
+-uses the pairing file it saved and doesn't ask. Then your Apple Account email,
+-password and verification code. Keep Minis open until siboot says it's done:
+-iOS pauses it in the background. The first time, trust your Apple Account in
+-Settings › General › VPN & Device Management. Free accounts' apps last 7 days;
+-SideInstaller can renew itself from then on.
+-
 -In Open Minis 1.15 or older siboot stops at once and says to update Minis from
 -the App Store (the page has a button for it). Minis doesn't tell the shell its
 -version, so siboot goes by `minis-bonjour`, which came with 1.16. siboot still
 -takes rootshell's file ([`../rootshell`](../rootshell#running-it)) whenever
 -siboot-pair is offering one, for the transfer code it shows.
-+Automatic pairing needs Minis 1.16's `minis-bonjour` bridge. In an older Minis,
-+select an existing RPPairing file instead. siboot also takes rootshell's file
-+([`../rootshell`](../rootshell#running-it)) whenever siboot-pair is offering one,
-+for the transfer code it shows.
- 
- To answer in the terminal instead, add `-s -- --terminal` after `sh` (or run
- `siboot --terminal` once it's installed).
-@@ -44,6 +44,76 @@ SHA-256 the script carries, keeps it at `~/.siboot/bin/siboot` (and
- `/usr/local/bin/siboot`), and runs it. After that, `siboot` on its own runs it
- again without downloading.
- 
-+### Securely save an Apple Account login
-+
-+After a successful sign-in, choose whether to save the login. A separate local
-+unlock passphrase (at least 12 characters, different from the Apple password)
-+protects it. iSH has no OS keychain: scrypt derives an encryption key and
-+XChaCha20-Poly1305 authenticates the saved email, password, developer session,
-+signing private key and anisette cache. The unlock passphrase is never saved.
-+Files are private (`0600`), with private storage directories (`0700`). Existing
-+plaintext signing data is migrated when encrypted saving is enabled.
-+
-+Next time, unlock the saved login, unlock and update its password, use another
-+account once, or forget the login and local signing data. Forgetting does not
-+revoke Apple's certificate. A wrong local passphrase does not contact Apple.
-+One-off accounts use an encrypted temporary cache removed when the run ends.
-+
-+### Select a pairing file from Minis / iSH
-+
-+The pairing step offers a directory browser and a full-path field, or use
-+`siboot --pairing-file /root/phone.plist`. XML/binary RPPairing plists and JSON
-+exports with matching public/private keys are supported. Classic lockdown
-+pairing files cannot be used for this tunnel.
-+
-+The selected file is normalized into a private staging file and verified with
-+the iPhone. Only after verification does it replace `rp_pairing_file.plist`
-+**beside the actual siboot executable**. The source is preserved; a failed
-+import leaves the previous pairing file untouched. Saved pairing files in the
-+old `~/.siboot` location are migrated when no adjacent file exists.
-+
-+### Complete signing
-+
-+Signing discovers nested executable bundles at every depth, signs Mach-O
-+images by their file headers (including deep dylibs and extensionless helpers),
-+then seals ordinary `.config` files, hidden files and the remaining resources.
-+A final resource audit rejects missing or changed seals before installation.
-+Relative symlinks are sealed and preserved during AFC upload; links outside
-+the app are rejected. The upload is checked before installation starts.
-+
-+### Retry a failed step
-+
-+When a step fails, the page keeps the completed steps and offers **Retry step**
-+or **Stop**. Retry repeats that step, then continues. The downloaded IPA and
-+Apple session stay available; an install retry reuses the signed app and opens
-+a fresh tunnel. A handover retry only sends the pairing file again, without
-+reinstalling. Cancelled prompts and sign-ins stop without offering a retry.
-+In the terminal the same choice is **Retry this step?**.
-+
-+### Install a local IPA
-+
-+The page first offers **Download SideInstaller**, or a file picker for an
-+`.ipa` already in Files. Pick it and tap **Use selected IPA**. The file is copied
-+into Minis in small chunks and checked before the run continues. A failed
-+import leaves the picker open to try again. Local files skip the GitHub check
-+and release download; signing still needs Apple's servers, an Apple Account
-+and LocalDevVPN. The uploaded copy is removed when the run ends.
-+
-+In the terminal, choose **Install a local IPA** and enter its path inside
-+Minis, or pass it directly (quote paths containing spaces):
-+
-+```sh
-+siboot --ipa "/path/to/My App.ipa"
-+```
-+
-+The original file is left alone. Any app can be signed and installed this
-+way; only SideInstaller receives SideInstaller's pairing-file handover and
-+the **Open SideInstaller** button.
-+
-+These changes require a newly built siboot binary. The `bin/siboot-aarch64`
-+already in this checkout and the upstream install command still run the
-+published build; see [Building](#building) to rebuild and update its checksum.
-+
- ## The screen
- 
- With `--terminal`, siboot keeps a small live area under what it has printed:
-@@ -126,7 +196,7 @@ on a Mac, once a browser has it open (`-- --web --open` opens it).
- ## When it stops
- 
- When a run stops on a problem (not when you stop it: Ctrl-C, nothing typed, a
+-
+-To answer in the terminal instead, add `-s -- --terminal` after `sh` (or run
+-`siboot --terminal` once it's installed).
+-
+-[`install.sh`](install.sh) downloads [`bin/siboot-aarch64`](bin) from this
+-repository (a progress bar on one line while it does), checks it against the
+-SHA-256 the script carries, keeps it at `~/.siboot/bin/siboot` (and
+-`/usr/local/bin/siboot`), and runs it. After that, `siboot` on its own runs it
+-again without downloading.
+-
+-## The screen
+-
+-With `--terminal`, siboot keeps a small live area under what it has printed:
+-the steps of the run, the running one with a spinner, what it's doing and for
+-how long, and a progress bar for the download, the upload and the install. A
+-finished step stays as one line with what came of it, and a warning stays where
+-it happened, so scrolling back reads as a log of the run. It ends in a box: what
+-to do next, or why it stopped.
+-
+-Under all of it, dim, is **A project by Frizzle**: from the first screen, under
+-every step and question, and still the last line once siboot exits. On a screen
+-too short for it and a blank line above it, it makes way for the run's own
+-lines. Plain output has it after the version.
+-
+-Questions are asked in place, and read keys as they're typed: the email in a
+-field, the password as dots, the transfer and verification codes in boxes that
+-send themselves at the sixth digit, yes or no on `y` or `n` (or the arrows and
+-return), and menus picked with the arrows or a digit. At the verification code,
+-a letter shows the other ways to get one (a text, a call, the devices, again).
+-Before pairing, what to do in Settings is printed, and **Start pairing?** is a
+-yes or no; the pairing code then shows in large digits, three rows tall.
+-Esc steps back or stops; Ctrl-C stops.
+-
+-Every line is cut or wrapped to the terminal's width (an iPhone upright gives
+-about 45 columns), and the live area kept shorter than the screen, so it redraws
+-in place. With `--plain` or `--verbose`, `TERM=dumb`, `SIBOOT_PLAIN` set, or
+-without a terminal on both ends, siboot prints plain lines instead, one per
+-event, as before. `cargo run --example screens` plays the screen through a
+-made-up run, on a Mac and without an iPhone (`-- stop`, `-- developer-mode` and
+-`-- --plain` for the others).
+-
+-## The page
+-
+-In Open Minis siboot shows the run as a page in Minis's own browser, to tap
+-rather than type (since 0.17.0; `--terminal` keeps it in the terminal, and
+-`--web` serves the page even where there's no Minis). siboot serves the page
+-itself, on this iPhone's loopback, and opens it with
+-Minis's `minis-open`, which shows it in a sheet over the terminal. Minis stays
+-in front, so iOS doesn't pause it. Safari wouldn't do: behind it, iOS pauses
+-Minis within seconds, and a paused app takes the connection and never answers.
+-
+-The page shows what the live screen shows: the steps, the running one with what
+-it's doing, for how long and a progress bar, what worked (folded away once its
+-step is done), the warnings where they happened, and the box the run ends in,
+-which has a button that opens SideInstaller once it's installed. Show details
+-adds what `--verbose` adds. The questions are fields and buttons: the email
+-with the email keyboard, the password as dots, the codes in boxes that send
+-themselves at the sixth digit (marked as one-time codes, which iOS can offer to
+-fill from Messages), Other ways for Apple's code, and yes or no. Pairing shows
+-what to do in Settings on a card with **Start pairing**, then the pairing code
+-in large digits on a card of its own while Settings waits for it. Stop, tapped
+-twice, stops the run as Ctrl-C does.
+-
+-The terminal under the sheet keeps plain lines, as with `--plain`, and return
+-there opens the page again after it's been swiped away. Where there's no
+-`minis-open`, siboot prints the page's address instead. A page opened again
+-draws the same screen: it gets every event since the start. siboot sends one
+-every 5 s while it's quiet, so after 15 s with nothing the page says siboot
+-isn't answering (iOS has paused Minis) and to go back to Minis.
+-
+-How the page is kept to this iPhone, and to itself ([`src/web.rs`](src/web.rs)):
+-
+-- It's served on 127.0.0.1 only, at a port the system picks, so nothing on the
+-  Wi-Fi reaches it.
+-- Every path starts with 128 random bits, new each run. Any app on the iPhone,
+-  and any website open in a browser on it, can reach a loopback port, but none
+-  can guess them.
+-- The Host header must name the loopback and the port (no DNS rebinding), and
+-  answers are POSTed as JSON, from the page's own origin when the browser names
+-  one, so a form on another site can't send one.
+-- The page loads nothing from anywhere else, can't be framed, and sends no
+-  referrer: its address carries the key.
+-- An answer goes to the question that asked for it and no further. It's never
+-  sent back to the page, the log only says that something was typed, and the
+-  address isn't in the log either.
+-
+-`cargo run --example screens -- --web` plays the made-up run through the page
+-on a Mac, once a browser has it open (`-- --web --open` opens it).
+-
+-## When it stops
+-
+-When a run stops on a problem (not when you stop it: Ctrl-C, nothing typed, a
 -cancelled sign-in), siboot asks **Copy the log to the clipboard?** under the
-+cancelled sign-in), and you decline retrying, siboot asks **Copy the log to the clipboard?** under the
- box: `y` or return copies it, `n` doesn't. The log is what the screen showed,
- as plain lines with the time since the start, the answers to its questions
- (only that something was typed: never a password or a code), idevice's and
-@@ -145,7 +215,7 @@ file is.
- | # | Step | How |
- |---|---|---|
- | 1 | Check | GitHub and Apple's sign-in server answer; the iPhone answers RPPairing on `10.7.0.1:49152` through LocalDevVPN |
+-box: `y` or return copies it, `n` doesn't. The log is what the screen showed,
+-as plain lines with the time since the start, the answers to its questions
+-(only that something was typed: never a password or a code), idevice's and
+-isideload's own lines at info and above (not debug: that can carry what Apple
+-and the anisette server send) and the underlying error `--verbose` would show.
+-The Apple Account's email is cut to its first letter and domain, and long runs
+-of hex digits (the UDID, anisette identities) to their ends.
+-
+-It's copied with Open Minis's own `apple-clipboard set`, which reads it on stdin
+-(Minis's terminal ignores OSC 52), and saved to `~/.siboot/siboot.log` either
+-way. Without a terminal on both ends siboot doesn't ask, and only says where the
+-file is.
+-
+-## The steps
+-
+-| # | Step | How |
+-|---|---|---|
+-| 1 | Check | GitHub and Apple's sign-in server answer; the iPhone answers RPPairing on `10.7.0.1:49152` through LocalDevVPN |
 -| 2 | Pairing | the file saved in `~/.siboot` on an earlier run, while the iPhone accepts it; else the one siboot-pair offers on `127.0.0.1:61207`, for its transfer code (20 s for each answer), when it's offering; else a new pairing, made here ([below](#pairing-in-minis)); then pair-verified with the iPhone |
-+| 2 | Pairing | select a Minis/iSH file, use the saved file beside siboot, take rootshell's offered file, or pair automatically; verify with the iPhone before saving the imported copy |
- | 3 | Connect | pair-verify → `createListener` → TLS-PSK → CDTunnel → software TCP → RSD, as `tunnel_create_rppairing_multihost` does; lockdownd gives the UDID |
- | 4 | Apple ID | rust-core's `apple_session.rs`, compiled unchanged: saved token first, then GrandSlam + 2FA, Mac-ADI anisette servers in SideInstaller's Auto order |
- | 5 | Sign | the latest `SideInstaller.ipa` release, signed with isideload's `sign_app` (device registered, app group, no Increased Memory Limit), as Side by Side does |
-@@ -155,10 +225,10 @@ file is.
- `siboot check` runs step 1 only, and `siboot connect` steps 1–3.
- `siboot developer-mode` runs steps 1–3 and then asks for Developer Mode
- ([below](#developer-mode)).
+-| 3 | Connect | pair-verify → `createListener` → TLS-PSK → CDTunnel → software TCP → RSD, as `tunnel_create_rppairing_multihost` does; lockdownd gives the UDID |
+-| 4 | Apple ID | rust-core's `apple_session.rs`, compiled unchanged: saved token first, then GrandSlam + 2FA, Mac-ADI anisette servers in SideInstaller's Auto order |
+-| 5 | Sign | the latest `SideInstaller.ipa` release, signed with isideload's `sign_app` (device registered, app group, no Increased Memory Limit), as Side by Side does |
+-| 6 | Install | AFC upload to `/PublicStaging`, every file checked, `installation_proxy` with `PackageType: Developer` |
+-| 7 | Hand over | house_arrest writes the pairing file to `Library/Application Support/rp_pairing_file.plist` and marks it imported (`importedPairingFileName`), as Side by Side hands one to SideInstaller |
+-
+-`siboot check` runs step 1 only, and `siboot connect` steps 1–3.
+-`siboot developer-mode` runs steps 1–3 and then asks for Developer Mode
+-([below](#developer-mode)).
 -`SIBOOT_APPLE_ID` and `SIBOOT_PASSWORD` skip the prompts. Everything is kept in
 -`~/.siboot`: the pairing file (mode 600), isideload's store (signing key,
 -anisette identity, saved token) and the download. The password is never
 -written anywhere.
-+`SIBOOT_APPLE_ID` and `SIBOOT_PASSWORD` supply credentials. The optional encrypted
-+login vault, signing store, logs and download are in `~/.siboot` (`--home` can
-+change it). The pairing file is saved beside siboot. Passwords are written only
-+when encrypted login saving is explicitly selected; they are never logged.
- 
- ## Pairing in Minis
- 
-@@ -191,7 +261,7 @@ has Minis advertise it as **siboot**, and answers with idevice's
- 5. When the iPhone asks for the code, it shows on the page in large digits and
-    comes as a notification. A stray connection or a mistyped code leaves the
-    entry up for another tap, three connections in all.
+-
+-## Pairing in Minis
+-
+-From iOS 27 an iPhone can pair *with itself*, but only one way round: a host
+-advertises `_remotepairing-pairable-host._tcp` over Bonjour, Settings › Privacy &
+-Security › Developer Mode lists it as "Pair with …", and the iPhone dials in and
+-drives pair-setup. Dialling the iPhone instead only pair-*verifies*: it answers
+-`allowsPairSetup: false`.
+-
+-The shell can't advertise: iOS refuses its multicast (no multicast entitlement),
+-and an app may only publish the Bonjour types its Info.plist declares. Open
+-Minis 1.16 declares this one and publishes it for the shell with
+-`minis-bonjour advertise`, which forwards each connection to a port inside the
+-shell ([`src/bridge.rs`](src/bridge.rs)). So siboot listens on a loopback port,
+-has Minis advertise it as **siboot**, and answers with idevice's
+-`PairableHost`, the responder SideInstaller uses ([`src/pairing.rs`](src/pairing.rs)):
+-
+-1. The page asks you to get ready, with what to do in Settings, and waits for
+-   **Start pairing**. A "Pair with siboot" left by an earlier run that was
+-   killed is withdrawn first.
+-2. Minis advertises the pairing host under the host's identifier, as the
+-   iPhone requires, with the seven TXT keys idevice gives. If iOS hasn't let
+-   Minis use the local network yet (it asks the first time), or Minis's own
+-   Settings › Network › Local Discovery is off, siboot says so and asks again.
+-3. A notification says where to find the entry, posted while Minis is still in
+-   front, so iOS can ask about notifications first if it hasn't.
+-4. Silence plays through Minis's player (below) while you're in Settings. If
+-   its sheet is closed or the silence paused while siboot waits, siboot starts
+-   it again as soon as Minis is in front (`apple-player status`, every 3 s).
+-5. When the iPhone asks for the code, it shows on the page in large digits and
+-   comes as a notification. A stray connection or a mistyped code leaves the
+-   entry up for another tap, three connections in all.
 -6. The pairing file goes to `~/.siboot` (mode 600), with the host's altIRK, so
-+6. The pairing file goes beside siboot (mode 600), with the host's altIRK, so
-    a later pairing keeps the same host identity. The entry is withdrawn.
- 7. A notification asks you back to Minis. The silence stops once Minis is in
-    front again (`minis-bonjour list`), and siboot pair-verifies the new file
-@@ -301,6 +371,8 @@ closing. siboot-pair's own tests, with the same fake iPhone, are in
+-   a later pairing keeps the same host identity. The entry is withdrawn.
+-7. A notification asks you back to Minis. The silence stops once Minis is in
+-   front again (`minis-bonjour list`), and siboot pair-verifies the new file
+-   with the iPhone through LocalDevVPN.
+-
+-### Keeping Minis awake
+-
+-The pairing happens in Settings, with Minis in the background, and iOS
+-suspends a background app within seconds. `minis-bonjour` withdraws its
+-advertisements while Minis is suspended, so the "Pair with …" entry would
+-vanish before it could be tapped. That's the likeliest reason Minis's own
+-`pair_via_bonjour.py` (OpenMinis/MinisSkills, `ios-dev`) has never got the entry
+-to show. SideInstaller and StikPair play silent audio through pairing for the
+-same reason.
+-
+-Minis has background audio, and `apple-player play` plays a file with the
+-playback session category, so siboot writes 16 minutes of silence (8 kHz, 8-bit
+-WAV, 7.7 MB) to `~/.siboot` and plays it until pairing ends and you're back in
+-Minis ([`src/keepalive.rs`](src/keepalive.rs)). The player opens as a sheet over
+-whatever Minis shows (the page, or the terminal), and closing it stops the
+-silence, so siboot says to leave it open, and closes it itself.
+-
+-## Developer Mode
++省去重新选文件和重复选择配对方式；加密登录仍需解锁。每次都重新获取签名配置并完整签名、上传和安装，要求与上次使用相同开发者团队。仅保留最近一次成功安装的应用，缓存位于 `~/.siboot/renewals`，原始文件不变。
++
++安装仍需要逐文件经过加密隧道上传、核对，再交给 iOS 安装服务。当前大文件按 1 MiB 分块读取和发送，减少峰值内存；上传、核对和 iOS 安装各自显示进度、耗时，不会跳过检查。
++
++## 下载中断
++
++若显示 `connection closed prematurely` 或哈希不匹配，先用 curl 续传并核对发布页 SHA-256，成功后再执行二进制。缺少末尾数据的 ELF 文件可能在 `--version` 阶段就崩溃。
++
++```sh
++curl -fL -C - --retry 5 --retry-all-errors -o siboot-aarch64 \
++  https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.20.0/siboot-aarch64
++sha256sum ./siboot-aarch64
++```
++
++## 构建与测试
++
++本目录需要与 Jay-Void-BA/SideInstaller 中的核心一起构建。推荐在该 fork 根目录执行：
  
- `cargo run --example screens` plays pairing in Minis as the page and the live
- screen show it (`-- rootshell` plays rootshell's hand-off instead).
-+`cargo run --example screens -- local-ipa --web` previews the file picker and a
-+failed install's retry, without contacting an iPhone or Apple.
+ ```sh
+-siboot developer-mode
++bash scripts/prepare-minis.sh /tmp/siboot-source
++cd /tmp/siboot-source/minis
++cargo test --locked --all-targets
++cargo clippy --locked --all-targets -- -D warnings
+ ```
  
- ## What's been tested
+-Before siboot is installed, the same is
+-`wget -qO- https://raw.githubusercontent.com/FrizzleM/siboot/main/minis/install.sh | sh -s developer-mode`.
+-
+-It works as SideInstaller's Settings › Developer Mode does. siboot opens the
+-install's tunnel (steps 1–3, without the internet checks), and lockdownd says
+-whether Developer Mode is on (`DeveloperModeStatus` in
+-`com.apple.security.mac.amfi`). When it's on, nothing is sent. When it's off,
+-AMFI's RSD shim (`com.apple.amfi.lockdown.shim.remote`) is asked to show the
+-switch under Settings › Privacy & Security, where you turn it on: iOS restarts,
+-and once you unlock it, asks you to tap Turn On.
+-
+-`siboot developer-mode --turn-on` turns it on instead, once you type `yes`: the
+-iPhone restarts at once, and Minis stops with it. iOS does that only while the
+-iPhone has no passcode. With one, it refuses, and siboot shows the switch
+-instead.
+-
+-It needs what the install needs: a pairing the iPhone accepts (made first, the
+-same way, if there isn't one), and a tunnel that opens. So it can't bring the
+-switch back on an iPhone that has never been paired, since pairing happens under
+-that same Developer Mode page. Whether
+-iOS 27 still answers on its pairing port with Developer Mode off hasn't been
+-tried.
+-
+-## Building
+-
+-siboot compiles SideInstaller's vendored idevice, isideload and
+-apple-codesign-quick, and rust-core's `apple_session.rs` and `error_text.rs`,
+-from the [`SideInstaller`](../SideInstaller) submodule, pinned to one commit, so
+-check it out first: `git clone --recursive`, or `git submodule update --init` in
+-a clone you already have.
+-
+-Any aarch64 Linux with a musl toolchain builds it; on a Mac, a Lima Alpine VM
+-does (`limactl create --name=siboot template:alpine`, then
+-`apk add build-base cmake perl clang linux-headers rustup`):
++ARM64 Alpine／musl 构建：
  
+ ```sh
+-RUSTFLAGS="-C target-feature=+crt-static -C relocation-model=static" \
++RUSTFLAGS='-C target-feature=+crt-static -C relocation-model=static' \
+   cargo build --release --locked --target aarch64-unknown-linux-musl
+ ```
+ 
+-A static non-PIE executable, like the `pair_host` Minis's own packages ship.
+-`--target` must be explicit, or the static flags reach the proc macros too.
+-
+-To publish a new build, copy it to `bin/siboot-aarch64` and put its
+-`sha256sum` in `install.sh`'s `SHA256`, and its size in bytes in `SIZE`, in the
+-same commit: the script refuses a binary that doesn't match (`SIZE` only draws
+-its progress bar).
+-
+-## Tests
+-
+-`cargo test` runs on any host (macOS included): the screen's pieces (widths,
+-cutting and wrapping, keys as the terminal sends them, code boxes, the pairing
+-code's large digits, the progress bar, boxes), the log's cleaning (emails,
+-UDIDs, options without their values), pairing in Minis against a fake iPhone
+-([`src/fake_iphone.rs`](src/fake_iphone.rs), the iPhone's side of pair-setup:
+-the handshake, SRP M1–M6 with the code, its identity in M5, checking the host's
+-M6 signature) and stand-ins for Minis's `minis-bonjour`, `apple-notification` and
+-`apple-player` (a pairing and the file it leaves, pairing again with the same
+-host identity, the advertisement's name and TXT keys and its withdrawal, a
+-leftover one withdrawn first, Local Network refused once and asked again, a
+-Minis that can't advertise or has no `minis-bonjour`, the silence playing until
+-Minis is in front again, its player closed and opened again, a mistyped code,
+-three, a connection dropped before the code, nobody tapping), the hand-off from rootshell
+-against a stand-in for siboot-pair's side (the right code, a mistyped one, three
+-wrong ones, something that isn't a pairing file, nothing offered, no code
+-typed), argument
+-parsing, `developer-mode` against stand-ins for lockdownd and AMFI (on already,
+-off, unreadable, a declined restart, the passcode refusal, a hang-up), the bundle walk, 2FA answers, server order, the sign-in errors that
+-stop it, install refusals, and rust-core's own `apple_session.rs` and
+-`error_text.rs` tests. A test also stands in for a rootshell that iOS has
+-paused: the connection goes through and nothing answers. The page's server is
+-tested over real loopback connections: paths without the key, another Host,
+-POSTs that aren't JSON or come from another origin, oversized requests, events
+-replayed and resumed after a reconnect, one progress event a percent, every
+-kind of question (an answer for another question refused, an empty one or a
+-code that isn't six digits asked again, cancelling, getting ready), Stop, and
+-closing. siboot-pair's own tests, with the same fake iPhone, are in
+-[`../rootshell`](../rootshell#tests).
+-
+-`cargo run --example screens` plays pairing in Minis as the page and the live
+-screen show it (`-- rootshell` plays rootshell's hand-off instead).
+-
+-## What's been tested
+-
+-- **On an iPhone (iOS 27, November 2026):** this route end to end. siboot
+-  0.12.0 in Open Minis's App Store build took the pairing from siboot-pair 0.1.0
+-  in rootshell and installed SideInstaller.
+-- **0.13.0** is 0.12.0 without what that route doesn't use: pairing inside
+-  Minis (through `minis-bonjour`, which only Minis's TestFlight builds have),
+-  its silent-audio keep-alive and notifications, and the Files › Minis › shared
+-  import. Steps 3–7 are unchanged. Tested on macOS and Alpine aarch64 (29 tests;
+-  `install.sh` installed it, skipped a current copy and refused a tampered one).
+-  On the iPhone it got stuck with rootshell offering: it took rootshell's offer
+-  before the saved file, and rootshell showed no request.
+-- **0.13.1** goes back to 0.12.0's order, the saved file first, and stops
+-  waiting for rootshell's answer after 20 s. Tested the same way; not yet run on
+-  an iPhone. The hand-off itself (two apps on one iPhone's loopback) hasn't
+-  completed on an iPhone yet: the runs that worked there used a file moved over
+-  the LAN or saved by an earlier run.
+-- **0.14.0** adds `siboot developer-mode`; the install is unchanged. Tested on
+-  macOS and Alpine aarch64 (39 tests, the new ones against stand-ins for
+-  lockdownd and AMFI; `install.sh | sh -s developer-mode` ran it). Not run on
+-  an iPhone yet. SideInstaller's own helper, which sends the same requests, has
+-  only read the status and shown the switch on an iPhone where Developer Mode
+-  was already on.
+-
+-- **0.15.0** is 0.14.0 with the live screen above and `--plain`; what each step
+-  does is unchanged. Tested on macOS and Alpine aarch64 (51 tests), and through
+-  `examples/screens.rs` in a 46-column terminal: an install with a mistyped
+-  transfer code and the menu of other ways to get Apple's code, a stop, Developer
+-  Mode's yes or no, and `--plain`; `install.sh`'s bar in Alpine. Not run on an
+-  iPhone yet, so not in Minis's own terminal.
+-
+-- **0.16.0** is 0.15.0 with the log above, offered when a run stops; the steps
+-  are unchanged. Tested on macOS and Alpine aarch64 (57 tests), and through
+-  `examples/screens.rs -- stop` in a 46-column terminal, where the copy goes
+-  through `pbcopy`. Not run on an iPhone yet, so `apple-clipboard` hasn't been
+-  called from siboot: its use follows Open Minis's source
+-  (`src/ios/NativeOffloads/ClipboardOffload.m`).
+-
+-- **0.16.1** is 0.16.0 with the credit under the live area
+-  ([above](#the-screen)); the steps are unchanged. Tested on macOS and Alpine
+-  aarch64 (58 tests), through `examples/screens.rs` in a 46-column terminal (an
+-  install, a stop, `--plain`, and 10 and 8 rows, where it makes way), and with
+-  the Alpine build's `siboot check` on a 46-column pty; `install.sh` installed
+-  it and skipped a current copy. Not run on an iPhone yet.
+-
+-- **0.16.2** signs in with the Apple Account email in lowercase. Apple Account
+-  names aren't case-sensitive, but GrandSlam's SRP proof hashes the name as
+-  sent, and users who typed it with a capital were told the account or password
+-  was wrong. A signing key saved under the capitalized spelling is moved to the
+-  lowercase one, so it's kept. Tested on macOS and Alpine aarch64 (59 tests).
+-  Not signed in to Apple with a capitalized email yet.
+-
+-- **0.17.0** shows the run as the page above by default; the steps are
+-  unchanged, and `--terminal` gives the terminal as before. Tested on macOS
+-  (71 tests), and through `examples/screens.rs -- --web` in a
+-  browser at an iPhone's size: an install with a mistyped transfer code, Other
+-  ways for Apple's code and a mistyped one; a stop at Connect and the question
+-  about the log; Developer Mode's question and the page's Stop; a page reloaded
+-  mid-run; and the run paused with SIGSTOP, where the page said siboot wasn't
+-  answering until it was resumed. `siboot --web check` on a Mac stopped at the
+-  iPhone, as it does there, and asked about the log on the page. A test build
+-  with `--web` ran in Minis on an iPhone: the sheet opened and the page worked.
+-
+-- **0.18.0** pairs in Minis again, now that Minis 1.16, which has
+-  `minis-bonjour`, is on the App Store: 0.11 and 0.12 paired that way with
+-  Minis's TestFlight build, and SideInstaller installed after it on an iPhone 16
+-  on iOS 27 (2026-11-10). The pairing code is 0.12's, on today's page and live
+-  screen; rootshell's hand-off stays for an older Minis, and is still taken
+-  first whenever siboot-pair is offering. Tested on macOS and Alpine aarch64
+-  (96 tests, the stand-ins for Minis's commands under busybox `sh` too), and
+-  through `examples/screens.rs` as the page at an iPhone's size, on a
+-  45-column live screen and as plain lines; the static build runs `--help`
+-  and `check` in Alpine. A test build, installed from the `minis-pairing`
+-  branch, worked on an iPhone with Open Minis 1.16 from the App Store
+-  (2026-11-14): it paired in Minis, with no rootshell.
+-- **0.18.1** stops in an Open Minis older than 1.16 before anything else, with
+-  its own message (update Open Minis in the App Store) and, on the page, an
+-  Update Open Minis button that opens the App Store. Before, an older Minis
+-  went on to step 2 and stopped there, pointing at rootshell, unless a saved
+-  pairing still worked. No log is offered after it.
+-
+-Not tested yet: other iPhones and iOS versions, an Apple Account at its
+-certificate or App ID limit (siboot then asks which certificate to revoke), and
+-a second run after the 7-day profile expires.
++本地页面预览，不联系 Apple 或设备：
++
++```sh
++cargo run --locked --example screens -- local-ipa --web
++cargo run --locked --example screens -- secure-setup --web
++```
++
++预览只应输入测试密码。CI 检查 Rust、Clippy、语言占位符、IPA 导入和来源限制；发布前在 Minis 使用的 iSH 引擎中检查 ARM64 成品启动。真实登录和安装仍需要 iPhone 验证。
 diff --git a/minis/examples/screens.rs b/minis/examples/screens.rs
-index 160bcfa..93e7712 100644
+index 160bcfa..5be024e 100644
 --- a/minis/examples/screens.rs
 +++ b/minis/examples/screens.rs
 @@ -6,6 +6,8 @@
@@ -234,10 +561,12 @@ index 160bcfa..93e7712 100644
  //! cargo run --example screens -- developer-mode
  //! cargo run --example screens -- --plain       # the same, as plain lines
  //! cargo run --example screens -- --web         # the same, as the page
-@@ -25,6 +27,12 @@
+@@ -25,6 +27,14 @@
  
  #[path = "../src/ui.rs"]
  mod ui;
++#[path = "../src/i18n.rs"]
++mod i18n;
 +#[path = "../src/ipa.rs"]
 +mod ipa;
 +#[path = "../src/pairing_files.rs"]
@@ -247,28 +576,41 @@ index 160bcfa..93e7712 100644
  #[path = "../src/web.rs"]
  mod web;
  
-@@ -54,7 +62,11 @@ fn main() {
+@@ -54,7 +64,13 @@ fn main() {
      }
      let devmode = has("developer-mode");
      let stop = has("stop");
 -    let code = if has("old-minis") {
-+    let code = if has("secure-setup") {
++    let code = if has("secret-field") {
++        if secret_field() { 0 } else { 1 }
++    } else if has("secure-setup") {
 +        if secure_setup() { 0 } else { 1 }
 +    } else if has("local-ipa") {
-+        if local_ipa() { 0 } else { 1 }
++        if local_ipa(has("cached")) { 0 } else { 1 }
 +    } else if has("old-minis") {
          old_minis();
          1
      } else if run(devmode, stop, has("rootshell")) {
-@@ -86,6 +98,79 @@ fn main() {
+@@ -86,10 +102,94 @@ fn main() {
      std::process::exit(code);
  }
  
++/// A real terminal field for testing reveal/hide without Apple or a device.
++fn secret_field() -> bool {
++    ui::header(env!("CARGO_PKG_VERSION"), "Local secret input preview. Use dummy credentials only.");
++    let value = ui::ask_secret("Preview password", "Password", "use a dummy password", "Password: ").unwrap();
++    let good = value.as_deref() == Some("  test secret  ");
++    let log = ui::recorded().join("\n");
++    assert!(!log.contains("test secret"));
++    if good { ui::finish("Secret preserved", &["No password was recorded."]); }
++    good
++}
++
 +/// Uses generated pairing keys and dummy credentials only. No device or Apple
 +/// contact; exercises the real browser, masked prompts and encrypted storage.
 +fn secure_setup() -> bool {
 +    use isideload::util::storage::SideloadingStorage;
-+    ui::header("0.19.0", "Pairing and encrypted-login preview. Use dummy credentials only.");
++    ui::header(env!("CARGO_PKG_VERSION"), "Pairing and encrypted-login preview. Use dummy credentials only.");
 +    let Some(page) = web::page() else { return false };
 +    let root = std::env::temp_dir().join(format!("siboot-secure-preview-{}", std::process::id()));
 +    let source = root.join("ish/Phone.plist");
@@ -311,18 +653,18 @@ index 160bcfa..93e7712 100644
 +}
 +
 +/// Exercises the real upload and retry UI, without signing in or an iPhone.
-+fn local_ipa() -> bool {
-+    ui::header("0.18.1", "Local IPA and retry preview (no install).");
++fn local_ipa(cached: bool) -> bool {
++    ui::header(env!("CARGO_PKG_VERSION"), "Local IPA and retry preview (no install).");
 +    let Some(page) = web::page() else {
 +        ui::failure("Use local-ipa with --web.", "");
 +        return false;
 +    };
 +    let folder = std::env::temp_dir().join(format!("siboot-preview-{}", std::process::id()));
-+    let Some(path) = page.pick_ipa(&folder) else { return false };
-+    let imported = path.map(ipa::Imported);
++    let Some(choice) = page.pick_ipa(&folder, cached.then_some("Demo 1.0")) else { return false };
++    let imported = match choice { web::IpaChoice::Local(path) => Some(ipa::Imported(path)), web::IpaChoice::Renew => None };
 +    ui::plan(&["IPA", "Install"], 2);
 +    ui::step(1, "Preparing the IPA");
-+    ui::done(if imported.is_some() { "local IPA imported" } else { "release selected" });
++    ui::done(if imported.is_some() { "local IPA imported" } else { "cached IPA selected for quick renew" });
 +    ui::step(2, "Installing it");
 +    wait(300);
 +    if !ui::retry_step("The tunnel disconnected during the upload.", "connection reset (preview)") {
@@ -340,6 +682,431 @@ index 160bcfa..93e7712 100644
  /// The stop in an Open Minis older than 1.16 (preflight.rs), with no log to
  /// offer after it.
  fn old_minis() {
+-    ui::header("0.18.1", "Installs SideInstaller on this iPhone.");
++    ui::header(env!("CARGO_PKG_VERSION"), "Installs SideInstaller on this iPhone.");
+     ui::plan(
+         &["Check", "Pairing", "Connect", "Apple ID", "Sign", "Install", "Handover"],
+         7,
+@@ -111,10 +211,10 @@ fn run(devmode: bool, stop: bool, rootshell: bool) -> bool {
+         "Check", "Pairing", "Connect", "Apple ID", "Sign", "Install", "Handover",
+     ];
+     if devmode {
+-        ui::header("0.18.0", "Shows Developer Mode, or turns it on.");
++        ui::header(env!("CARGO_PKG_VERSION"), "Shows Developer Mode, or turns it on.");
+         ui::plan(&["Check", "Pairing", "Connect", "Dev Mode"], 4);
+     } else {
+-        ui::header("0.18.0", "Installs SideInstaller on this iPhone.");
++        ui::header(env!("CARGO_PKG_VERSION"), "Installs SideInstaller on this iPhone.");
+         ui::plan(&steps, 7);
+     }
+ 
+@@ -123,7 +223,7 @@ fn run(devmode: bool, stop: bool, rootshell: bool) -> bool {
+         (
+             "reaching GitHub",
+             700,
+-            "GitHub answers, and the SideInstaller release is there",
++            "Apple's sign-in server answers",
+         ),
+         (
+             "reaching Apple's sign-in server",
+diff --git a/minis/locales/zh-CN.json b/minis/locales/zh-CN.json
+new file mode 100644
+index 0000000..7d89d9b
+--- /dev/null
++++ b/minis/locales/zh-CN.json
+@@ -0,0 +1,392 @@
++{
++  "Another siboot run is using this login storage, or it could not be locked.": "另一个 siboot 正在使用登录存储，或无法锁定存储。",
++  "Apple Account email:": "Apple 账号邮箱：",
++  "Apple Account login": "Apple 账号登录",
++  "Apple ID": "Apple 账号",
++  "Apple is calling {number}": "Apple 正在拨打 {number}",
++  "Apple is calling {number} with a verification code.": "Apple 正在拨打 {number} 告知验证码。",
++  "Apple is limiting sign-in attempts for now. Wait a while, then run siboot again.": "Apple 暂时限制了登录尝试，请稍后重试。",
++  "Apple rejected the Apple Account or password. Check them and run siboot again. If you're sure they're right, Apple may be limiting sign-ins: wait a while first.": "Apple 拒绝了账号或密码，请核对后重试。若确认无误，可能是 Apple 暂时限制登录，请稍后重试。",
++  "Apple sent a verification code to your other Apple devices.": "Apple 已向其他受信任设备发送验证码。",
++  "Apple texted a verification code to {number}.": "Apple 已向 {number} 发送短信验证码。",
++  "Apple won't issue a signing certificate: it says one already exists (error 7460).": "Apple 无法签发签名证书：已存在证书（错误 7460）。",
++  "Apple wouldn't register this iPhone with your developer team, so it won't issue a provisioning profile.": "Apple 无法将这台 iPhone 注册到开发者团队，因此无法签发描述文件。",
++  "Apple's sign-in server answers": "Apple 登录服务器已响应",
++  "Asking this iPhone for Developer Mode": "向 iPhone 请求开发者模式",
++  "Back": "返回",
++  "Call {number}": "拨打 {number}",
++  "Can't reach siboot. Open this page from siboot in Minis's terminal.": "无法连接 siboot，请从 Minis 终端中的 siboot 打开此页面。",
++  "Cancel": "取消",
++  "Cancel the sign-in": "取消登录",
++  "Check": "检查",
++  "Checking LocalDevVPN and this iPhone": "检查 LocalDevVPN 和 iPhone",
++  "Checking LocalDevVPN, this iPhone and the internet": "检查 LocalDevVPN、iPhone 和网络",
++  "Choose a complete .ipa file smaller than 4 GB.": "请选择小于 4 GB 的完整 IPA 文件。",
++  "Choose a file from Minis's Linux filesystem. The verified copy is saved to {path}": "选择 Minis 内的文件。验证通过后副本会保存到 {path}",
++  "Choose a local .ipa from Files": "从“文件”选择本地 IPA",
++  "Choose a local IPA, or pass --ipa /path/to/App.ipa.": "请选择本地 IPA，或使用 --ipa /path/to/App.ipa 指定路径。",
++  "Choose a pairing file in Minis / iSH": "选择 Minis／iSH 内的配对文件",
++  "Choose a pairing file, or enter its path in Minis.": "请选择配对文件，或输入 Minis 内的路径。",
++  "Choose a separate unlock passphrase of at least 12 characters. It unlocks your saved login each time and is never saved.": "请设置独立的解锁口令，至少 12 个字符。每次使用保存的登录时需输入此口令，口令本身不会保存。",
++  "Choose an .ipa file first.": "请先选择 IPA 文件。",
++  "Choose an app to install": "选择要安装的应用",
++  "Choose how Apple should send the verification code.": "请选择验证码发送方式。",
++  "Code": "验证码",
++  "Come back to Minis once Settings says it's paired.": "设置提示配对完成后，请返回 Minis。",
++  "Confirm unlock passphrase": "确认解锁口令",
++  "Confirm unlock passphrase:": "确认解锁口令：",
++  "Connect": "连接",
++  "Connecting to siboot…": "正在连接 siboot…",
++  "Connecting to this iPhone through LocalDevVPN": "通过 LocalDevVPN 连接 iPhone",
++  "Continue": "继续",
++  "Copied the log ({count} lines). Paste it where you ask for help.": "已复制日志（{count} 行），可以粘贴以寻求帮助。",
++  "Couldn't accept the iPhone's connection.": "无法接受 iPhone 的配对连接。",
++  "Couldn't copy the log: {reason}.": "无法复制日志：{reason}。",
++  "Couldn't create the symlink {path}.": "无法创建符号链接 {path}。",
++  "Couldn't create {path} on this iPhone.": "无法在 iPhone 上创建 {path}。",
++  "Couldn't create {path}.": "无法创建 {path}。",
++  "Couldn't decrypt the saved signing data.": "无法解密已保存的签名数据。",
++  "Couldn't delete the saved login.": "无法删除已保存的登录。",
++  "Couldn't encrypt the signing data.": "无法加密签名数据。",
++  "Couldn't import that pairing file. Choose a readable RPPairing file in Minis / iSH.": "无法导入配对文件，请选择 Minis／iSH 内可读取的 RPPairing 文件。",
++  "Couldn't import the IPA ({status}). Select the file and try again.": "无法导入 IPA（{status}），请重新选择并重试。",
++  "Couldn't import the IPA. Try again.": "无法导入 IPA，请重试。",
++  "Couldn't load Apple's root certificate.": "无法加载 Apple 根证书。",
++  "Couldn't open AFC on this iPhone.": "无法打开 iPhone 的 AFC 服务。",
++  "Couldn't open a port to listen on.": "无法打开配对监听端口。",
++  "Couldn't open that directory in Minis / iSH.": "无法打开 Minis／iSH 内的这个目录。",
++  "Couldn't protect this run's temporary signing data.": "无法加密本次运行的临时签名数据。",
++  "Couldn't reach Apple's sign-in server (gsa.apple.com). Check the internet connection.": "无法连接 Apple 登录服务器（gsa.apple.com），请检查网络。",
++  "Couldn't reach installation_proxy on this iPhone.": "无法连接 iPhone 的安装服务。",
++  "Couldn't reach siboot. It runs in Minis's terminal: is Minis still open?": "无法连接 siboot，请保持 Minis 终端运行。",
++  "Couldn't reach this iPhone at {addr}. Connect LocalDevVPN, and check Wi-Fi is on.": "无法通过 {addr} 连接 iPhone，请连接 LocalDevVPN 并开启 Wi-Fi。",
++  "Couldn't read the pairing file at {path}. Pair again in rootshell (`./siboot-pair.wasm`), then run siboot again.": "无法读取 {path} 的配对文件。请重新配对或选择有效的 RPPairing 文件后重试。",
++  "Couldn't read the password from the terminal.": "无法从终端读取密码。",
++  "Couldn't read the unlock passphrase.": "无法读取解锁口令。",
++  "Couldn't read {path}.": "无法读取 {path}。",
++  "Couldn't save the encrypted developer session.": "无法保存加密开发者会话。",
++  "Couldn't save the encrypted login.": "无法保存加密登录。",
++  "Couldn't save the pairing file at {path}.": "无法将配对文件保存到 {path}。",
++  "Couldn't save the verified pairing file beside siboot.": "无法将已验证的配对文件保存到程序同目录。",
++  "Couldn't sign in through any of {count} anisette servers. Try again later.": "尝试的 {count} 个 anisette 服务器均无法登录，请稍后重试。",
++  "Couldn't start an HTTPS client.": "无法创建 HTTPS 客户端。",
++  "Couldn't start the async runtime.": "无法启动异步运行环境。",
++  "Couldn't start the silence that keeps Minis running behind Settings, so iOS may pause it there before Pair with siboot shows.": "无法播放保持 Minis 运行的静音音频，切换到设置后 iOS 可能会暂停 Minis。",
++  "Couldn't unlock the saved login. Apple has not been contacted.": "无法解锁已保存的登录，尚未联系 Apple。",
++  "Couldn't unlock the saved login. Check the passphrase; Apple has not been contacted.": "无法解锁，请检查口令。尚未联系 Apple。",
++  "Couldn't update the encrypted login.": "无法更新加密登录。",
++  "Couldn't write {path}.": "无法写入 {path}。",
++  "Ctrl+V: hide password": "Ctrl+V：隐藏密码",
++  "Ctrl+V: show password": "Ctrl+V：显示密码",
++  "Details": "详细信息",
++  "Dev Mode": "开发者模式",
++  "Developer Mode is already on": "开发者模式已开启",
++  "Developer Mode is in Settings": "请在设置中开启开发者模式",
++  "Done": "完成",
++  "Email": "邮箱",
++  "Encrypt the saved login": "加密保存登录",
++  "Encrypting dummy login and signing data": "加密测试登录与签名数据",
++  "Enter your iPhone passcode, then the 6-digit code siboot shows. It comes as a notification too.": "输入 iPhone 锁屏密码，再输入 siboot 显示的 6 位配对码，配对码也会通过通知显示。",
++  "Enter your iPhone passcode, then the 6-digit code siboot shows. Minis's notifications are off, so come back to Minis to read it.": "输入 iPhone 锁屏密码，再输入 siboot 显示的 6 位配对码。Minis 通知已关闭，请返回 Minis 查看配对码。",
++  "Failed while {action}.": "{action}时失败。",
++  "File path": "文件路径",
++  "Finishing the install": "完成安装",
++  "Folder in Minis / iSH": "Minis／iSH 内的目录",
++  "Forget saved login": "删除已保存的登录",
++  "Free accounts' apps last 7 days. Renew the app before it expires.": "免费账号签名有效期为 7 天，请在到期前重新签名。",
++  "Go back to Minis: siboot carries on there.": "请返回 Minis，siboot 会在那里继续。",
++  "Handing SideInstaller the pairing": "向 SideInstaller 交接配对文件",
++  "Handover": "交接",
++  "Hide password": "隐藏密码",
++  "IPA URLs are no longer supported. Download the IPA yourself and select the local file.": "不再支持 IPA 下载链接，请自行下载后选择本地文件。",
++  "IPA imported.": "IPA 已导入。",
++  "IPA path": "IPA 路径",
++  "IPA path:": "IPA 路径：",
++  "Importing {name}… {percent}%": "正在导入 {name}… {percent}%",
++  "Install": "安装",
++  "Install a local IPA": "安装本地 IPA",
++  "Installed successfully, but the quick-renew cache could not be saved.": "应用已安装成功，但无法保存快速续签缓存。",
++  "Installing it": "安装应用",
++  "It now shows under Settings › Privacy & Security, near the bottom. Turn it on there; iOS restarts to finish.": "开关已显示在“设置 › 隐私与安全性”底部，开启后 iPhone 将重启。",
++  "It's also in {path}.": "日志也已保存到 {path}。",
++  "Jay-Void-BA · based on FrizzleM/siboot": "Jay-Void-BA · 基于 FrizzleM/siboot",
++  "Keep Minis open until siboot is done: iOS pauses it in the background.": "完成前请保持 Minis 在前台，iOS 会暂停后台运行的 Minis。",
++  "Language": "语言",
++  "Local Discovery is off in Open Minis. Turn it on in Minis's Settings › Network, then start again.": "Open Minis 的本地发现已关闭，请在“Minis 设置 › 网络”中开启后重试。",
++  "Local IPA and retry preview (no install).": "本地 IPA 与重试预览（不执行安装）。",
++  "Local secret input preview. Use dummy credentials only.": "本地秘密输入预览，仅使用测试凭据。",
++  "Minis put Pair with siboot up under another name, which Settings won't pair with. Run siboot again.": "Minis 广播的配对名称不正确，设置无法配对，请重试。",
++  "Minis's notifications are off, so the pairing code will show only in Minis.": "Minis 的通知已关闭，配对码只会在 Minis 内显示。",
++  "New unlock passphrase": "新解锁口令",
++  "New unlock passphrase:": "新解锁口令：",
++  "No": "否",
++  "No Apple Account given.": "未输入 Apple 账号。",
++  "No IPA selected.": "未选择 IPA。",
++  "No app is cached for quick renew. Install a local IPA first.": "还没有可续签的应用，请先安装一次本地 IPA。",
++  "No app selected.": "未选择应用。",
++  "No device or Apple contact. The generated preview files will be removed.": "未联系设备或 Apple，生成的预览文件将被删除。",
++  "No pairing file given.": "未提供配对文件。",
++  "No pairing file selected.": "未选择配对文件。",
++  "No pairing files here. Open another folder or enter a full file path.": "此处没有配对文件，请打开其他目录或输入完整路径。",
++  "No password given.": "未输入密码。",
++  "No password was recorded.": "密码未写入日志。",
++  "Nobody tapped Pair with {name} within {duration}. If it never showed in Settings, keep Wi-Fi on, check Open Minis has Local Network access (Settings › Privacy & Security › Local Network), leave the player open, and run siboot again.": "{duration} 内未点击“与 {name} 配对”。若未显示，请开启 Wi-Fi，允许 Minis 访问本地网络，保持播放器打开并重试。",
++  "Nothing answered at {addr}. Connect LocalDevVPN (it shows Connected), and check Wi-Fi is on.": "{addr} 未响应。请连接 LocalDevVPN，确认显示“已连接”，并开启 Wi-Fi。",
++  "Nothing answered at {addr}. Connect LocalDevVPN, and check Wi-Fi is on.": "{addr} 未响应，请连接 LocalDevVPN 并开启 Wi-Fi。",
++  "Number to revoke (empty to stop):": "要撤销的证书序号（留空取消）：",
++  "Once you unlock it, tap Turn On.": "解锁 iPhone 后，点击“开启”。",
++  "Open Minis can pair this iPhone": "Open Minis 可以与这台 iPhone 配对",
++  "Open Minis can pair this iPhone, and post the code as a notification": "Open Minis 可以配对并通过通知显示配对码",
++  "Open Minis couldn't put Pair with siboot up in Settings. Run siboot again.": "Minis 无法在设置中显示配对条目，请重试。",
++  "Open Minis needs Local Network access to show Pair with siboot. Allow it when iOS asks, or turn it on in Settings › Privacy & Security › Local Network, then start again.": "Minis 需要本地网络权限才能显示配对条目。请在 iOS 提示时允许，或在“设置 › 隐私与安全性 › 本地网络”中开启后重试。",
++  "Open Minis's minis-bonjour didn't answer ({error}).": "Open Minis 的 minis-bonjour 未响应（{error}）。",
++  "Open Settings › Privacy & Security › Developer Mode, and scroll to the bottom.": "打开“设置 › 隐私与安全性 › 开发者模式”，滚动到底部。",
++  "Open SideInstaller": "打开 SideInstaller",
++  "Open folder": "打开目录",
++  "Open it from your Home Screen. The first time, iOS asks you to trust your Apple Account: Settings › General › VPN & Device Management.": "请从主屏幕打开应用。首次使用需在“设置 › 通用 › VPN 与设备管理”中信任开发者。",
++  "Open this in a browser on this iPhone, and": "请在这台 iPhone 的浏览器中打开下方地址，",
++  "Opening folder…": "正在打开目录…",
++  "Other ways": "其他方式",
++  "Pair automatically": "自动配对",
++  "Pair this iPhone with siboot": "将这台 iPhone 与 siboot 配对",
++  "Pair with siboot": "与 siboot 配对",
++  "Pair with {name} is ready": "与 {name} 的配对已就绪",
++  "Pair with {name} is up in Settings": "设置中已显示“与 {name} 配对”",
++  "Pairing": "配对",
++  "Pairing and encrypted-login preview. Use dummy credentials only.": "配对与加密登录预览，仅使用测试凭据。",
++  "Pairing code": "配对码",
++  "Pairing didn't finish. Run siboot again, and tap the entry again in Settings.": "配对未完成，请重试并再次点击设置中的配对条目。",
++  "Pairing file": "配对文件",
++  "Pairing file in Minis / iSH": "Minis／iSH 内的配对文件",
++  "Pairing file path": "配对文件路径",
++  "Pairing file path:": "配对文件路径：",
++  "Pairing stopped before it finished. Tap the entry in Settings again.": "配对尚未完成便已中断，请再次点击设置中的配对条目。",
++  "Pairing this iPhone with siboot": "将这台 iPhone 与 siboot 配对",
++  "Pairing-file selection cancelled.": "已取消选择配对文件。",
++  "Password": "密码",
++  "Password (not shown; it goes only to Apple):": "密码（默认隐藏，仅用于向 Apple 验证）：",
++  "Password:": "密码：",
++  "Preparing the IPA": "准备 IPA",
++  "Press return here to open it again.": "按回车可重新打开页面。",
++  "Preview complete": "预览完成",
++  "Preview iSH folder: {path}": "预览 iSH 目录：{path}",
++  "Preview password": "预览密码",
++  "Preview: dummy Apple password": "预览：测试 Apple 密码",
++  "Quick renew requires the same Apple developer team as the previous install. Use a normal local IPA install to change accounts.": "快速续签需要与上次安装使用相同的 Apple 开发者团队。若要更换账号，请使用普通本地 IPA 安装。",
++  "Quick renew {name}": "快速续签 {name}",
++  "Ready": "已就绪",
++  "Ready for quick renew: run siboot renew next time.": "已准备快速续签，下次可运行 siboot renew。",
++  "Ready to install": "准备安装",
++  "Retry step": "重试此步骤",
++  "Retry this step?": "重试此步骤？",
++  "Run siboot --ipa /path/to/App.ipa to install a local IPA.": "运行 siboot --ipa /path/to/App.ipa 安装本地 IPA。",
++  "Save login": "保存登录",
++  "Secret preserved": "输入已完整保留",
++  "Secure setup preview complete": "安全设置预览完成",
++  "Select a folder or pairing file above.": "请选择上方的目录或配对文件。",
++  "Select a pairing file in Minis / iSH": "选择 Minis／iSH 内的配对文件",
++  "Selected {name}": "已选择 {name}",
++  "Selecting an existing pairing file": "选择已有配对文件",
++  "Send it to your Apple devices": "发送至 Apple 设备",
++  "Send the same again": "重新发送",
++  "Settings connected: waiting for it to ask for a code": "设置已连接，正在等待配对码请求",
++  "Settings › Privacy & Security › Developer Mode, at the bottom.": "位于“设置 › 隐私与安全性 › 开发者模式”底部。",
++  "Show details": "显示详细信息",
++  "Show password": "显示密码",
++  "Showing the first 256 entries. Enter a full path if needed.": "仅显示前 256 项，也可以直接输入完整路径。",
++  "SideInstaller has the pairing": "SideInstaller 已收到配对文件",
++  "Sign": "签名",
++  "Sign-in cancelled.": "已取消登录。",
++  "Signed in, but Apple didn't list a developer team.": "已登录，但 Apple 未返回开发者团队。",
++  "Signing failed.": "签名失败。",
++  "Signing in to your Apple Account": "登录 Apple 账号",
++  "Signing the app for this iPhone": "为这台 iPhone 签名应用",
++  "Signs and installs a local IPA on this iPhone.": "在这台 iPhone 上签名并安装本地 IPA。",
++  "So nothing was sent.": "无需发送操作。",
++  "Something at {addr} took the connection but didn't answer as an iPhone. Turn on Developer Mode (Settings › Privacy & Security › Developer Mode) and check LocalDevVPN is the VPN that's on.": "{addr} 接受了连接，但未正确响应为 iPhone。请开启开发者模式，并确认当前连接的是 LocalDevVPN。",
++  "Start pairing": "开始配对",
++  "Start pairing?": "开始配对？",
++  "Stop": "停止",
++  "Stopped": "已停止",
++  "Stopped at the transfer code.": "已取消输入传输码。",
++  "Stopped before pairing.": "已在配对前停止。",
++  "Stopped from the page.": "已从页面停止。",
++  "Stopped with Ctrl-C.": "已通过 Ctrl-C 停止。",
++  "Stopped:": "已停止：",
++  "Stopping…": "正在停止…",
++  "Tap Pair with {name}. It can take a few seconds to show.": "点击“与 {name} 配对”，条目可能需要数秒才会显示。",
++  "Tap again to stop": "再次点击停止",
++  "Text {number}": "向 {number} 发送短信",
++  "That code didn't match. Tap the entry in Settings again for a new one.": "配对码不匹配，请再次点击设置中的配对条目获取新配对码。",
++  "That connection closed before asking for a code.": "连接在请求配对码前已关闭。",
++  "That connection went quiet before asking for a code.": "连接未请求配对码便停止响应。",
++  "That isn't a 6-digit code or one of t N, c N, d, r, q.": "请输入 6 位验证码或 t N、c N、d、r、q。",
++  "The cached IPA is incomplete. Install a local IPA again.": "缓存的 IPA 不完整，请重新安装一次本地 IPA。",
++  "The code didn't match. Run siboot again and type the new code exactly.": "配对码不匹配，请重试并准确输入新的配对码。",
++  "The code wasn't entered within {duration}. Run siboot again for a new one.": "{duration} 内未输入配对码，请重试以获取新配对码。",
++  "The earlier step stayed complete while the install retried.": "重试安装时，先前步骤保留完成状态。",
++  "The iPhone connected but stopped before asking for a code. Tap the entry in Settings again, or run siboot again.": "iPhone 在请求配对码前停止响应，请再次点击配对条目或重试。",
++  "The iPhone opened a tunnel port but {addr}:{port} can't be reached.": "iPhone 已打开隧道端口，但无法连接 {addr}:{port}。",
++  "The iPhone opened a tunnel port but {addr}:{port} didn't answer.": "iPhone 已打开隧道端口，但 {addr}:{port} 未响应。",
++  "The iPhone stopped answering while checking the pairing.": "iPhone 在验证配对时停止响应。",
++  "The log is in {path}.": "日志位于 {path}。",
++  "The page is open in Minis's browser. Closed it?": "页面已在 Minis 浏览器中打开。",
++  "The player was closed. It keeps Minis running while you're in Settings, so siboot opened it again: leave it open.": "播放器已关闭。为保持 Minis 在设置页面下继续运行，siboot 已重新打开播放器，请保持它打开。",
++  "The quick-renew cache cannot be read. Install a local IPA again.": "无法读取快速续签缓存，请重新安装一次本地 IPA。",
++  "The run's log is in {path}.": "运行日志已保存到 {path}。",
++  "The signed app has no bundle identifier.": "签名应用缺少应用标识。",
++  "The signed app has no folder name.": "签名应用没有有效的目录名称。",
++  "The signed app has no readable Info.plist.": "签名应用中没有可读取的 Info.plist。",
++  "The tunnel came up, but RSD inside it didn't answer.": "隧道已建立，但 RSD 未响应。",
++  "The tunnel disconnected during the upload.": "隧道在上传过程中断开。",
++  "The tunnel reported an address siboot can't read.": "隧道返回了无法识别的地址。",
++  "The tunnel works": "隧道连接正常",
++  "The unlock passphrases didn't match.": "两次解锁口令不一致。",
++  "The upload of {path} broke off.": "上传 {path} 时中断。",
++  "This Apple Account already has as many signing certificates as Apple allows, so one must be revoked to make siboot's. Apps signed with a revoked certificate stop opening, on every device, until they're signed again. This can't be undone.": "此 Apple 账号的签名证书数量已达上限，需要撤销一张才能继续。所有设备上使用该证书的应用都将无法打开，直到重新签名；撤销操作不可恢复。",
++  "This Apple Account has reached its limit of App IDs for the week. Wait for one to expire, or use another account.": "此 Apple 账号本周的 App ID 数量已达上限，请等待到期或使用其他账号。",
++  "This Minis cannot create a pairing file itself. Select an existing RPPairing file at the Pairing step.": "当前 Minis 无法自行创建配对文件，请在配对步骤选择已有的 RPPairing 文件。",
++  "This Open Minis can't advertise a pairing host.": "当前 Open Minis 无法广播配对主机。",
++  "This Open Minis can't pair this iPhone itself: that came with Minis 1.16.": "当前 Open Minis 无法直接配对，此功能需要 Minis 1.16+。",
++  "This iPhone accepts the pairing file, and the tunnel opens with it.": "iPhone 已接受配对文件，隧道已成功建立。",
++  "This iPhone already has 3 apps signed with a free Apple Account. Delete one, then run siboot again.": "这台 iPhone 已安装 3 个由免费账号签名的应用，请先删除一个再重试。",
++  "This iPhone didn't say its UDID, which signing needs.": "iPhone 未返回签名所需的 UDID。",
++  "This iPhone doesn't accept the pairing file (it was removed in Settings, or the iPhone was reset). Pair again in rootshell (`./siboot-pair.wasm`), then run siboot again.": "iPhone 不接受此配对文件，可能已在设置中移除配对或设备已重置。请重新配对或导入有效文件后重试。",
++  "This iPhone doesn't accept the saved pairing file, so siboot pairs again.": "iPhone 不接受已保存的配对文件，将重新配对。",
++  "This isn't a complete IPA. Choose another file.": "IPA 文件不完整，请重新选择。",
++  "This removes the saved login and encrypted local signing data. It does not revoke Apple's certificate.": "将删除已保存的登录及本地加密签名数据，不会撤销 Apple 证书。",
++  "Timed out while {action}.": "{action}时超时。",
++  "To type here instead, stop with Ctrl-C": "若要改用终端输入，请按 Ctrl-C 停止，",
++  "Transfer code shown in rootshell:": "rootshell 显示的传输码：",
++  "Type it into Settings.": "请在设置中输入此配对码。",
++  "Type it into Settings. It came as a notification too.": "请在设置中输入此配对码，也可以查看通知。",
++  "Type the code, or: t N to text number N, c N to call it, d for your devices,": "输入验证码，或输入 t N 发送短信、c N 电话验证、d 发送至设备，",
++  "Unlock": "解锁",
++  "Unlock and update saved password": "解锁并更新已保存的密码",
++  "Unlock cancelled.": "已取消解锁。",
++  "Unlock passphrase": "解锁口令",
++  "Unlock passphrase:": "解锁口令：",
++  "Unlock saved Apple Account login": "解锁已保存的 Apple 账号",
++  "Unlock saved login": "解锁已保存的登录",
++  "Unlocking the saved login": "解锁已保存的登录",
++  "Up": "上级目录",
++  "Update Open Minis to 1.16 or later to pair here, or select an existing RPPairing file from Minis / iSH.": "请升级至 Open Minis 1.16+ 以直接配对，或选择 Minis／iSH 内已有的 RPPairing 文件。",
++  "Use a separate unlock passphrase of at least 12 characters.": "请使用独立于 Apple 密码的解锁口令，至少 12 个字符。",
++  "Use another Apple Account once": "临时使用其他 Apple 账号",
++  "Use pairing file": "使用配对文件",
++  "Use saved pairing": "使用已保存的配对",
++  "Use saved pairing or pair automatically": "使用已保存的配对或自动配对",
++  "Use selected IPA": "使用所选 IPA",
++  "Uses the cached original IPA and saved pairing. Sign-in and installation still run.": "使用缓存的原始 IPA 与已保存的配对，仍会重新登录、签名并安装。",
++  "Verification code": "验证码",
++  "Waiting for retry": "等待重试",
++  "When you start, a player opens over Minis. It plays silence, which keeps Minis running while you're in Settings: leave it open. siboot closes it once you're back.": "开始后会打开静音播放器，让 Minis 在你切换到设置时继续运行。请保持播放器打开，返回后 siboot 会自动关闭它。",
++  "Yes": "是",
++  "already on": "已开启",
++  "and run siboot --terminal.": "再使用 --terminal 选项运行。",
++  "asking lockdownd about this iPhone": "正在通过 lockdownd 读取设备信息",
++  "asking the iPhone for a tunnel listener": "正在请求 iPhone 打开隧道端口",
++  "at least 12 characters": "至少 12 个字符",
++  "cached IPA selected for quick renew": "已选择缓存 IPA 进行快速续签",
++  "cause:": "原因：",
++  "checking every file arrived whole": "正在核对所有上传文件",
++  "checking it with this iPhone": "正在向 iPhone 验证配对",
++  "checking that Open Minis can pair this iPhone": "正在检查 Open Minis 的配对能力",
++  "checking the new pairing with this iPhone": "正在验证新的配对",
++  "checking the pairing with it": "正在验证配对",
++  "checking this Open Minis": "正在检查 Open Minis",
++  "connecting to the tunnel listener": "正在连接隧道端口",
++  "copy the log to the clipboard?": "将日志复制到剪贴板？",
++  "dummy login and cache encrypted": "测试登录与缓存已加密",
++  "enter the code Apple sent": "输入 Apple 发送的验证码",
++  "file verification took {seconds} s": "文件核对耗时 {seconds} 秒",
++  "forget the saved login and local signing data?": "删除已保存的登录和本地签名数据？",
++  "greeting the iPhone": "正在与 iPhone 握手",
++  "how should Apple send the code?": "选择 Apple 验证码的发送方式",
++  "iOS installation took {seconds} s": "iOS 安装耗时 {seconds} 秒",
++  "installd refused the app.": "iPhone 安装服务拒绝了此应用。",
++  "installd refused the provisioning profile. Run siboot again; if it keeps failing, the profile may not include this iPhone.": "安装服务拒绝了描述文件，请重试。若持续失败，描述文件可能未包含这台 iPhone。",
++  "installed": "已安装",
++  "installed (preview)": "已安装（预览）",
++  "installed · {megabytes} MB, {files} files · upload {upload}s · check {check}s · iOS {system}s": "已安装 · {megabytes} MB，{files} 个文件 · 上传 {upload} 秒 · 核对 {check} 秒 · iOS {system} 秒",
++  "installed · {summary}": "已安装 · {summary}",
++  "installing": "正在安装",
++  "installing; this phase is handled by iOS": "正在安装，此阶段由 iOS 执行",
++  "it goes only to Apple": "仅用于向 Apple 验证",
++  "keep this terminal open:": "并保持此终端运行：",
++  "local IPA imported": "本地 IPA 已导入",
++  "login and signing session saved with authenticated encryption": "登录和签名会话已使用认证加密保存",
++  "not needed for this app": "此应用无需交接",
++  "online, and the iPhone answers": "网络正常，iPhone 已响应",
++  "paired here in Minis": "已在 Minis 中配对",
++  "paired with {name} ({model})": "已与 {name} 配对（{model}）",
++  "paired: go back to Minis to carry on": "配对已完成，请返回 Minis 继续",
++  "pairing file saved to {path}": "配对文件已保存到 {path}",
++  "pairing file written to {path}": "配对文件已写入 {path}",
++  "path to the local IPA": "本地 IPA 路径",
++  "private pairing copy saved (preview only; no device verification)": "已保存私有配对副本（仅预览，未验证设备）",
++  "quick renew: {name}": "快速续签：{name}",
++  "r to send it again, q to give up.": "r 重新发送、q 取消。",
++  "reaching Apple's sign-in server": "正在连接 Apple 登录服务器",
++  "reaching RSD inside the tunnel": "正在通过隧道连接 RSD",
++  "reaching this iPhone at {addr}": "正在通过 {addr} 连接 iPhone",
++  "reading the iPhone's services": "正在读取 iPhone 服务",
++  "revoke it? this can't be undone": "撤销此证书？操作不可恢复",
++  "revoke which certificate?": "选择要撤销的证书",
++  "revoking certificate {serial}": "正在撤销证书 {serial}",
++  "rootshell is offering its file": "rootshell 正在提供配对文件",
++  "run again with --verbose to see the underlying error": "使用 --verbose 重新运行可查看原始错误",
++  "save this Apple Account login securely on this device?": "加密保存此设备上的 Apple 账号登录？",
++  "save this dummy login securely?": "加密保存测试登录？",
++  "saved for quick renew": "已保存续签缓存",
++  "saved login unlocked": "已解锁保存的登录",
++  "saving the original IPA for quick renew": "正在保存原始 IPA 以便快速续签",
++  "selected file verified and saved beside siboot": "所选文件已验证并保存到程序同目录",
++  "sent to your Apple devices": "已发送至 Apple 设备",
++  "siboot is done. You can close this page.": "siboot 已完成，可以关闭此页面。",
++  "siboot isn't answering. It runs in Minis's terminal, and iOS pauses Minis when you leave it: go back to Minis to carry on.": "siboot 未响应。iOS 会暂停后台 Minis，请返回 Minis 继续。",
++  "siboot paired this iPhone": "siboot 已与这台 iPhone 配对",
++  "siboot pairing code": "siboot 配对码",
++  "sign in to your Apple Account": "登录 Apple 账号",
++  "signed in — team {team}": "已登录，团队 {team}",
++  "signed {name} as {id}": "已签名 {name}，标识 {id}",
++  "signing in through {server}": "正在通过 {server} 登录",
++  "signing; this takes a while here": "正在签名，可能需要一些时间",
++  "start pairing when you're ready": "准备好后开始配对",
++  "starting the encrypted tunnel": "正在建立加密隧道",
++  "taken from rootshell": "已从 rootshell 获取配对",
++  "team {team}": "团队 {team}",
++  "the iPhone answers": "iPhone 已响应",
++  "the saved pairing still works": "已保存的配对文件有效",
++  "the switch now shows in Settings": "设置中已显示开发者模式开关",
++  "this Open Minis can create pairing files": "当前 Open Minis 支持创建配对文件",
++  "this iPhone accepts the new pairing": "iPhone 已接受新的配对",
++  "this iPhone accepts the pairing file from rootshell": "iPhone 已接受 rootshell 提供的配对文件",
++  "this iPhone accepts the pairing file saved on an earlier run": "iPhone 已接受已保存的配对文件",
++  "this iPhone answers on {addr} (RPPairing, wire protocol {version})": "iPhone 已通过 {addr} 响应（RPPairing，协议 {version}）",
++  "trying the pairing file saved on an earlier run": "正在尝试已保存的配对文件",
++  "turn it on now?": "现在开启？",
++  "type it, or esc to stop": "请输入，或按 Esc 取消",
++  "type the transfer code it shows": "输入显示的传输码",
++  "type the transfer code it shows, or Cancel to pair here in Minis instead": "输入显示的传输码，或取消并在 Minis 中直接配对",
++  "upload checked: every file arrived whole": "上传检查通过，所有文件均完整",
++  "upload took {seconds} s": "上传耗时 {seconds} 秒",
++  "uploaded": "已上传",
++  "uploading {count} files ({size} MB)": "正在上传 {count} 个文件（{size} MB）",
++  "use a dummy password": "请输入测试密码",
++  "using {path}": "使用 {path}",
++  "verified files": "已核对文件",
++  "verifying the selected pairing file with this iPhone": "正在向 iPhone 验证所选配对文件",
++  "waiting for Pair with {name} in Settings (up to {duration})": "等待在设置中点击“与 {name} 配对”（最多 {duration}）",
++  "waiting for the code to be typed into Settings": "等待在设置中输入配对码",
++  "your Apple Account": "Apple 账号邮箱",
++  "your local storage passphrase": "本地存储的解锁口令",
++  "your trusted number": "受信任的电话号码",
++  "{count} files didn't arrive whole on the iPhone. Run siboot again.": "有 {count} 个文件未完整上传到 iPhone，请重试。",
++  "{name} installed ({id})": "{name} 已安装（{id}）",
++  "{name} is installed": "{name} 已安装",
++  "{name} signed": "{name} 已签名",
++  "{name} {version} signed": "{name} {version} 已签名",
++  "{path} isn't an IPA that can be read. Pick a complete .ipa file, or download it again.": "无法读取 {path}，请选择完整的 IPA 文件，或重新下载后再选择。",
++  "{server} didn't work: {reason}": "{server} 登录失败：{reason}"
++}
 diff --git a/minis/src/account.rs b/minis/src/account.rs
 index b778e40..6dee0ce 100644
 --- a/minis/src/account.rs
@@ -522,11 +1289,282 @@ index b778e40..6dee0ce 100644
              }
              Err(e) => {
                  if let Some(advice) = stops_sign_in(&e) {
+diff --git a/minis/src/i18n.js b/minis/src/i18n.js
+new file mode 100644
+index 0000000..29bfa52
+--- /dev/null
++++ b/minis/src/i18n.js
+@@ -0,0 +1,84 @@
++// Localize display text only. Input values and submitted secrets are never read.
++const i18n = (() => {
++  const chinese = __SIBOOT_CHINESE__;
++  let language = "zh-CN";
++  try { language = localStorage.getItem("siboot-language") || language; } catch (_) {}
++  const originals = new WeakMap();
++  const attributes = new WeakMap();
++  const escape = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
++  const templates = Object.entries(chinese).filter(([key]) => key.includes("{"))
++    .sort(([a], [b]) => b.length - a.length).map(([pattern, translated]) => {
++      const names = [];
++      let at = 0, source = "^";
++      for (const match of pattern.matchAll(/\{(\w+)\}/g)) {
++        source += escape(pattern.slice(at, match.index)) + "(.+?)";
++        names.push(match[1]); at = match.index + match[0].length;
++      }
++      return { regex: new RegExp(source + escape(pattern.slice(at)) + "$"), names, translated };
++    });
++  function translate(text) {
++    if (language === "en" || !text.trim()) return text;
++    const value = text.trim();
++    const alternate = value.charAt(0) === value.charAt(0).toUpperCase()
++      ? value.charAt(0).toLowerCase() + value.slice(1) : value.charAt(0).toUpperCase() + value.slice(1);
++    let translated = chinese[value] || chinese[alternate];
++    if (!translated) {
++      const decorated = value.match(/^([✓✔✕✗▲?]\s+)(.+)$/s);
++      if (decorated) {
++        const inner = translate(decorated[2]);
++        if (inner !== decorated[2]) translated = decorated[1] + inner;
++      }
++    }
++    if (!translated) {
++      for (const item of templates) {
++        const match = value.match(item.regex);
++        if (!match) continue;
++        const captured = Object.fromEntries(item.names.map((name, index) => [name, match[index + 1]]));
++        translated = item.translated.replace(/\{(\w+)\}/g, (_, name) => captured[name]);
++        break;
++      }
++    }
++    return translated ? text.slice(0, text.indexOf(value)) + translated + text.slice(text.indexOf(value) + value.length) : text;
++  }
++  function localize() {
++    document.documentElement.lang = language === "en" ? "en" : "zh-CN";
++    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
++    while (walker.nextNode()) {
++      const node = walker.currentNode;
++      if (node.parentElement.closest("script,style,input,textarea,option,.cause p,[data-no-i18n]")) continue;
++      const previous = originals.get(node);
++      const original = previous && node.nodeValue === previous.rendered ? previous.original : node.nodeValue;
++      const rendered = translate(original);
++      originals.set(node, { original, rendered });
++      if (node.nodeValue !== rendered) node.nodeValue = rendered;
++    }
++    for (const node of document.querySelectorAll("[placeholder],[aria-label],[title]")) {
++      const saved = attributes.get(node) || {};
++      for (const attribute of ["placeholder", "aria-label", "title"]) {
++        if (!node.hasAttribute(attribute)) continue;
++        const current = node.getAttribute(attribute), previous = saved[attribute];
++        const original = previous && current === previous.rendered ? previous.original : current;
++        const rendered = translate(original);
++        saved[attribute] = { original, rendered };
++        if (current !== rendered) node.setAttribute(attribute, rendered);
++      }
++      attributes.set(node, saved);
++    }
++  }
++  let scheduled = false;
++  new MutationObserver(() => {
++    if (scheduled) return;
++    scheduled = true;
++    queueMicrotask(() => { scheduled = false; localize(); });
++  }).observe(document.body, { childList: true, subtree: true, characterData: true,
++    attributes: true, attributeFilter: ["placeholder", "aria-label", "title"] });
++  const select = document.getElementById("language");
++  select.value = language;
++  select.addEventListener("change", () => {
++    language = select.value;
++    try { localStorage.setItem("siboot-language", language); } catch (_) {}
++    localize();
++  });
++  localize();
++  return { translate };
++})();
+diff --git a/minis/src/i18n.rs b/minis/src/i18n.rs
+new file mode 100644
+index 0000000..288eaf2
+--- /dev/null
++++ b/minis/src/i18n.rs
+@@ -0,0 +1,167 @@
++//! Shared English/Chinese messages. Raw protocol details and input values stay unchanged.
++use std::borrow::Cow;
++use std::collections::BTreeMap;
++use std::sync::OnceLock;
++
++pub const CHINESE: &str = include_str!("../locales/zh-CN.json");
++
++fn catalog() -> &'static BTreeMap<String, String> {
++    static CATALOG: OnceLock<BTreeMap<String, String>> = OnceLock::new();
++    CATALOG.get_or_init(|| serde_json::from_str(CHINESE).expect("bundled Chinese messages"))
++}
++
++pub fn is_chinese() -> bool {
++    !cfg!(test)
++        && std::env::var("SIBOOT_LANG")
++            .ok()
++            .is_none_or(|v| !v.to_ascii_lowercase().starts_with("en"))
++}
++
++pub fn tr(text: &str) -> Cow<'_, str> {
++    if !is_chinese() {
++        return Cow::Borrowed(text);
++    }
++    translate(text)
++}
++
++fn lookup(text: &str) -> Option<&'static str> {
++    let messages = catalog();
++    if let Some(value) = messages.get(text) {
++        return Some(value);
++    }
++    let mut chars = text.chars();
++    let first = chars.next()?;
++    let alternate: String = if first.is_uppercase() {
++        first.to_lowercase().chain(chars).collect()
++    } else {
++        first.to_uppercase().chain(chars).collect()
++    };
++    messages.get(&alternate).map(String::as_str)
++}
++
++/// Match named placeholders without interpreting or translating their values.
++fn interpolate(pattern: &str, translated: &str, text: &str) -> Option<String> {
++    let mut rest = pattern;
++    let mut value = text;
++    let mut captures = BTreeMap::new();
++    while let Some(open) = rest.find('{') {
++        value = value.strip_prefix(&rest[..open])?;
++        let close = rest[open + 1..].find('}')? + open + 1;
++        let name = &rest[open + 1..close];
++        rest = &rest[close + 1..];
++        let next = rest.find('{').unwrap_or(rest.len());
++        let literal = &rest[..next];
++        let length = if literal.is_empty() {
++            if next == rest.len() {
++                value.len()
++            } else {
++                return None;
++            }
++        } else if next == rest.len() {
++            value.strip_suffix(literal)?.len()
++        } else {
++            value.find(literal)?
++        };
++        let captured = &value[..length];
++        if captured.is_empty() {
++            return None;
++        }
++        if captures
++            .insert(name, captured)
++            .is_some_and(|previous| previous != captured)
++        {
++            return None;
++        }
++        value = &value[length..];
++    }
++    if value != rest {
++        return None;
++    }
++    let mut output = String::new();
++    let mut rest = translated;
++    while let Some(open) = rest.find('{') {
++        output.push_str(&rest[..open]);
++        let close = rest[open + 1..].find('}')? + open + 1;
++        output.push_str(captures.get(&rest[open + 1..close])?);
++        rest = &rest[close + 1..];
++    }
++    output.push_str(rest);
++    Some(output)
++}
++
++pub fn translate(text: &str) -> Cow<'_, str> {
++    let trimmed = text.trim();
++    if trimmed.is_empty() {
++        return Cow::Borrowed(text);
++    }
++    let translated = lookup(trimmed).map(str::to_owned).or_else(|| {
++        static TEMPLATES: OnceLock<Vec<(&'static str, &'static str)>> = OnceLock::new();
++        let templates = TEMPLATES.get_or_init(|| {
++            let mut templates: Vec<_> = catalog()
++                .iter()
++                .filter(|(key, _)| key.contains('{'))
++                .map(|(key, value)| (key.as_str(), value.as_str()))
++                .collect();
++            templates.sort_by_key(|(key, _)| std::cmp::Reverse(key.len()));
++            templates
++        });
++        templates
++            .iter()
++            .find_map(|(pattern, translated)| interpolate(pattern, translated, trimmed))
++    });
++    match translated {
++        Some(translated) => {
++            let leading = text.len() - text.trim_start().len();
++            let trailing = text.trim_end().len();
++            Cow::Owned(format!(
++                "{}{translated}{}",
++                &text[..leading],
++                &text[trailing..]
++            ))
++        }
++        None => Cow::Borrowed(text),
++    }
++}
++
++#[cfg(test)]
++mod tests {
++    use super::*;
++    #[test]
++    fn chinese_messages_preserve_paths_placeholders_and_raw_details() {
++        assert_eq!(translate("Password"), "密码");
++        assert_eq!(
++            translate("  using /root/My App.ipa  "),
++            "  使用 /root/My App.ipa  "
++        );
++        assert_eq!(
++            translate("signed App as com.example.app"),
++            "已签名 App，标识 com.example.app"
++        );
++        assert_eq!(
++            translate("rpc frame 0x1234 failed"),
++            "rpc frame 0x1234 failed"
++        );
++        assert_eq!(
++            interpolate("{name} signed", "{name} 已签名", "{path} signed").as_deref(),
++            Some("{path} 已签名")
++        );
++    }
++    #[test]
++    fn every_translation_preserves_its_named_placeholders() {
++        fn placeholders(text: &str) -> Vec<&str> {
++            let mut out = Vec::new();
++            let mut rest = text;
++            while let Some(open) = rest.find('{') {
++                let close = rest[open..].find('}').expect("closing brace") + open;
++                out.push(&rest[open + 1..close]);
++                rest = &rest[close + 1..];
++            }
++            out.sort_unstable();
++            out
++        }
++        for (english, chinese) in catalog() {
++            assert!(!chinese.is_empty(), "{english}");
++            assert_eq!(placeholders(english), placeholders(chinese), "{english}");
++        }
++    }
++}
 diff --git a/minis/src/install.rs b/minis/src/install.rs
-index 904e836..c507fee 100644
+index 904e836..b9b3f17 100644
 --- a/minis/src/install.rs
 +++ b/minis/src/install.rs
-@@ -24,6 +24,7 @@ pub struct Entry {
+@@ -5,6 +5,7 @@
+ //! bundle with a sealed file missing and installs it without a word, and the
+ //! app then fails to open.
+ 
++use std::io::Read;
+ use std::path::{Path, PathBuf};
+ 
+ use idevice::afc::opcode::AfcFopenMode;
+@@ -24,6 +25,7 @@ pub struct Entry {
      pub relative: String,
      pub is_dir: bool,
      pub size: u64,
@@ -534,11 +1572,13 @@ index 904e836..c507fee 100644
  }
  
  /// Returns what went up, as "51.0 MB, 412 files".
-@@ -67,8 +68,13 @@ pub async fn install(connection: &mut Connection, app_dir: &Path) -> Result<Stri
+@@ -67,15 +69,22 @@ pub async fn install(connection: &mut Connection, app_dir: &Path) -> Result<Stri
  
      let started = std::time::Instant::now();
      let mut sent: u64 = 0;
 -    for entry in &entries {
++    // Keep the existing AFC transfer size without buffering an entire dylib.
++    let mut buffer = vec![0u8; 1024 * 1024];
 +    for entry in entries.iter().filter(|e| e.symlink.is_none()).chain(entries.iter().filter(|e| e.symlink.is_some())) {
          let remote = format!("{remote_root}/{}", entry.relative);
 +        if let Some(target) = &entry.symlink {
@@ -549,8 +1589,57 @@ index 904e836..c507fee 100644
          if entry.is_dir {
              afc.mk_dir(remote.clone())
                  .await
-@@ -114,6 +120,8 @@ pub async fn install(connection: &mut Connection, app_dir: &Path) -> Result<Stri
-     for entry in entries.iter().filter(|e| !e.is_dir) {
+                 .map_err(|e| Fail::new(format!("Couldn't create {remote}."), chain(&e)))?;
+             continue;
+         }
+-        let bytes = std::fs::read(app_dir.join(&entry.relative))
++        let mut source = std::fs::File::open(app_dir.join(&entry.relative))
+             .map_err(|e| Fail::new(format!("Couldn't read {}.", entry.relative), e.to_string()))?;
+         let mut file = afc
+             .open(remote.clone(), AfcFopenMode::WrOnly)
+@@ -86,34 +95,37 @@ pub async fn install(connection: &mut Connection, app_dir: &Path) -> Result<Stri
+                     chain(&e),
+                 )
+             })?;
+-        file.write_entire(&bytes).await.map_err(|e| {
+-            Fail::new(
+-                format!("The upload of {} broke off.", entry.relative),
+-                chain(&e),
+-            )
+-        })?;
++        loop {
++            let count = source.read(&mut buffer).map_err(|e| Fail::new(
++                format!("Couldn't read {}.", entry.relative), e.to_string()))?;
++            if count == 0 { break; }
++            file.write_entire(&buffer[..count]).await.map_err(|e| Fail::new(
++                format!("The upload of {} broke off.", entry.relative), chain(&e)))?;
++            sent += count as u64;
++            ui::progress("uploaded", sent, total);
++        }
+         file.close().await.map_err(|e| {
+             Fail::new(
+                 format!("The upload of {} broke off.", entry.relative),
+                 chain(&e),
+             )
+         })?;
+-        sent += entry.size;
+         ui::progress("uploaded", sent, total);
+     }
+     ui::progress("uploaded", total, total);
+     ui::progress_end();
+-    ui::detail(&format!(
+-        "upload took {:.1} s",
+-        started.elapsed().as_secs_f64()
+-    ));
++    let upload_seconds = started.elapsed().as_secs_f64();
++    ui::ok(&format!("upload took {upload_seconds:.1} s"));
+ 
+     // Every file, at its size: an incomplete bundle installs "fine".
+     ui::status("checking every file arrived whole");
+     let mut missing = Vec::new();
+-    for entry in entries.iter().filter(|e| !e.is_dir) {
++    let checking = std::time::Instant::now();
++    for (index, entry) in entries.iter().filter(|e| !e.is_dir).enumerate() {
          let remote = format!("{remote_root}/{}", entry.relative);
          match afc.get_file_info(remote).await {
 +            Ok(info) if entry.symlink.is_some() && info.st_link_target == entry.symlink => {},
@@ -558,7 +1647,50 @@ index 904e836..c507fee 100644
              Ok(info) if info.size as u64 == entry.size => {}
              Ok(info) => missing.push(format!(
                  "{} ({} of {} bytes)",
-@@ -201,13 +209,23 @@ fn walk(root: &Path, dir: &Path, out: &mut Vec<Entry>) -> std::io::Result<()> {
+@@ -121,7 +133,11 @@ pub async fn install(connection: &mut Connection, app_dir: &Path) -> Result<Stri
+             )),
+             Err(_) => missing.push(entry.relative.clone()),
+         }
++        ui::percent("verified files", ((index + 1) * 100 / files.max(1)) as u64);
+     }
++    ui::progress_end();
++    let check_seconds = checking.elapsed().as_secs_f64();
++    ui::ok(&format!("file verification took {check_seconds:.1} s"));
+     if !missing.is_empty() {
+         return Err(Fail::new(
+             format!(
+@@ -146,7 +162,8 @@ pub async fn install(connection: &mut Connection, app_dir: &Path) -> Result<Stri
+     // and rejects the bundle with 0xe8008015.
+     let mut options = plist::Dictionary::new();
+     options.insert("PackageType".into(), "Developer".into());
+-    ui::status("installing");
++    ui::status("installing; this phase is handled by iOS");
++    let installing = std::time::Instant::now();
+     let installed = proxy
+         .install_with_callback(
+             remote_root.clone(),
+@@ -162,8 +179,10 @@ pub async fn install(connection: &mut Connection, app_dir: &Path) -> Result<Stri
+         let raw = chain(&e);
+         return Err(Fail::new(install_advice(&raw), raw));
+     }
++    let install_seconds = installing.elapsed().as_secs_f64();
++    ui::ok(&format!("iOS installation took {install_seconds:.1} s"));
+     let _ = afc.remove_all(remote_root).await;
+-    Ok(size)
++    Ok(format!("{size} · upload {upload_seconds:.1}s · check {check_seconds:.1}s · iOS {install_seconds:.1}s"))
+ }
+ 
+ fn install_advice(raw: &str) -> String {
+@@ -178,7 +197,7 @@ fn install_advice(raw: &str) -> String {
+          profile may not include this iPhone."
+             .into()
+     } else {
+-        "installd refused SideInstaller.".into()
++        "installd refused the app.".into()
+     }
+ }
+ 
+@@ -201,13 +220,23 @@ fn walk(root: &Path, dir: &Path, out: &mut Vec<Entry>) -> std::io::Result<()> {
              .map_err(|e| std::io::Error::other(e.to_string()))?
              .to_string_lossy()
              .replace('\\', "/");
@@ -584,7 +1716,7 @@ index 904e836..c507fee 100644
              });
              walk(root, &path, out)?;
          } else {
-@@ -215,6 +233,7 @@ fn walk(root: &Path, dir: &Path, out: &mut Vec<Entry>) -> std::io::Result<()> {
+@@ -215,6 +244,7 @@ fn walk(root: &Path, dir: &Path, out: &mut Vec<Entry>) -> std::io::Result<()> {
                  relative,
                  is_dir: false,
                  size: meta.len(),
@@ -592,7 +1724,7 @@ index 904e836..c507fee 100644
              });
          }
      }
-@@ -225,6 +244,30 @@ fn walk(root: &Path, dir: &Path, out: &mut Vec<Entry>) -> std::io::Result<()> {
+@@ -225,6 +255,30 @@ fn walk(root: &Path, dir: &Path, out: &mut Vec<Entry>) -> std::io::Result<()> {
  mod tests {
      use super::*;
  
@@ -801,13 +1933,32 @@ index 0000000..32f6b78
 +    }
 +}
 diff --git a/minis/src/main.rs b/minis/src/main.rs
-index c61bcfe..9cdd3d0 100644
+index c61bcfe..6175402 100644
 --- a/minis/src/main.rs
 +++ b/minis/src/main.rs
-@@ -29,14 +29,18 @@ mod fail;
+@@ -1,4 +1,4 @@
+-//! `siboot` for Open Minis: installs SideInstaller onto the iPhone it runs on,
++//! `siboot` for Open Minis: signs and installs local IPAs on this iPhone,
+ //! with no computer and no paid certificate.
+ //!
+ //! Open Minis (App Store) runs Alpine Linux on an ARM64 build of iSH, so this is
+@@ -14,9 +14,8 @@
+ //! `siboot developer-mode` runs 1–3, then asks for Developer Mode (devmode.rs).
+ //!
+ //! The Apple ID password goes only to Apple (as an SRP proof, via isideload) and
+-//! is never written to disk or logged. Like SideInstaller, the developer token
+-//! and signing key are kept, in ~/.siboot/isideload, so a second run needn't
+-//! sign in again.
++//! is never written as plaintext or logged. Optional passphrase-encrypted
++//! storage protects the saved password, developer token and signing key.
+ //!
+ //! In Open Minis the run shows as a page in Minis's browser, served on this
+ //! iPhone's loopback, and asks its questions there (web.rs); `--terminal`
+@@ -29,14 +28,20 @@ mod fail;
  #[cfg(test)]
  mod fake_iphone;
  mod install;
++mod i18n;
 +mod ipa;
  mod keepalive;
  mod pairing;
@@ -815,6 +1966,7 @@ index c61bcfe..9cdd3d0 100644
  mod preflight;
  mod report;
 +mod retry;
++mod renew;
  mod seed;
  mod sign;
  mod tunnel;
@@ -823,7 +1975,16 @@ index c61bcfe..9cdd3d0 100644
  mod web;
  
  // rust-core's saved-session sign-in, compiled here unchanged so siboot signs in
-@@ -84,6 +88,7 @@ pub enum Command {
+@@ -76,6 +81,8 @@ const DEFAULT_RP_PORT: u16 = 49152;
+ pub enum Command {
+     /// Every step.
+     All,
++    /// Re-sign the last successfully installed original IPA.
++    Renew,
+     /// Step 1 only.
+     Check,
+     /// Steps 1-3: pair, or take the pairing, and prove the tunnel works with it.
+@@ -84,6 +91,7 @@ pub enum Command {
      DeveloperMode,
  }
  
@@ -831,15 +1992,19 @@ index c61bcfe..9cdd3d0 100644
  pub struct Args {
      pub command: Command,
      /// With `developer-mode`: turn it on, not only show it.
-@@ -98,6 +103,7 @@ pub struct Args {
-     /// ~/.siboot: the pairing file, isideload's store, downloads.
+@@ -95,9 +103,10 @@ pub struct Args {
+     /// (`--terminal`). Neither: the page where there's Minis to show it.
+     pub web: Option<bool>,
+     pub device: SocketAddr,
+-    /// ~/.siboot: the pairing file, isideload's store, downloads.
++    /// ~/.siboot: encrypted login, signing cache, logs and imported IPAs.
      pub home: PathBuf,
      pub pairing_file: Option<PathBuf>,
 +    pub pairing_output: PathBuf,
      pub apple_id: Option<String>,
      pub ipa: Option<String>,
      pub anisette: Option<String>,
-@@ -105,9 +111,7 @@ pub struct Args {
+@@ -105,9 +114,7 @@ pub struct Args {
  
  impl Args {
      pub fn pairing_path(&self) -> PathBuf {
@@ -850,7 +2015,7 @@ index c61bcfe..9cdd3d0 100644
      }
  }
  
-@@ -132,6 +136,7 @@ fn parse_args(argv: impl IntoIterator<Item = String>) -> std::result::Result<Par
+@@ -132,6 +139,7 @@ fn parse_args(argv: impl IntoIterator<Item = String>) -> std::result::Result<Par
          device: SocketAddr::new(IpAddr::V4(DEFAULT_DEVICE_IP), DEFAULT_RP_PORT),
          home: default_home(),
          pairing_file: None,
@@ -858,17 +2023,113 @@ index c61bcfe..9cdd3d0 100644
          apple_id: None,
          ipa: None,
          anisette: None,
-@@ -227,7 +232,8 @@ Open Minis, with your own Apple Account.
+@@ -165,9 +173,10 @@ fn parse_args(argv: impl IntoIterator<Item = String>) -> std::result::Result<Par
+             "--ipa" => args.ipa = Some(value("--ipa")?),
+             "--anisette" => args.anisette = Some(value("--anisette")?),
+             "--turn-on" => args.turn_on = true,
+-            "check" | "connect" | "developer-mode" if !command_seen => {
++            "check" | "connect" | "developer-mode" | "renew" if !command_seen => {
+                 command_seen = true;
+                 args.command = match arg.as_str() {
++                    "renew" => Command::Renew,
+                     "check" => Command::Check,
+                     "connect" => Command::Connect,
+                     _ => Command::DeveloperMode,
+@@ -176,6 +185,9 @@ fn parse_args(argv: impl IntoIterator<Item = String>) -> std::result::Result<Par
+             other => return Err(format!("unrecognised argument `{other}`")),
+         }
+     }
++    if args.command == Command::Renew && args.ipa.is_some() {
++        return Err("renew uses the cached IPA; use --ipa for a new install".into());
++    }
+     if args.turn_on && args.command != Command::DeveloperMode {
+         return Err("--turn-on goes with `siboot developer-mode`".into());
+     }
+@@ -184,6 +196,45 @@ fn parse_args(argv: impl IntoIterator<Item = String>) -> std::result::Result<Par
+ 
+ /// Kept narrow: Minis's terminal is an iPhone's, about 45 columns upright.
+ fn usage() {
++    if i18n::is_chinese() {
++        println!("siboot {VERSION} · Jay-Void-BA
++在 Minis 中签名并安装本地 IPA。
++
++用法：siboot [命令] [选项]
++  不指定命令：选择本地 IPA，检查、配对、连接、登录、签名并安装。
++
++命令：
++  renew              快速续签上次安装的应用
++  check              检查 Minis、网络及 iPhone
++  connect            配对并测试连接隧道
++  developer-mode     显示开发者模式开关
++
++选项：
++  --ipa PATH         本地 IPA 路径，不接受下载链接
++  --pairing-file PATH 选择 Minis/iSH 内的 RPPairing 文件
++                     验证后保存至程序同目录
++  --apple-id EMAIL   Apple 账号，也可在界面输入
++  --home DIR         登录与签名缓存目录，默认 ~/.siboot
++  --anisette URL     指定 anisette 服务
++  --device-ip IP     iPhone 地址，默认 {DEFAULT_DEVICE_IP}
++  --port PORT        RPPairing 端口，默认 {DEFAULT_RP_PORT}
++  --web              使用网页界面
++  --terminal         使用终端界面
++  --plain            使用简洁终端输出
++  --verbose          显示原始协议错误
++  --turn-on          请求开启开发者模式
++  --version          查看版本与署名
++  --help             查看帮助
++
++需要 iOS 27+、开发者模式、Wi-Fi、LocalDevVPN。
++Minis 1.16+ 可直接配对；旧版可导入已有配对文件。
++密码默认隐藏，页面按钮或实时终端 Ctrl+V 可切换查看。
++保存登录时使用独立口令加密，口令不会保存。
++设置 SIBOOT_LANG=en 使用英文终端界面。
++上游：FrizzleM/siboot。");
++        return;
++    }
++
+     use std::io::IsTerminal;
+     let styled = std::io::stdout().is_terminal() && std::env::var_os("NO_COLOR").is_none();
+     let head = |text: &str| if styled { format!("\x1b[1m{text}\x1b[0m") } else { text.to_string() };
+@@ -191,8 +242,8 @@ fn usage() {
+     println!(
+         "\
+ {name} {VERSION}
+-Installs SideInstaller onto this iPhone, from
+-Open Minis, with your own Apple Account.
++Signs and installs a local IPA on this iPhone
++from Open Minis. Maintained by Jay-Void-BA.
+ 
+ {usage}
+   siboot [command] [options]
+@@ -200,10 +251,12 @@ Open Minis, with your own Apple Account.
+   With no command, every step runs: check,
+   pair this iPhone with siboot (in Settings,
+   the first time), connect, sign in, sign
+-  SideInstaller, install it, and hand it the
+-  pairing.
++  the selected local IPA and install it.
+ 
+ {commands}
++  renew
++      Re-sign and reinstall the last cached IPA.
++      Uses the same Apple developer team.
+   {check}
+       Only check that LocalDevVPN, this iPhone
+       and the internet are ready.
+@@ -226,8 +279,9 @@ Open Minis, with your own Apple Account.
+       password comes from SIBOOT_PASSWORD or a
        prompt that shows only dots.
    {ipa}
-       Install this IPA instead of SideInstaller's
+-      Install this IPA instead of SideInstaller's
 -      latest release.
-+      latest release. With no --ipa, the page
-+      offers a local file picker too.
++      A local IPA path. URLs are not accepted.
++      Without --ipa, choose a local file on
++      the page or enter a path in the terminal.
    {anisette}
        Sign in through this anisette server only.
    {turn_on}
-@@ -239,10 +245,15 @@ Open Minis, with your own Apple Account.
+@@ -239,10 +293,15 @@ Open Minis, with your own Apple Account.
    {port}
        The iPhone's RPPairing port (default {rp}).
    {pairing_file}
@@ -887,7 +2148,7 @@ index c61bcfe..9cdd3d0 100644
    {terminal}
        Answer here in the terminal, not on the
        page in Minis's browser.
-@@ -261,8 +272,9 @@ Open Minis, with your own Apple Account.
+@@ -261,8 +320,12 @@ Open Minis, with your own Apple Account.
  {needs}
    iOS 27 or later, Developer Mode on, Wi-Fi,
    LocalDevVPN (App Store) connected, and
@@ -895,11 +2156,14 @@ index c61bcfe..9cdd3d0 100644
 -  an older one.",
 +  Open Minis 1.16 or later for automatic
 +  pairing; an existing valid RPPairing file
-+  can also be selected in older versions.",
++  can also be selected in older versions.
++
++  Maintained by Jay-Void-BA.
++  Upstream: FrizzleM/siboot.",
          name = head("siboot"),
          usage = head("USAGE"),
          commands = head("COMMANDS"),
-@@ -290,6 +302,8 @@ Open Minis, with your own Apple Account.
+@@ -290,6 +353,8 @@ Open Minis, with your own Apple Account.
  }
  
  fn main() -> ExitCode {
@@ -908,7 +2172,51 @@ index c61bcfe..9cdd3d0 100644
      let parsed = match parse_args(std::env::args().skip(1)) {
          Ok(p) => p,
          Err(problem) => {
-@@ -459,8 +473,10 @@ where
+@@ -304,7 +369,7 @@ fn main() -> ExitCode {
+             return ExitCode::SUCCESS;
+         }
+         Parsed::Version => {
+-            println!("siboot {VERSION}");
++            println!("siboot {VERSION} · Jay-Void-BA · based on FrizzleM/siboot");
+             return ExitCode::SUCCESS;
+         }
+         Parsed::Run(args) => args,
+@@ -329,7 +394,7 @@ fn main() -> ExitCode {
+         if args.command == Command::DeveloperMode {
+             "Shows Developer Mode, or turns it on."
+         } else {
+-            "Installs SideInstaller on this iPhone."
++            "Signs and installs a local IPA on this iPhone."
+         },
+     );
+     if let Some(url) = &page {
+@@ -384,10 +449,10 @@ fn main() -> ExitCode {
+ fn show_page(url: &str) {
+     web::on_stop(|| ui::stop_now("Stopped from the page."));
+     if web::show(url) {
+-        println!("      The page is open in Minis's browser. Closed it?");
+-        println!("      Press return here to open it again.");
+-        println!("      To type here instead, stop with Ctrl-C");
+-        println!("      and run siboot --terminal.");
++        println!("      {}", i18n::tr("The page is open in Minis's browser. Closed it?"));
++        println!("      {}", i18n::tr("Press return here to open it again."));
++        println!("      {}", i18n::tr("To type here instead, stop with Ctrl-C"));
++        println!("      {}", i18n::tr("and run siboot --terminal."));
+         let url = url.to_string();
+         std::thread::spawn(move || {
+             use std::io::BufRead;
+@@ -399,8 +464,8 @@ fn show_page(url: &str) {
+             }
+         });
+     } else {
+-        println!("      Open this in a browser on this iPhone, and");
+-        println!("      keep this terminal open:");
++        println!("      {}", i18n::tr("Open this in a browser on this iPhone, and"));
++        println!("      {}", i18n::tr("keep this terminal open:"));
+         println!("      {url}");
+     }
+ }
+@@ -459,12 +524,14 @@ where
  }
  
  async fn pipeline(args: &Args) -> Result<()> {
@@ -920,7 +2228,12 @@ index c61bcfe..9cdd3d0 100644
  
      let devmode = args.command == Command::DeveloperMode;
      match args.command {
-@@ -477,30 +493,34 @@ async fn pipeline(args: &Args) -> Result<()> {
+-        Command::All => ui::plan(&STEP_NAMES, STAGES),
++        Command::All | Command::Renew => ui::plan(&STEP_NAMES, STAGES),
+         Command::Check => ui::plan(&STEP_NAMES[..1], STAGES),
+         Command::Connect => ui::plan(&STEP_NAMES[..3], STAGES),
+         Command::DeveloperMode => {
+@@ -477,30 +544,34 @@ async fn pipeline(args: &Args) -> Result<()> {
      // tunnel.
      let note = |f: Fail| if devmode { devmode::unreachable_note(f) } else { f };
  
@@ -937,7 +2250,8 @@ index c61bcfe..9cdd3d0 100644
 +    let online = retry::step(1, check_title, async || preflight::run(args).await.map_err(note)).await?;
      ui::done(if online { "online, and the iPhone answers" } else { "the iPhone answers" });
      if args.command == Command::Check {
-         ui::finish("Ready", &["Run siboot to install SideInstaller."]);
+-        ui::finish("Ready", &["Run siboot to install SideInstaller."]);
++        ui::finish("Ready", &["Run siboot --ipa /path/to/App.ipa to install a local IPA."]);
          return Ok(());
      }
  
@@ -965,7 +2279,7 @@ index c61bcfe..9cdd3d0 100644
      ui::ok(&format!(
          "{} — {} on iOS {}",
          device.name, device.product_type, device.ios_version
-@@ -512,48 +532,92 @@ async fn pipeline(args: &Args) -> Result<()> {
+@@ -512,48 +583,141 @@ async fn pipeline(args: &Args) -> Result<()> {
          return Ok(());
      }
      if devmode {
@@ -994,10 +2308,16 @@ index c61bcfe..9cdd3d0 100644
 +    let mut ipa = None;
 +    let signed = retry::step(5, "Signing the app for this iPhone", async || {
 +        if ipa.is_none() {
-+            ipa = Some(sign::fetch_ipa(args).await?);
++            ipa = Some(sign::local_ipa(args)?);
 +        }
 +        sign::sign(&mut session, ipa.as_ref().unwrap(), &device).await
 +    }).await?;
++    if args.command == Command::Renew {
++        let saved = renew::load(&args.home).ok().flatten().ok_or_else(|| Fail::known("The quick-renew cache cannot be read. Install a local IPA again."))?;
++        if signed.bundle_id != saved.bundle_id {
++            return Err(Fail::known("Quick renew requires the same Apple developer team as the previous install. Use a normal local IPA install to change accounts."));
++        }
++    }
      ui::done(&match &signed.version {
          Some(version) => format!("{} {version} signed", signed.name),
          None => format!("{} signed", signed.name),
@@ -1012,6 +2332,15 @@ index c61bcfe..9cdd3d0 100644
 +    }).await?;
      ui::ok(&format!("{} installed ({})", signed.name, signed.bundle_id));
      ui::done(&format!("installed · {uploaded}"));
++    ui::status("saving the original IPA for quick renew");
++    let source = ipa.as_ref().expect("IPA used for signing");
++    let owned = _imported_ipa.as_ref().is_some_and(|imported| imported.0 == *source);
++    if let Err(error) = renew::remember(&args.home, source, owned, &signed.name, &signed.bundle_id, signed.version.as_deref()) {
++        ui::warn("Installed successfully, but the quick-renew cache could not be saved.");
++        ui::detail(&error.to_string());
++    } else {
++        ui::ok("Ready for quick renew: run siboot renew next time.");
++    }
  
 -    ui::step(7, "Handing SideInstaller the pairing");
 -    seed::hand_over(&mut connection, &signed.bundle_id, &pairing_path).await?;
@@ -1048,33 +2377,67 @@ index c61bcfe..9cdd3d0 100644
 +fn select_ipa(args: &Args) -> Result<(Args, Option<ipa::Imported>)> {
 +    use std::io::IsTerminal;
 +    let mut selected = args.clone();
-+    if args.command != Command::All || args.ipa.is_some() {
++    if args.command == Command::Renew {
++        selected.ipa = Some(cached_ipa(args)?);
++        return Ok((selected, None));
++    }
++    if args.command != Command::All {
++        return Ok((selected, None));
++    }
++    if args.ipa.is_some() {
++        let path = sign::local_ipa(args)?;
++        selected.ipa = Some(path.to_string_lossy().into_owned());
 +        return Ok((selected, None));
 +    }
 +    if let Some(page) = web::page() {
-+        let path = page.pick_ipa(&args.home.join("imports"))
-+            .ok_or_else(|| Fail::by_user("No app selected."))?;
-+        if let Some(path) = path {
-+            selected.ipa = Some(path.to_string_lossy().into_owned());
-+            return Ok((selected, Some(ipa::Imported(path))));
++        let renewal = renew::load(&args.home).ok().flatten().map(|saved| saved.label());
++        match page.pick_ipa(&args.home.join("imports"), renewal.as_deref())
++            .ok_or_else(|| Fail::by_user("No app selected."))? {
++            web::IpaChoice::Local(path) => {
++                selected.ipa = Some(path.to_string_lossy().into_owned());
++                return Ok((selected, Some(ipa::Imported(path))));
++            }
++            web::IpaChoice::Renew => {
++                selected.command = Command::Renew;
++                selected.ipa = Some(cached_ipa(args)?);
++                return Ok((selected, None));
++            }
 +        }
 +    } else if std::io::stdin().is_terminal() {
-+        let choice = ui::choose("choose an app to install", &[
-+            "Download SideInstaller".to_string(), "Install a local IPA".to_string(),
-+        ]).ok_or_else(|| Fail::by_user("No app selected."))?;
-+        if choice == 1 {
-+            selected.ipa = Some(ui::ask_text(
-+                "path to the local IPA", "IPA path", "/path/to/App.ipa", "IPA path: ",
-+            ).ok_or_else(|| Fail::by_user("No IPA selected."))?);
++        if let Ok(Some(saved)) = renew::load(&args.home) {
++            let labels = ["Install a local IPA".into(), format!("Quick renew {}", saved.label())];
++            match ui::choose("Choose an app to install", &labels) {
++                Some(1) => {
++                    selected.command = Command::Renew;
++                    selected.ipa = Some(cached_ipa(args)?);
++                    return Ok((selected, None));
++                }
++                Some(0) => {},
++                _ => return Err(Fail::by_user("No app selected.")),
++            }
 +        }
++        selected.ipa = Some(ui::ask_text(
++            "path to the local IPA", "IPA path", "/path/to/App.ipa", "IPA path: ",
++        ).ok_or_else(|| Fail::by_user("No IPA selected."))?);
++    } else {
++        return Err(Fail::known("Choose a local IPA, or pass --ipa /path/to/App.ipa."));
 +    }
++    sign::local_ipa(&selected)?;
 +    Ok((selected, None))
++}
++
++fn cached_ipa(args: &Args) -> Result<String> {
++    let saved = renew::load(&args.home).map_err(|e| Fail::new("The quick-renew cache cannot be read. Install a local IPA again.", e.to_string()))?
++        .ok_or_else(|| Fail::known("No app is cached for quick renew. Install a local IPA first."))?;
++    let path = saved.ipa(&args.home).map_err(|e| Fail::new("The cached IPA is incomplete. Install a local IPA again.", e.to_string()))?;
++    ui::ok(&format!("quick renew: {}", saved.label()));
++    Ok(path.to_string_lossy().into_owned())
 +}
 +
  /// Step 4 of `siboot developer-mode`, through the open tunnel.
  async fn developer_mode(args: &Args, connection: &mut tunnel::Connection) -> Result<()> {
      let request = if args.turn_on { devmode::Request::TurnOn } else { devmode::Request::Show };
-@@ -627,7 +691,7 @@ mod tests {
+@@ -627,7 +791,7 @@ mod tests {
          let args = parse("");
          assert_eq!(args.command, Command::All);
          assert_eq!(args.device.to_string(), "10.7.0.1:49152");
@@ -1083,11 +2446,41 @@ index c61bcfe..9cdd3d0 100644
      }
  
      #[test]
+@@ -637,6 +801,7 @@ mod tests {
+         assert_eq!(args.device.to_string(), "192.168.1.20:50000");
+         assert!(args.verbose);
+         assert_eq!(parse("check").command, Command::Check);
++        assert_eq!(parse("renew").command, Command::Renew);
+         assert!(parse("--plain").plain);
+         assert!(!parse("").plain);
+         assert_eq!(parse("--web").web, Some(true));
+@@ -666,6 +831,7 @@ mod tests {
+             "--turn-on",
+             "connect --turn-on",
+             "--repair",
++            "renew --ipa other.ipa",
+             "--advertiser minis",
+         ] {
+             assert!(parse_args(line.split_whitespace().map(String::from)).is_err(), "{line}");
 diff --git a/minis/src/pairing.rs b/minis/src/pairing.rs
-index 048e534..d0ee169 100644
+index 048e534..073c1bd 100644
 --- a/minis/src/pairing.rs
 +++ b/minis/src/pairing.rs
-@@ -100,6 +100,42 @@ pub enum Source {
+@@ -85,12 +85,7 @@ const MAX_ATTEMPTS: u32 = 3;
+ const RETURN_WAIT: Duration = Duration::from_secs(10 * 60);
+ 
+ /// What to do where this Minis can't pair: update it, or pair in rootshell.
+-pub const UPDATE_OR_ROOTSHELL: &str = "Update Open Minis from the App Store (1.16 and later pair \
+-     this iPhone themselves) and run siboot again. Or pair in rootshell (App Store): turn on its \
+-     Settings › Location Diary Mode › Session Only, then run in its local shell, one line at a \
+-     time: `curl -fsSLO https://raw.githubusercontent.com/FrizzleM/siboot/main/rootshell/bin/siboot-pair.wasm`, \
+-     `ifconfig en0 > ifconfig.txt`, `./siboot-pair.wasm`. Once it has paired, leave it running \
+-     and run siboot here again: it asks for the transfer code rootshell shows.";
++pub const UPDATE_OR_ROOTSHELL: &str = "Update Open Minis to 1.16 or later to pair here, or select an existing RPPairing file from Minis / iSH.";
+ 
+ /// Where the pairing that works came from.
+ pub enum Source {
+@@ -100,6 +95,45 @@ pub enum Source {
      Rootshell,
      /// A new pairing, made here.
      Minis,
@@ -1097,6 +2490,9 @@ index 048e534..d0ee169 100644
 +
 +pub async fn select_and_ensure(args: &Args, destination: &Path) -> Result<Source> {
 +    use std::io::IsTerminal;
++    if args.command == crate::Command::Renew && args.pairing_file.is_none() && destination.is_file() {
++        return ensure(args, destination).await;
++    }
 +    let selected = if let Some(path) = &args.pairing_file { Some(path.clone()) }
 +    else if let Some(page) = crate::web::page() {
 +        page.pairing_file(destination).ok_or_else(|| Fail::by_user("Pairing-file selection cancelled."))?
@@ -1130,7 +2526,7 @@ index 048e534..d0ee169 100644
  }
  
  pub async fn ensure(args: &Args, path: &Path) -> Result<Source> {
-@@ -888,15 +924,7 @@ async fn take(
+@@ -888,15 +922,7 @@ async fn take(
  /// Write the pairing file, readable by this user only: it holds the private key.
  fn save(path: &Path, file: &[u8]) -> Result<()> {
      let failed = |e: std::io::Error| Fail::new(format!("Couldn't save the pairing file at {}.", path.display()), e.to_string());
@@ -1147,7 +2543,7 @@ index 048e534..d0ee169 100644
      Ok(())
  }
  
-@@ -1340,8 +1368,7 @@ mod tests {
+@@ -1340,8 +1366,7 @@ mod tests {
          let started = std::time::Instant::now();
          let failure = take(offer, &path, typing(&["481516"]), Duration::from_millis(300))
              .await
@@ -1414,9 +2810,18 @@ index 0000000..0c6f67b
 +    }
 +}
 diff --git a/minis/src/preflight.rs b/minis/src/preflight.rs
-index bbd0adc..f94cb43 100644
+index bbd0adc..06525c6 100644
 --- a/minis/src/preflight.rs
 +++ b/minis/src/preflight.rs
+@@ -1,7 +1,7 @@
+ //! Step 1: is everything the later steps need actually here?
+ //!
+ //! Each check names what to change when it fails: Open Minis, which has to be
+-//! 1.16 or later, the internet, for sign-in and the download, and LocalDevVPN,
++//! 1.16 or later, the internet, for sign-in, and LocalDevVPN,
+ //! which carries everything to this iPhone. `siboot check` also says whether
+ //! this Open Minis can pair the iPhone.
+ 
 @@ -16,10 +16,6 @@ use crate::bridge::{Bridge, BridgeError};
  use crate::fail::{chain, Fail, Result};
  use crate::{ui, Args, Command};
@@ -1428,7 +2833,7 @@ index bbd0adc..f94cb43 100644
  /// What an Open Minis older than 1.16 is told.
  pub const OLD_MINIS: &str = "This Open Minis is older than 1.16, and siboot needs Open Minis 1.16 \
       or later: it's the first that can pair this iPhone. Update Open Minis in the App Store, open \
-@@ -30,8 +26,11 @@ pub async fn run(args: &Args) -> Result<bool> {
+@@ -30,13 +26,16 @@ pub async fn run(args: &Args) -> Result<bool> {
      let in_minis = crate::web::available() || std::env::var_os("SIBOOT_MINIS_BIN").is_some();
      if in_minis {
          ui::activity("checking this Open Minis");
@@ -1440,9 +2845,17 @@ index bbd0adc..f94cb43 100644
 +            ui::note("This Minis cannot create a pairing file itself. Select an existing RPPairing file at the Pairing step.");
 +        }
      }
-     // The tunnel stays on this iPhone; sign-in and the download don't.
-     let online = args.command == Command::All || args.command == Command::Check;
-@@ -72,7 +71,6 @@ pub async fn run(args: &Args) -> Result<bool> {
+-    // The tunnel stays on this iPhone; sign-in and the download don't.
+-    let online = args.command == Command::All || args.command == Command::Check;
++    // The tunnel stays on this iPhone; sign-in does not.
++    let online = matches!(args.command, Command::All | Command::Renew | Command::Check);
+     if online {
+-        check_online(args).await?;
++        check_online().await?;
+     }
+     ui::activity(&format!("reaching this iPhone at {}", args.device));
+     let found = probe(args.device).await?;
+@@ -72,17 +71,16 @@ pub async fn run(args: &Args) -> Result<bool> {
  pub async fn check_minis(bridge: &Bridge) -> Result<()> {
      match bridge.bonjour_types().await {
          Err(BridgeError::Missing(_)) => {
@@ -1450,15 +2863,277 @@ index bbd0adc..f94cb43 100644
              Err(Fail::known(OLD_MINIS))
          }
          _ => Ok(()),
-@@ -95,7 +93,7 @@ async fn check_online(args: &Args) -> Result<()> {
-     let downloads = args
-         .ipa
-         .as_deref()
+     }
+ }
+ 
+-/// GitHub (the IPA) and Apple's sign-in server answer over TLS. Apple's
++/// Apple's sign-in server answers over TLS. Apple's
+ /// `gsa.apple.com` chains to Apple Root CA, which Alpine's bundle lacks, so it's
+ /// trusted here as isideload's GrandSlam client trusts it.
+-async fn check_online(args: &Args) -> Result<()> {
++async fn check_online() -> Result<()> {
+     let apple_root = reqwest::Certificate::from_der(isideload::sideload::cert_identity::APPLE_ROOT)
+         .map_err(|e| Fail::new("Couldn't load Apple's root certificate.", e.to_string()))?;
+     let client = reqwest::Client::builder()
+@@ -92,30 +90,6 @@ async fn check_online(args: &Args) -> Result<()> {
+         .build()
+         .map_err(|e| Fail::new("Couldn't start an HTTPS client.", e.to_string()))?;
+ 
+-    let downloads = args
+-        .ipa
+-        .as_deref()
 -        .is_none_or(|ipa| ipa.starts_with("http"));
-+        .is_none_or(|ipa| ipa.starts_with("https://") || ipa.starts_with("http://"));
-     if downloads {
-         let url = args.ipa.as_deref().unwrap_or(crate::sign::RELEASE_IPA);
-         ui::activity("reaching GitHub");
+-    if downloads {
+-        let url = args.ipa.as_deref().unwrap_or(crate::sign::RELEASE_IPA);
+-        ui::activity("reaching GitHub");
+-        match client.head(url).send().await {
+-            Ok(r) if r.status().is_success() => {
+-                ui::ok("GitHub answers, and the SideInstaller release is there")
+-            }
+-            Ok(r) => ui::warn(&format!(
+-                "GitHub answered {} for the SideInstaller release.",
+-                r.status()
+-            )),
+-            Err(e) => {
+-                return Err(Fail::new(
+-                    "Couldn't reach GitHub, where SideInstaller is downloaded from. Check the \
+-                     internet connection.",
+-                    crate::error_text::error_text(&e),
+-                ))
+-            }
+-        }
+-    }
+     // Any HTTP answer proves DNS, the route and the certificate chain.
+     ui::activity("reaching Apple's sign-in server");
+     match client
+diff --git a/minis/src/renew.rs b/minis/src/renew.rs
+new file mode 100644
+index 0000000..e10225c
+--- /dev/null
++++ b/minis/src/renew.rs
+@@ -0,0 +1,210 @@
++//! Retain the last successfully installed original IPA for a real re-sign.
++use std::io::{self, Read, Write};
++use std::path::{Path, PathBuf};
++
++use isideload::util::fs_storage::write_private;
++use serde::{Deserialize, Serialize};
++
++#[derive(Debug, Serialize, Deserialize)]
++pub struct SavedApp {
++    pub name: String,
++    pub bundle_id: String,
++    pub version: Option<String>,
++    file: String,
++    size: u64,
++}
++
++fn directory(home: &Path) -> PathBuf {
++    home.join("renewals")
++}
++fn metadata(home: &Path) -> PathBuf {
++    directory(home).join("last-app.json")
++}
++
++impl SavedApp {
++    pub fn label(&self) -> String {
++        match &self.version {
++            Some(version) => format!("{} {version}", self.name),
++            None => self.name.clone(),
++        }
++    }
++
++    pub fn ipa(&self, home: &Path) -> io::Result<PathBuf> {
++        let name = Path::new(&self.file);
++        if name.components().count() != 1
++            || name.extension().and_then(|s| s.to_str()) != Some("ipa")
++            || uuid::Uuid::parse_str(name.file_stem().and_then(|s| s.to_str()).unwrap_or(""))
++                .is_err()
++        {
++            return Err(io::Error::other("Invalid renewal cache path"));
++        }
++        let path = directory(home).join(name);
++        let info = std::fs::symlink_metadata(&path)?;
++        if !info.is_file() || info.len() != self.size {
++            return Err(io::Error::other("The cached IPA is missing or incomplete"));
++        }
++        crate::ipa::validate(&path)?;
++        Ok(path)
++    }
++}
++
++pub fn load(home: &Path) -> io::Result<Option<SavedApp>> {
++    let file = match std::fs::File::open(metadata(home)) {
++        Err(error) if error.kind() == io::ErrorKind::NotFound => return Ok(None),
++        other => other?,
++    };
++    let mut bytes = Vec::new();
++    file.take(32 * 1024 + 1).read_to_end(&mut bytes)?;
++    if bytes.len() > 32 * 1024 {
++        return Err(io::Error::other("Renewal metadata is too large"));
++    }
++    let saved: SavedApp = serde_json::from_slice(&bytes).map_err(io::Error::other)?;
++    saved.ipa(home)?;
++    Ok(Some(saved))
++}
++
++/// A browser upload is moved, not copied. External user files stay untouched.
++/// A failed cache update never changes the previously remembered app.
++pub fn remember(
++    home: &Path,
++    source: &Path,
++    owned_upload: bool,
++    name: &str,
++    bundle_id: &str,
++    version: Option<&str>,
++) -> io::Result<()> {
++    crate::ipa::validate(source)?;
++    crate::vault::private_directory(&directory(home))?;
++    let old = load(home).ok().flatten();
++    if let Some(saved) = &old {
++        if saved.ipa(home)?.canonicalize()? == source.canonicalize()? {
++            return Ok(());
++        }
++    }
++    let filename = format!("{}.ipa", uuid::Uuid::new_v4());
++    let destination = directory(home).join(&filename);
++    let result = (|| {
++        if owned_upload {
++            std::fs::rename(source, &destination)?;
++        } else {
++            let mut options = std::fs::OpenOptions::new();
++            options.write(true).create_new(true);
++            #[cfg(unix)]
++            {
++                use std::os::unix::fs::OpenOptionsExt;
++                options.mode(0o600);
++            }
++            let mut output = options.open(&destination)?;
++            let mut input = std::fs::File::open(source)?;
++            let total = input.metadata()?.len();
++            let mut copied = 0;
++            let mut buffer = vec![0u8; 1024 * 1024];
++            loop {
++                let count = input.read(&mut buffer)?;
++                if count == 0 {
++                    break;
++                }
++                output.write_all(&buffer[..count])?;
++                copied += count as u64;
++                crate::ui::progress("saved for quick renew", copied, total);
++            }
++            output.sync_all()?;
++        }
++        let saved = SavedApp {
++            name: name.into(),
++            bundle_id: bundle_id.into(),
++            version: version.map(str::to_owned),
++            file: filename,
++            size: std::fs::metadata(&destination)?.len(),
++        };
++        saved.ipa(home)?;
++        write_private(
++            &metadata(home),
++            &serde_json::to_vec(&saved).map_err(io::Error::other)?,
++        )
++    })();
++    crate::ui::progress_end();
++    if result.is_err() {
++        let _ = std::fs::remove_file(&destination);
++    } else if let Some(saved) = old {
++        let _ = std::fs::remove_file(directory(home).join(saved.file));
++    }
++    result
++}
++
++#[cfg(test)]
++mod tests {
++    use super::*;
++    #[test]
++    fn renews_from_an_owned_copy_without_changing_or_needing_the_original() {
++        let home = std::env::temp_dir().join(format!("siboot-renew-{}", uuid::Uuid::new_v4()));
++        std::fs::create_dir_all(&home).unwrap();
++        let original = home.join("Original.ipa");
++        let bytes = crate::ipa::tests::fixture();
++        std::fs::write(&original, &bytes).unwrap();
++        remember(
++            &home,
++            &original,
++            false,
++            "Demo",
++            "example.demo.TEAM",
++            Some("1.0"),
++        )
++        .unwrap();
++        let saved = load(&home).unwrap().unwrap();
++        let cached = saved.ipa(&home).unwrap();
++        assert_eq!(std::fs::read(&original).unwrap(), bytes);
++        assert_ne!(original, cached);
++        std::fs::remove_file(&original).unwrap();
++        assert_eq!(std::fs::read(&cached).unwrap(), bytes);
++        remember(
++            &home,
++            &cached,
++            false,
++            "Demo",
++            "example.demo.TEAM",
++            Some("1.0"),
++        )
++        .unwrap();
++        assert_eq!(std::fs::read_dir(directory(&home)).unwrap().count(), 2);
++        std::fs::write(&original, b"incomplete").unwrap();
++        assert!(remember(&home, &original, false, "Bad", "example.bad", None).is_err());
++        assert_eq!(load(&home).unwrap().unwrap().name, "Demo");
++        #[cfg(unix)]
++        {
++            use std::os::unix::fs::PermissionsExt;
++            assert_eq!(
++                std::fs::metadata(&cached).unwrap().permissions().mode() & 0o777,
++                0o600
++            );
++        }
++        std::fs::write(&cached, b"truncated").unwrap();
++        assert!(load(&home).is_err());
++        std::fs::remove_dir_all(home).unwrap();
++    }
++    #[test]
++    fn moving_browser_uploads_replaces_only_the_previous_cache_and_blocks_traversal() {
++        let home = std::env::temp_dir().join(format!("siboot-renew-{}", uuid::Uuid::new_v4()));
++        std::fs::create_dir_all(&home).unwrap();
++        let upload = home.join("uploaded.ipa");
++        for name in ["First", "Second"] {
++            std::fs::write(&upload, crate::ipa::tests::fixture()).unwrap();
++            remember(&home, &upload, true, name, "example.demo.TEAM", None).unwrap();
++            assert!(!upload.exists());
++            assert_eq!(load(&home).unwrap().unwrap().name, name);
++            assert_eq!(std::fs::read_dir(directory(&home)).unwrap().count(), 2);
++        }
++        let mut saved = load(&home).unwrap().unwrap();
++        saved.file = "../outside.ipa".into();
++        assert!(saved.ipa(&home).is_err());
++        #[cfg(unix)]
++        {
++            let saved = load(&home).unwrap().unwrap();
++            let path = saved.ipa(&home).unwrap();
++            std::fs::remove_file(&path).unwrap();
++            std::os::unix::fs::symlink(&upload, path).unwrap();
++            assert!(load(&home).is_err());
++        }
++        std::fs::remove_dir_all(home).unwrap();
++    }
++}
+diff --git a/minis/src/report.rs b/minis/src/report.rs
+index aa1c6d2..3b710da 100644
+--- a/minis/src/report.rs
++++ b/minis/src/report.rs
+@@ -59,6 +59,7 @@ pub fn after_failure(args: &Args, f: &Fail) {
+ fn compose(args: &Args) -> String {
+     let command = match args.command {
+         Command::All => "install",
++        Command::Renew => "renew",
+         Command::Check => "check",
+         Command::Connect => "connect",
+         Command::DeveloperMode => "developer-mode",
 diff --git a/minis/src/retry.rs b/minis/src/retry.rs
 new file mode 100644
 index 0000000..e71151f
@@ -1559,39 +3234,134 @@ index 0000000..e71151f
 +    }
 +}
 diff --git a/minis/src/sign.rs b/minis/src/sign.rs
-index a3ef7e5..2564271 100644
+index a3ef7e5..f9a9190 100644
 --- a/minis/src/sign.rs
 +++ b/minis/src/sign.rs
-@@ -13,8 +13,10 @@ use crate::tunnel::DeviceInfo;
- use crate::{ui, Args, VERSION};
+@@ -1,8 +1,6 @@
+-//! Step 5: fetch SideInstaller and sign it for this iPhone, as Side by Side
+-//! does for another one: register the device, then isideload's `sign_app`
++//! Step 5: sign the selected local IPA for this iPhone: register the device, then isideload's `sign_app`
+ //! with the app group and no Increased Memory Limit (`SideBySideView.signApp`).
  
- /// The release Side by Side installs (`SideBySideView.releaseIPA`).
+-use std::io::Write as _;
+ use std::path::{Path, PathBuf};
+ 
+ use isideload::sideload::sideloader::MemoryLimit;
+@@ -10,11 +8,7 @@ use isideload::sideload::sideloader::MemoryLimit;
+ use crate::account::Session;
+ use crate::fail::{Fail, Result};
+ use crate::tunnel::DeviceInfo;
+-use crate::{ui, Args, VERSION};
+-
+-/// The release Side by Side installs (`SideBySideView.releaseIPA`).
 -pub const RELEASE_IPA: &str =
 -    "https://github.com/FrizzleM/SideInstaller/releases/latest/download/SideInstaller.ipa";
-+pub const RELEASE_IPA: &str = match option_env!("SIBOOT_DEFAULT_IPA_URL") {
-+    Some(url) => url,
-+    None => "https://github.com/FrizzleM/SideInstaller/releases/latest/download/SideInstaller.ipa",
-+};
++use crate::{ui, Args};
  
  pub struct Signed {
      /// The signed `.app` folder, ready to upload.
-@@ -25,6 +27,15 @@ pub struct Signed {
+@@ -25,109 +19,34 @@ pub struct Signed {
      pub version: Option<String>,
  }
  
+-/// `--ipa` as a path, or the URL it names, or SideInstaller's latest release.
+-pub async fn fetch_ipa(args: &Args) -> Result<PathBuf> {
+-    match args.ipa.as_deref() {
+-        Some(source) if !source.starts_with("https://") && !source.starts_with("http://") => {
+-            let path = PathBuf::from(source);
+-            check_ipa(&path)?;
+-            ui::ok(&format!("using {}", path.display()));
+-            Ok(path)
+-        }
+-        source => {
+-            let url = source.unwrap_or(RELEASE_IPA);
+-            let dir = args.home.join("downloads");
+-            std::fs::create_dir_all(&dir).map_err(|e| {
+-                Fail::new(format!("Couldn't create {}.", dir.display()), e.to_string())
+-            })?;
+-            download(url, &dir.join("SideInstaller.ipa")).await
+-        }
 +impl Signed {
 +    /// Re-signing appends the developer team's identifier.
 +    pub fn is_sideinstaller(&self) -> bool {
 +        ["com.frizzlem.sideinstaller", "com.frizzle.sideinstaller"].iter().any(|base| {
 +            self.bundle_id == *base || self.bundle_id.starts_with(&format!("{base}."))
 +        })
-+    }
-+}
-+
- /// `--ipa` as a path, or the URL it names, or SideInstaller's latest release.
- pub async fn fetch_ipa(args: &Args) -> Result<PathBuf> {
-     match args.ipa.as_deref() {
-@@ -111,23 +122,10 @@ async fn download(url: &str, dest: &Path) -> Result<PathBuf> {
+     }
+ }
+ 
+-async fn download(url: &str, dest: &Path) -> Result<PathBuf> {
+-    ui::status("downloading SideInstaller");
+-    ui::detail(url);
+-    let client = reqwest::Client::builder()
+-        .user_agent(format!("siboot/{VERSION}"))
+-        .build()
+-        .map_err(|e| Fail::new("Couldn't start a download.", e.to_string()))?;
+-    let mut response = client.get(url).send().await.map_err(|e| {
+-        Fail::new(
+-            "Couldn't download SideInstaller. Check the internet connection (LocalDevVPN only \
+-             routes 10.7.0.1, so it isn't the cause).",
+-            crate::error_text::error_text(&e),
+-        )
+-    })?;
+-    if !response.status().is_success() {
+-        return Err(Fail::new(
+-            format!(
+-                "GitHub answered {} for the SideInstaller download. Try again in a minute.",
+-                response.status()
+-            ),
+-            url.to_string(),
+-        ));
++/// Only local files are accepted; selecting an app never downloads an IPA.
++pub fn local_ipa(args: &Args) -> Result<PathBuf> {
++    let source = args.ipa.as_deref().ok_or_else(|| Fail::known("Choose a local IPA, or pass --ipa /path/to/App.ipa."))?;
++    if source.starts_with("https://") || source.starts_with("http://") {
++        return Err(Fail::known("IPA URLs are no longer supported. Download the IPA yourself and select the local file."));
+     }
+-    let total = response.content_length();
+-    let partial = dest.with_extension("ipa.part");
+-    let mut file = std::fs::File::create(&partial).map_err(|e| {
+-        Fail::new(
+-            format!("Couldn't write {}.", partial.display()),
+-            e.to_string(),
+-        )
+-    })?;
+-    let mut received: u64 = 0;
+-    loop {
+-        let chunk = response.chunk().await.map_err(|e| {
+-            Fail::new(
+-                "The SideInstaller download broke off. Run siboot again.",
+-                e.to_string(),
+-            )
+-        })?;
+-        let Some(chunk) = chunk else { break };
+-        file.write_all(&chunk).map_err(|e| {
+-            Fail::new(
+-                format!("Couldn't write {}.", partial.display()),
+-                e.to_string(),
+-            )
+-        })?;
+-        received += chunk.len() as u64;
+-        if let Some(total) = total.filter(|t| *t > 0) {
+-            ui::progress("downloaded", received, total);
+-        }
+-    }
+-    ui::progress_end();
+-    drop(file);
+-    std::fs::rename(&partial, dest)
+-        .map_err(|e| Fail::new(format!("Couldn't write {}.", dest.display()), e.to_string()))?;
+-    check_ipa(dest)?;
+-    ui::ok(&format!(
+-        "downloaded SideInstaller ({:.1} MB)",
+-        received as f64 / 1_048_576.0
+-    ));
+-    Ok(dest.to_path_buf())
++    let path = crate::pairing_files::expand_path(Path::new(source));
++    check_ipa(&path)?;
++    ui::ok(&format!("using {}", path.display()));
++    Ok(path)
+ }
+ 
  /// An IPA is a zip: an error page or a truncated download isn't, and would
  /// only fail later, inside the signer.
  fn check_ipa(path: &Path) -> Result<()> {
@@ -1619,10 +3389,38 @@ index a3ef7e5..2564271 100644
  }
  
  pub async fn sign(session: &mut Session, ipa: &Path, device: &DeviceInfo) -> Result<Signed> {
-@@ -205,12 +203,20 @@ fn bundle_info(app_dir: &Path) -> Result<(String, String, Option<String>)> {
+@@ -196,7 +115,7 @@ fn bundle_info(app_dir: &Path) -> Result<(String, String, Option<String>)> {
+     let name = text("CFBundleDisplayName")
+         .filter(|n| !n.is_empty())
+         .or_else(|| text("CFBundleName"))
+-        .unwrap_or_else(|| "SideInstaller".into());
++        .unwrap_or_else(|| bundle_id.clone());
+     let version = text("CFBundleShortVersionString").filter(|v| !v.is_empty());
+     Ok((bundle_id, name, version))
+ }
+@@ -205,12 +124,39 @@ fn bundle_info(app_dir: &Path) -> Result<(String, String, Option<String>)> {
  mod tests {
      use super::*;
  
++    #[test]
++    fn only_valid_local_ipas_are_accepted_before_login() {
++        let root = std::env::temp_dir().join(format!("siboot-local-only-{}", uuid::Uuid::new_v4()));
++        std::fs::create_dir_all(&root).unwrap();
++        let ipa = root.join("Local.ipa");
++        std::fs::write(&ipa, crate::ipa::tests::fixture()).unwrap();
++        let args = |source: &str| {
++            let crate::Parsed::Run(args) = crate::parse_args(["--ipa".into(), source.into()]).unwrap() else { panic!("install arguments") };
++            args
++        };
++        assert_eq!(local_ipa(&args(ipa.to_str().unwrap())).unwrap(), ipa);
++        for source in ["https://example.invalid/App.ipa", "http://127.0.0.1/App.ipa"] {
++            assert!(local_ipa(&args(source)).unwrap_err().advice.contains("URLs are no longer supported"));
++        }
++        std::fs::write(&ipa, b"not a ZIP").unwrap();
++        assert!(local_ipa(&args(ipa.to_str().unwrap())).is_err());
++        std::fs::remove_dir_all(root).unwrap();
++    }
++
 +    #[test]
 +    fn only_sideinstaller_receives_the_pairing_file() {
 +        for id in ["com.frizzlem.sideinstaller", "com.frizzle.sideinstaller.TEAM123456", "example.demo", "com.frizzle.sideinstaller-copy"] {
@@ -1642,10 +3440,117 @@ index a3ef7e5..2564271 100644
          let page = dir.join("page.ipa");
          std::fs::write(&page, b"<!DOCTYPE html>").unwrap();
 diff --git a/minis/src/ui.rs b/minis/src/ui.rs
-index 96b7dc1..8ed34e8 100644
+index 96b7dc1..7403ca6 100644
 --- a/minis/src/ui.rs
 +++ b/minis/src/ui.rs
-@@ -611,6 +611,29 @@ pub fn failure(advice: &str, raw: &str) {
+@@ -59,7 +59,7 @@ const BOX_MAX: usize = 60;
+ const INDENT: &str = "      ";
+ /// Under the live area for as long as it's there, and after the version in
+ /// plain output.
+-const CREDIT: &str = "A project by Frizzle";
++const CREDIT: &str = "Jay-Void-BA · based on FrizzleM/siboot";
+ 
+ #[derive(Clone, Copy, PartialEq, Eq, Debug)]
+ enum Mode {
+@@ -278,13 +278,15 @@ pub fn header(version: &str, tagline: &str) {
+     record(&format!("siboot {version} — {tagline}"));
+     let note = "Keep Minis open until siboot is done: iOS pauses it in the background.";
+     web::send(json!({"t": "header", "version": version, "tagline": tagline, "note": note}));
++    let translated = crate::i18n::tr(tagline);
++    let tagline = translated.as_ref();
+     let mut ui = ui();
+     if ui.mode != Mode::Live {
+         println!();
+         println!(
+             "{} {}",
+             ui.style(STRONG, "siboot"),
+-            ui.style(DIM, &format!("{version} · {CREDIT}"))
++            ui.style(DIM, &format!("{version} · {}", crate::i18n::tr(CREDIT)))
+         );
+         println!("{}", ui.style(DIM, tagline));
+         println!();
+@@ -332,6 +334,8 @@ pub fn plan(names: &[&'static str], total: usize) {
+ /// Step `n` (from 1) starts: `title` says what it does.
+ pub fn step(n: usize, title: &str) {
+     web::send(json!({"t": "step", "n": n, "title": title}));
++    let translated = crate::i18n::tr(title);
++    let title = translated.as_ref();
+     let mut ui = ui();
+     record(&format!("[{n}/{}] {title}", ui.total));
+     if ui.mode != Mode::Live {
+@@ -357,6 +361,8 @@ pub fn step(n: usize, title: &str) {
+ pub fn done(summary: &str) {
+     record(&format!("    ✓ {summary}"));
+     web::send(json!({"t": "done", "summary": summary}));
++    let translated = crate::i18n::tr(summary);
++    let summary = translated.as_ref();
+     let mut ui = ui();
+     if ui.mode == Mode::Live {
+         let above = ui.settle("✓", GOOD, summary);
+@@ -368,6 +374,8 @@ pub fn done(summary: &str) {
+ pub fn status(msg: &str) {
+     record(&format!("      {msg}"));
+     web::send(json!({"t": "status", "text": msg}));
++    let translated = crate::i18n::tr(msg);
++    let msg = translated.as_ref();
+     let mut ui = ui();
+     match ui.mode {
+         Mode::Live if ui.active.is_some() => {
+@@ -398,6 +406,8 @@ pub fn activity(msg: &str) {
+ pub fn ok(msg: &str) {
+     record(&format!("   OK {msg}"));
+     web::send(json!({"t": "ok", "text": msg}));
++    let translated = crate::i18n::tr(msg);
++    let msg = translated.as_ref();
+     let mut ui = ui();
+     match ui.mode {
+         Mode::Live if ui.active.is_some() => {
+@@ -426,6 +436,8 @@ pub fn ok(msg: &str) {
+ pub fn note(msg: &str) {
+     record(&format!("      {msg}"));
+     web::send(json!({"t": "note", "text": msg}));
++    let translated = crate::i18n::tr(msg);
++    let msg = translated.as_ref();
+     let mut ui = ui();
+     if ui.mode == Mode::Live {
+         let lines = ui.note_lines(DIM, msg);
+@@ -438,6 +450,8 @@ pub fn note(msg: &str) {
+ pub fn warn(msg: &str) {
+     record(&format!("   !! {msg}"));
+     web::send(json!({"t": "warn", "text": msg}));
++    let translated = crate::i18n::tr(msg);
++    let msg = translated.as_ref();
+     let mut ui = ui();
+     if ui.mode == Mode::Live {
+         let max = line_width();
+@@ -495,6 +509,8 @@ pub fn percent(label: &str, percent: u64) {
+ 
+ fn show_bar(label: &str, done: u64, total: u64, bytes: bool) {
+     web::progress(label, done, total, bytes);
++    let translated = crate::i18n::tr(label);
++    let label = translated.as_ref();
+     let mut ui = ui();
+     if ui.mode != Mode::Live {
+         let percent = (done.saturating_mul(100))
+@@ -541,6 +557,8 @@ pub fn finish(title: &str, paragraphs: &[&str]) {
+     let mut ui = ui();
+     let took = clock(ui.run_started.elapsed().as_secs());
+     web::send(json!({"t": "finish", "title": title, "paragraphs": paragraphs, "took": took}));
++    let translated = crate::i18n::tr(title);
++    let title = translated.as_ref();
+     if ui.mode != Mode::Live {
+         ui.end_plain_line();
+         println!();
+@@ -588,6 +606,8 @@ pub fn failure(advice: &str, raw: &str) {
+     let mut ui = ui();
+     let took = clock(ui.run_started.elapsed().as_secs());
+     web::send(json!({"t": "failure", "advice": advice, "cause": raw, "took": took}));
++    let translated = crate::i18n::tr(advice);
++    let advice = translated.as_ref();
+     if ui.mode != Mode::Live {
+         // Stopping at the question after this says nothing more (`stop_now`).
+         ui.stopped = true;
+@@ -611,6 +631,29 @@ pub fn failure(advice: &str, raw: &str) {
      ui.stopped = true;
  }
  
@@ -1675,6 +3580,145 @@ index 96b7dc1..8ed34e8 100644
  /// A button on the page, in the box the run ends in (`finish` or `failure`):
  /// the app it installed, or the App Store for an update. Nothing on the
  /// terminal.
+@@ -673,10 +716,10 @@ pub fn ask_secret(
+         swap_status(&saved);
+         match asked {
+             Asked::Answer(value) => Ok(value),
+-            Asked::NoKeys => rpassword::prompt_password(format!("{INDENT}{plain}")).map(Some),
++            Asked::NoKeys => rpassword::prompt_password(format!("{INDENT}{}", crate::i18n::tr(plain))).map(Some),
+         }
+     } else {
+-        rpassword::prompt_password(format!("{INDENT}{plain}")).map(Some)
++        rpassword::prompt_password(format!("{INDENT}{}", crate::i18n::tr(plain))).map(Some)
+     };
+     let said = match &answer {
+         Ok(Some(p)) if !p.is_empty() => Some("(hidden)"),
+@@ -1004,7 +1047,7 @@ fn choose_prompt(title: &str, options: &[String]) -> Option<usize> {
+     if !is_live() {
+         println!("{INDENT}{}", capitalized(title));
+         for (i, option) in options.iter().enumerate() {
+-            println!("{INDENT}  {}: {option}", i + 1);
++            println!("{INDENT}  {}: {}", i + 1, crate::i18n::tr(option));
+         }
+         let line = ask("Number (empty to stop): ")?;
+         return line
+@@ -1081,7 +1124,7 @@ pub fn ask(prompt: &str) -> Option<String> {
+     if let Some(page) = web::page() {
+         return page.line(prompt);
+     }
+-    print!("{INDENT}{prompt}");
++    print!("{INDENT}{}", crate::i18n::tr(prompt));
+     flush();
+     let mut line = String::new();
+     match io::stdin().lock().read_line(&mut line) {
+@@ -1102,13 +1145,18 @@ fn field(label: &str, placeholder: &str, secret: bool) -> Asked<Option<String>>
+         degrade();
+         return Asked::NoKeys;
+     };
++    let label_text = crate::i18n::tr(label);
++    let label = label_text.as_ref();
++    let placeholder_text = crate::i18n::tr(placeholder);
++    let placeholder = placeholder_text.as_ref();
++    let mut revealed = false;
+     let mut value = String::new();
+     let mut nudge = false;
+     let given = loop {
+         {
+             let mut ui = ui();
+             let room = line_width().saturating_sub(TEXT_COLUMN + 1).max(4);
+-            let shown = if secret {
++            let shown = if secret && !revealed {
+                 "•".repeat(value.chars().count())
+             } else {
+                 value.clone()
+@@ -1130,6 +1178,10 @@ fn field(label: &str, placeholder: &str, secret: bool) -> Asked<Option<String>>
+             };
+             lines.push(line);
+             let row = lines.len() - 1;
++            if secret {
++                let hint = if revealed { "Ctrl+V: hide password" } else { "Ctrl+V: show password" };
++                lines.push(rail().add(DIM, crate::i18n::tr(hint).into_owned()));
++            }
+             ui.show_dialog(lines, Some((row, col)));
+         }
+         match keys.next() {
+@@ -1140,12 +1192,13 @@ fn field(label: &str, placeholder: &str, secret: bool) -> Asked<Option<String>>
+             Key::Backspace => {
+                 value.pop();
+             }
++            Key::ToggleSecret if secret => revealed = !revealed,
+             Key::ClearLine => value.clear(),
+             Key::DeleteWord => {
+                 let kept = value.trim_end().rfind(' ').map_or(0, |i| i + 1);
+                 value.truncate(kept);
+             }
+-            Key::Enter if !value.trim().is_empty() => break Some(value.trim().to_string()),
++            Key::Enter if !value.trim().is_empty() => break Some(if secret { value.clone() } else { value.trim().to_string() }),
+             Key::Enter => nudge = true,
+             Key::Esc | Key::End => break None,
+             Key::Interrupt => interrupt(),
+@@ -1354,7 +1407,7 @@ impl Ui {
+     }
+ 
+     fn style(&self, style: &str, text: &str) -> String {
+-        paint(self.color, style, text)
++        paint(self.color, style, &crate::i18n::tr(text))
+     }
+ 
+     /// Redraw the live area, after printing `above` over it: lines that stay.
+@@ -1887,6 +1940,8 @@ pub fn width(text: &str) -> usize {
+ 
+ /// `text`, then spaces to `columns`.
+ fn pad(text: &str, columns: usize) -> String {
++    let translated = crate::i18n::tr(text);
++    let text = translated.as_ref();
+     let gap = columns.saturating_sub(width(text));
+     format!(
+         "{text}{}",
+@@ -1896,6 +1951,8 @@ fn pad(text: &str, columns: usize) -> String {
+ 
+ /// Words in lines of at most `room` columns; a longer word (a URL) is cut.
+ fn wrap(text: &str, room: usize) -> Vec<String> {
++    let translated = crate::i18n::tr(text);
++    let text = translated.as_ref();
+     let room = room.max(1);
+     let mut lines = Vec::new();
+     let mut line = String::new();
+@@ -1950,6 +2007,8 @@ fn keep_end(text: &str, room: usize) -> String {
+ }
+ 
+ fn capitalized(text: &str) -> String {
++    let translated = crate::i18n::tr(text);
++    let text = translated.as_ref();
+     let mut chars = text.chars();
+     match chars.next() {
+         Some(first) => first.to_uppercase().chain(chars).collect(),
+@@ -1999,6 +2058,8 @@ enum Key {
+     ClearLine,
+     /// Ctrl-W.
+     DeleteWord,
++    /// Ctrl-V toggles only the current secret field; never records its text.
++    ToggleSecret,
+     Ignored,
+ }
+ 
+@@ -2044,6 +2105,7 @@ fn parse_keys(bytes: &[u8]) -> (Vec<Key>, usize) {
+             0x04 => (Key::End, 1),
+             0x15 => (Key::ClearLine, 1),
+             0x17 => (Key::DeleteWord, 1),
++            0x16 => (Key::ToggleSecret, 1),
+             b'\t' => (Key::Tab, 1),
+             0x00..=0x1f => (Key::Ignored, 1),
+             lead => {
+@@ -2494,7 +2556,7 @@ mod tests {
+         // On a narrow one it's cut like any other line (to 20 columns at least).
+         let (lines, _) = ui.compose(20, 40);
+         assert!(lines.iter().all(|l| width(l) <= 20), "{lines:#?}");
+-        assert_eq!(lines.last().map(String::as_str), Some("  A project by Friz…"));
++        assert_eq!(lines.last().map(String::as_str), Some("  Jay-Void-BA · bas…"));
+     }
+ 
+     #[test]
 diff --git a/minis/src/vault.rs b/minis/src/vault.rs
 new file mode 100644
 index 0000000..78a0e0b
@@ -2044,7 +4088,7 @@ index 0000000..78a0e0b
 +    }
 +}
 diff --git a/minis/src/web.html b/minis/src/web.html
-index 996d032..7378e67 100644
+index 996d032..d318e65 100644
 --- a/minis/src/web.html
 +++ b/minis/src/web.html
 @@ -116,6 +116,7 @@ body:not(.details) .step[data-state=done] .item.ok{display:none}
@@ -2055,7 +4099,47 @@ index 996d032..7378e67 100644
  .button.choice{justify-content:flex-start; width:100%; height:auto; min-height:48px; padding:12px 16px; border-color:var(--hairline); border-radius:var(--r-control); background:var(--raised); color:var(--text); line-height:1.3; text-align:left}
  /* What to do elsewhere (pairing in Settings), numbered, before it starts. */
  .ready-steps{margin-top:12px; counter-reset:ready}
-@@ -285,6 +286,8 @@ footer{display:flex; align-items:center; justify-content:space-between; gap:12px
+@@ -152,6 +153,12 @@ body:not(.details) .step[data-state=done] .item.ok{display:none}
+ footer{display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:32px; font-size:13px; color:var(--muted)}
+ .details-toggle{display:flex; align-items:center; gap:8px; cursor:pointer}
+ .details-toggle input{width:16px; height:16px; margin:0; accent-color:var(--accent)}
++.header-actions{display:flex; align-items:center; gap:8px}
++.language{max-width:100px; padding:7px; border:1px solid var(--border); border-radius:12px; background:var(--card); color:var(--text); font:inherit}
++.password-field{display:flex; align-items:center; gap:8px}
++.password-field .input{flex:1; min-width:0; width:0}
++.toggle-password{flex:none; padding:12px 10px; font-size:13px; white-space:nowrap}
++footer > span{max-width:52%; text-align:right; overflow-wrap:anywhere}
+ 
+ @media (prefers-reduced-motion:reduce){
+   *,*::before,*::after{animation-duration:.01ms !important; transition-duration:.01ms !important}
+@@ -162,7 +169,10 @@ footer{display:flex; align-items:center; justify-content:space-between; gap:12px
+ <main>
+   <header class="top">
+     <div class="brand"><span class="badge">siboot</span><span class="version" id="version"></span></div>
+-    <button type="button" class="stop" id="stop" hidden>Stop</button>
++    <div class="header-actions">
++      <select class="language" id="language" aria-label="Language"><option value="zh-CN">中文</option><option value="en">English</option></select>
++      <button type="button" class="stop" id="stop" hidden>Stop</button>
++    </div>
+   </header>
+   <h1 class="tagline" id="tagline">Connecting to siboot…</h1>
+   <p class="keep" id="keep" hidden></p>
+@@ -173,12 +183,13 @@ footer{display:flex; align-items:center; justify-content:space-between; gap:12px
+   <form class="ask" id="ask" hidden novalidate></form>
+   <footer>
+     <label class="details-toggle"><input type="checkbox" id="details">Show details</label>
+-    <span>A project by Frizzle</span>
++    <span>Jay-Void-BA · based on FrizzleM/siboot</span>
+   </footer>
+ </main>
+ <script>
+ (() => {
+   "use strict";
++  /*__SIBOOT_I18N__*/
+ 
+   const $ = (id) => document.getElementById(id);
+   const make = (tag, cls, text) => {
+@@ -285,6 +296,8 @@ footer{display:flex; align-items:center; justify-content:space-between; gap:12px
      s.line.textContent = cap(title);
      s.startedAt = at;
      s.time.textContent = "0:00";
@@ -2064,7 +4148,19 @@ index 996d032..7378e67 100644
      place();
    }
  
-@@ -433,13 +436,129 @@ footer{display:flex; align-items:center; justify-content:space-between; gap:12px
+@@ -409,9 +422,10 @@ footer{display:flex; align-items:center; justify-content:space-between; gap:12px
+ 
+   // ---------------------------------------------------------- questions
+ 
+-  function button(label, cls, type, onClick) {
++  function button(label, cls, type, onClick, translated = true) {
+     const b = make("button", "button " + cls, label);
+     b.type = type;
++    if (!translated) b.dataset.noI18n = "true";
+     if (onClick) b.addEventListener("click", onClick);
+     return b;
+   }
+@@ -433,13 +447,132 @@ footer{display:flex; align-items:center; justify-content:space-between; gap:12px
      const actions = make("div", "actions");
      let focus = null;
  
@@ -2124,7 +4220,7 @@ index 996d032..7378e67 100644
 +            li.append(button((file.directory ? "📁 " : "") + file.name, "choice", "button", () => {
 +              if (file.directory) browse(file.path);
 +              else { input.value = file.path; message.textContent = "Selected " + file.name; }
-+            }));
++            }, false));
 +            list.append(li);
 +          }
 +          message.textContent = data.truncated ? "Showing the first 256 entries. Enter a full path if needed."
@@ -2135,9 +4231,12 @@ index 996d032..7378e67 100644
 +      }
 +      browse(e.directory);
 +    } else if (e.kind === "ipa") {
-+      actions.append(button("Download SideInstaller", "primary", "button", () => send({ release: true })));
++      if (e.renewal) {
++        askEl.append(make("p", "hint", "Uses the cached original IPA and saved pairing. Sign-in and installation still run."));
++        actions.append(button("Quick renew " + e.renewal, "primary", "button", () => send({ renew: true })));
++      }
 +      const field = make("label", "field");
-+      field.append(make("span", "field-label", "Or choose a local .ipa from Files"));
++      field.append(make("span", "field-label", "Choose a local .ipa from Files"));
 +      const input = make("input", "input");
 +      input.type = "file";
 +      input.accept = ".ipa";
@@ -2146,7 +4245,7 @@ index 996d032..7378e67 100644
 +      const status = make("p", "hint");
 +      status.setAttribute("role", "status");
 +      askEl.append(status);
-+      const useFile = button("Use selected IPA", "secondary", "button", async () => {
++      const useFile = button("Use selected IPA", "primary", "button", async () => {
 +        const file = input.files[0];
 +        if (!file) { status.textContent = "Choose an .ipa file first."; return; }
 +        if (!/\.ipa$/i.test(file.name) || file.size === 0 || file.size > e.maxSize) {
@@ -2196,7 +4295,41 @@ index 996d032..7378e67 100644
        } else if (/^e-?mail$/i.test(e.label || "")) {
          input.type = "email";
          input.autocomplete = "username";
-@@ -508,6 +627,15 @@ footer{display:flex; align-items:center; justify-content:space-between; gap:12px
+@@ -447,6 +580,7 @@ footer{display:flex; align-items:center; justify-content:space-between; gap:12px
+         input.type = "text";
+         input.autocomplete = "off";
+       }
++      input.setAttribute("aria-label", e.label || "Password");
+       input.setAttribute("autocapitalize", "off");
+       input.setAttribute("autocorrect", "off");
+       input.spellcheck = false;
+@@ -455,6 +589,25 @@ footer{display:flex; align-items:center; justify-content:space-between; gap:12px
+       field.append(input);
+       askEl.append(field);
+       focus = input;
++      if (e.kind === "secret") {
++        const row = make("div", "password-field");
++        input.id = "secret-" + e.id;
++        const reveal = button("Show password", "secondary toggle-password", "button", (event) => {
++          event.preventDefault();
++          event.stopPropagation();
++          const visible = input.type === "password";
++          input.type = visible ? "text" : "password";
++          reveal.textContent = visible ? "Hide password" : "Show password";
++          reveal.setAttribute("aria-label", visible ? "Hide password" : "Show password");
++          reveal.setAttribute("aria-pressed", String(visible));
++          input.focus({ preventScroll: true });
++        });
++        reveal.setAttribute("aria-controls", input.id);
++        reveal.setAttribute("aria-label", "Show password");
++        reveal.setAttribute("aria-pressed", "false");
++        row.append(input, reveal);
++        field.append(row);
++      }
+       askEl.onsubmit = (ev) => {
+         ev.preventDefault();
+         if (!input.value.trim() && e.kind !== "line") return input.focus();
+@@ -508,6 +661,15 @@ footer{display:flex; align-items:center; justify-content:space-between; gap:12px
        }
        actions.append(button(e.button || "Start", "primary", "button", () => send({ go: true })));
        actions.append(button("Cancel", "quiet", "button", () => send({ cancel: true })));
@@ -2212,7 +4345,7 @@ index 996d032..7378e67 100644
      } else if (e.kind === "confirm") {
        actions.append(button("Yes", e.default ? "primary" : "secondary", "button", () => send({ yes: true })));
        actions.append(button("No", e.default ? "secondary" : "primary", "button", () => send({ yes: false })));
-@@ -580,6 +708,7 @@ footer{display:flex; align-items:center; justify-content:space-between; gap:12px
+@@ -580,6 +742,7 @@ footer{display:flex; align-items:center; justify-content:space-between; gap:12px
        case "step": begin(e.n, e.title, e.at); break;
        case "status": setStatus(e.text); break;
        case "done": settle("done", e.summary); break;
@@ -2221,7 +4354,7 @@ index 996d032..7378e67 100644
        case "progress": progress(e); break;
        case "progress_end": progressEnd(); break;
 diff --git a/minis/src/web.rs b/minis/src/web.rs
-index 9066841..7d83041 100644
+index 9066841..b4b1891 100644
 --- a/minis/src/web.rs
 +++ b/minis/src/web.rs
 @@ -29,6 +29,7 @@ use std::collections::HashMap;
@@ -2232,18 +4365,39 @@ index 9066841..7d83041 100644
  use std::process::{Command, Stdio};
  use std::sync::atomic::{AtomicUsize, Ordering};
  use std::sync::{Arc, Condvar, Mutex, MutexGuard, OnceLock};
-@@ -186,6 +187,10 @@ struct State {
+@@ -38,6 +39,13 @@ use serde_json::{json, Value};
+ 
+ /// The page: one file, its style and script inline.
+ const PAGE: &str = include_str!("web.html");
++fn localized_page() -> &'static str {
++    static HTML: OnceLock<String> = OnceLock::new();
++    HTML.get_or_init(|| {
++        let script = include_str!("i18n.js").replace("__SIBOOT_CHINESE__", &crate::i18n::CHINESE.replace('<', "\\u003c"));
++        PAGE.replace("/*__SIBOOT_I18N__*/", &script)
++    })
++}
+ /// Nothing from anywhere else, and no one else's frame.
+ const CSP: &str = "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; \
+                    connect-src 'self'; img-src data:; base-uri 'none'; form-action 'none'; \
+@@ -186,6 +194,17 @@ struct State {
      /// The progress last sent, so a bar sends one event a percent.
      progress: Option<(String, u64)>,
      ended: bool,
 +    ipa_folder: Option<PathBuf>,
++    ipa_renewal: bool,
 +    upload: Option<crate::ipa::Upload>,
 +    imported_ipa: Option<PathBuf>,
 +    pairing_question: bool,
++}
++
++#[derive(Debug, PartialEq, Eq)]
++pub enum IpaChoice {
++    Local(PathBuf),
++    Renew,
  }
  
  /// A six-digit code, or what the page asked for instead.
-@@ -263,6 +268,7 @@ impl Server {
+@@ -263,6 +282,7 @@ impl Server {
          question["t"] = json!("ask");
          question["id"] = json!(id);
          state.asking = Some(id);
@@ -2251,7 +4405,7 @@ index 9066841..7d83041 100644
          state.answer = None;
          shared.push(&mut state, question);
          let answer = loop {
-@@ -275,6 +281,7 @@ impl Server {
+@@ -275,6 +295,7 @@ impl Server {
                  .unwrap_or_else(|e| e.into_inner());
          };
          state.asking = None;
@@ -2259,7 +4413,7 @@ index 9066841..7d83041 100644
          shared.push(&mut state, json!({"t": "answered", "id": id}));
          answer
      }
-@@ -296,10 +303,9 @@ impl Server {
+@@ -296,10 +317,9 @@ impl Server {
              if cancelled(&answer) {
                  return None;
              }
@@ -2273,7 +4427,7 @@ index 9066841..7d83041 100644
              {
                  return Some(value.to_string());
              }
-@@ -341,6 +347,47 @@ impl Server {
+@@ -341,6 +361,50 @@ impl Server {
          answer["yes"].as_bool().unwrap_or(false)
      }
  
@@ -2284,22 +4438,25 @@ index 9066841..7d83041 100644
 +        answer["yes"] == json!(true)
 +    }
 +
-+    /// None cancels; Some(None) downloads the release. Paths can only come
++    /// None cancels. Paths can only come
 +    /// from this question's upload, never from a browser-supplied filename.
-+    pub fn pick_ipa(&self, folder: &Path) -> Option<Option<PathBuf>> {
-+        self.shared.lock().ipa_folder = Some(folder.to_path_buf());
++    pub fn pick_ipa(&self, folder: &Path, renewal: Option<&str>) -> Option<IpaChoice> {
++        { let mut state = self.shared.lock();
++          state.ipa_folder = Some(folder.to_path_buf());
++          state.ipa_renewal = renewal.is_some(); }
 +        let answer = self.ask(json!({
-+            "kind": "ipa", "question": "Choose an app to install", "maxSize": crate::ipa::MAX_SIZE,
++            "kind": "ipa", "question": "Choose an app to install", "maxSize": crate::ipa::MAX_SIZE, "renewal": renewal,
 +        }));
 +        let mut state = self.shared.lock();
 +        state.ipa_folder = None;
++        state.ipa_renewal = false;
 +        state.upload = None;
 +        let imported = state.imported_ipa.take();
 +        if answer["uploaded"] == json!(true) {
-+            imported.map(Some)
++            imported.map(IpaChoice::Local)
 +        } else {
 +            if let Some(path) = imported { let _ = std::fs::remove_file(path); }
-+            if answer["release"] == json!(true) { Some(None) } else { None }
++            if renewal.is_some() && answer["renew"] == json!(true) { Some(IpaChoice::Renew) } else { None }
 +        }
 +    }
 +
@@ -2321,7 +4478,7 @@ index 9066841..7d83041 100644
      /// What to do elsewhere, as numbered `steps` with `notes` under them, and
      /// `button` to start: true when it's tapped, false on Cancel.
      pub fn ready(&self, title: &str, steps: &[&str], notes: &[&str], button: &str) -> bool {
-@@ -558,7 +605,12 @@ fn read_request(stream: &TcpStream) -> Result<Request, u16> {
+@@ -558,7 +622,12 @@ fn read_request(stream: &TcpStream) -> Result<Request, u16> {
      };
      if let Some(length) = request.header("content-length") {
          let length: usize = length.parse().map_err(|_| 400u16)?;
@@ -2335,7 +4492,12 @@ index 9066841..7d83041 100644
              return Err(413);
          }
          let mut body = vec![0; length];
-@@ -606,8 +658,10 @@ fn handle(shared: &Shared, stream: TcpStream) -> io::Result<()> {
+@@ -602,12 +671,14 @@ fn handle(shared: &Shared, stream: TcpStream) -> io::Result<()> {
+                 ("Content-Security-Policy", CSP),
+                 ("X-Frame-Options", "DENY"),
+             ],
+-            PAGE.as_bytes(),
++            localized_page().as_bytes(),
          ),
          ("GET", "/events") => events(shared, &stream, &request),
          ("POST", "/answer") => answer(shared, &stream, &request),
@@ -2347,17 +4509,18 @@ index 9066841..7d83041 100644
          _ => refuse(&stream, 404),
      }
  }
-@@ -641,6 +695,9 @@ fn answer(shared: &Shared, stream: &TcpStream, request: &Request) -> io::Result<
+@@ -641,6 +712,10 @@ fn answer(shared: &Shared, stream: &TcpStream, request: &Request) -> io::Result<
      };
      let taken = {
          let mut state = shared.lock();
-+        if state.ipa_folder.is_some() && !cancelled(&given) && given["release"] != json!(true) {
++        if state.ipa_folder.is_some() && !cancelled(&given)
++            && !(state.ipa_renewal && given["renew"] == json!(true)) {
 +            return refuse(stream, 400);
 +        }
          if state.asking == Some(id) && state.answer.is_none() {
              state.answer = Some(given);
              shared.changed.notify_all();
-@@ -653,6 +710,66 @@ fn answer(shared: &Shared, stream: &TcpStream, request: &Request) -> io::Result<
+@@ -653,6 +728,66 @@ fn answer(shared: &Shared, stream: &TcpStream, request: &Request) -> io::Result<
      respond(stream, if taken { 204 } else { 409 }, &[], b"")
  }
  
@@ -2424,7 +4587,7 @@ index 9066841..7d83041 100644
  fn stop(shared: &Shared, stream: &TcpStream, request: &Request) -> io::Result<()> {
      if let Err(status) = posted_json(shared, request) {
          return refuse(stream, status);
-@@ -788,7 +905,9 @@ fn reason(status: u16) -> &'static str {
+@@ -788,7 +923,9 @@ fn reason(status: u16) -> &'static str {
          409 => "Conflict",
          413 => "Payload Too Large",
          415 => "Unsupported Media Type",
@@ -2434,7 +4597,7 @@ index 9066841..7d83041 100644
          _ => "Error",
      }
  }
-@@ -1054,6 +1173,83 @@ mod tests {
+@@ -1054,6 +1191,106 @@ mod tests {
          )
      }
  
@@ -2458,7 +4621,7 @@ index 9066841..7d83041 100644
 +        let folder = std::env::temp_dir().join(format!("siboot-web-ipa-{}", uuid::Uuid::new_v4()));
 +        let selected_folder = folder.clone();
 +        let mut reader = subscribe(server, None);
-+        let selected = asked(server, move |s| s.pick_ipa(&selected_folder));
++        let selected = asked(server, move |s| s.pick_ipa(&selected_folder, None));
 +        let question = until(&mut reader, "ask");
 +        assert_eq!(question["kind"], "ipa");
 +        let id = question["id"].as_u64().unwrap();
@@ -2471,31 +4634,54 @@ index 9066841..7d83041 100644
 +        assert_eq!(upload_chunk(server, id, 0, 8, b"PK\x03\x04junk", &origin), 422);
 +        assert_eq!(upload_chunk(server, id, 0, total, &bytes[..4], &origin), 204);
 +        assert_eq!(upload_chunk(server, id, 4, total, &bytes[4..], &origin), 204);
-+        let path = selected.join().unwrap().unwrap().unwrap();
++        let IpaChoice::Local(path) = selected.join().unwrap().unwrap() else { panic!("local upload") };
 +        assert!(path.starts_with(&folder));
 +        assert_eq!(std::fs::read(path).unwrap(), bytes);
 +        assert_eq!(upload_chunk(server, id, 0, total, &bytes, &origin), 409);
-+        std::fs::remove_dir_all(folder).unwrap();
++        std::fs::remove_dir_all(&folder).unwrap();
 +    }
 +
 +    #[test]
-+    fn choosing_the_release_or_cancelling_cleans_up_partial_uploads() {
-+        for release in [true, false] {
-+            let server = leaked();
-+            let folder = std::env::temp_dir().join(format!("siboot-web-ipa-{}", uuid::Uuid::new_v4()));
-+            let selected_folder = folder.clone();
-+            let mut reader = subscribe(server, None);
-+            let selected = asked(server, move |s| s.pick_ipa(&selected_folder));
-+            let question = until(&mut reader, "ask");
-+            let id = question["id"].as_u64().unwrap();
-+            let origin = format!("http://{}", host(server));
-+            assert_eq!(upload_chunk(server, id, 0, 100, b"PK\x03\x04", &origin), 204);
-+            let answer = if release { json!({"release": true}) } else { json!({"cancel": true}) };
-+            assert_eq!(reply(server, id, answer), 204);
-+            assert_eq!(selected.join().unwrap(), if release { Some(None) } else { None });
-+            assert_eq!(std::fs::read_dir(&folder).unwrap().count(), 0);
-+            std::fs::remove_dir_all(folder).unwrap();
-+        }
++    fn release_download_answers_are_rejected_and_cancel_cleans_partial_uploads() {
++        let server = leaked();
++        let folder = std::env::temp_dir().join(format!("siboot-web-ipa-{}", uuid::Uuid::new_v4()));
++        let selected_folder = folder.clone();
++        let mut reader = subscribe(server, None);
++        let selected = asked(server, move |s| s.pick_ipa(&selected_folder, None));
++        let question = until(&mut reader, "ask");
++        let id = question["id"].as_u64().unwrap();
++        let origin = format!("http://{}", host(server));
++        assert_eq!(reply(server, id, json!({"release": true})), 400);
++        assert_eq!(upload_chunk(server, id, 0, 100, b"PK\x03\x04", &origin), 204);
++        assert_eq!(reply(server, id, json!({"cancel": true})), 204);
++        assert_eq!(selected.join().unwrap(), None);
++        assert_eq!(std::fs::read_dir(&folder).unwrap().count(), 0);
++        std::fs::remove_dir_all(&folder).unwrap();
++    }
++
++    #[test]
++    fn quick_renew_is_offered_only_for_a_valid_cached_app_and_cleans_partial_uploads() {
++        let server = leaked();
++        let folder = std::env::temp_dir().join(format!("siboot-web-renew-{}", uuid::Uuid::new_v4()));
++        let picked_folder = folder.clone();
++        let mut reader = subscribe(server, None);
++        let selected = asked(server, move |s| s.pick_ipa(&picked_folder, Some("Demo 1.0")));
++        let question = until(&mut reader, "ask");
++        assert_eq!(question["renewal"], "Demo 1.0");
++        let id = question["id"].as_u64().unwrap();
++        let origin = format!("http://{}", host(server));
++        assert_eq!(upload_chunk(server, id, 0, 100, b"PK\x03\x04", &origin), 204);
++        assert_eq!(reply(server, id, json!({"renew": true})), 204);
++        assert_eq!(selected.join().unwrap(), Some(IpaChoice::Renew));
++        assert_eq!(std::fs::read_dir(&folder).unwrap().count(), 0);
++        std::fs::remove_dir_all(&folder).unwrap();
++        let picked_folder = folder.clone();
++        let selected = asked(server, move |s| s.pick_ipa(&picked_folder, None));
++        let question = until(&mut reader, "ask");
++        let id = question["id"].as_u64().unwrap();
++        assert_eq!(reply(server, id, json!({"renew": true})), 400);
++        assert_eq!(reply(server, id, json!({"cancel": true})), 204);
++        assert_eq!(selected.join().unwrap(), None);
 +    }
 +
 +    #[test]
@@ -2518,7 +4704,7 @@ index 9066841..7d83041 100644
      #[test]
      fn a_question_waits_for_its_answer() {
          let server = leaked();
-@@ -1091,6 +1287,44 @@ mod tests {
+@@ -1091,6 +1328,44 @@ mod tests {
          assert!(state.events.iter().all(|e| !e.contains("me@example.com")));
      }
  
@@ -2557,7 +4743,7 @@ index 9066841..7d83041 100644
 +        reply(server, id, json!({"path": folder.join("phone.plist")}));
 +        assert_eq!(picked.join().unwrap(), Some(Some(folder.join("phone.plist"))));
 +        assert_eq!(post(server, &endpoint, &body, ""), 409, "closed questions cannot browse files");
-+        std::fs::remove_dir_all(folder).unwrap();
++        std::fs::remove_dir_all(&folder).unwrap();
 +    }
 +
      #[test]

@@ -26,7 +26,6 @@ jobs:
       ready: ${{ steps.existing.outputs.ready }}
       tag: ${{ steps.meta.outputs.tag }}
       version: ${{ steps.meta.outputs.version }}
-      ipa_url: ${{ steps.meta.outputs.ipa_url }}
       notes: ${{ steps.meta.outputs.notes }}
       source_sha: ${{ github.event.workflow_run.head_sha }}
     steps:
@@ -44,9 +43,8 @@ jobs:
           assert re.fullmatch(r'[0-9]+\.[0-9]+\.[0-9]+', version)
           notes = pathlib.Path(data['notes'])
           assert notes.parent == pathlib.Path('release-notes') and notes.is_file()
-          assert data['ipa_url'].startswith('https://github.com/') and '\n' not in data['ipa_url']
           with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
-              for key, value in dict(version=version, tag='siboot-v' + version, notes=str(notes), ipa_url=data['ipa_url']).items():
+              for key, value in dict(version=version, tag='siboot-v' + version, notes=str(notes)).items():
                   print(f'{key}={value}', file=output)
           PY
 
@@ -94,15 +92,12 @@ jobs:
           PY
 
       - name: Build a static ARM64 executable
-        env:
-          IPA_URL: ${{ needs.prepare.outputs.ipa_url }}
         run: |
           set -euo pipefail
           docker run --rm --platform linux/arm64 \
             -v "$GITHUB_WORKSPACE:$GITHUB_WORKSPACE:ro" \
             -v "$RUNNER_TEMP/siboot:$RUNNER_TEMP/siboot" \
             -w "$RUNNER_TEMP/siboot/minis" \
-            -e SIBOOT_DEFAULT_IPA_URL="$IPA_URL" \
             -e 'RUSTFLAGS=-C target-feature=+crt-static -C relocation-model=static' \
             rust:alpine sh -euc '
               apk add --no-cache build-base cmake perl clang linux-headers
@@ -132,9 +127,30 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+  runtime:
+    name: Check startup in the Minis iSH engine
+    needs: [prepare, minis]
+    if: needs.prepare.outputs.ready == 'true'
+    runs-on: xcode-27
+    timeout-minutes: 20
+    env:
+      HOMEBREW_NO_AUTO_UPDATE: '1'
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.prepare.outputs.source_sha }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: siboot-aarch64
+          path: ${{ runner.temp }}/siboot-asset
+      - name: Run version and Chinese help in iSH
+        env:
+          VERSION: ${{ needs.prepare.outputs.version }}
+        run: bash scripts/check-minis-runtime.sh "$RUNNER_TEMP/siboot-asset/siboot-aarch64" "$VERSION"
+
   publish:
     name: Publish siboot-aarch64 only
-    needs: [prepare, minis]
+    needs: [prepare, minis, runtime]
     if: needs.prepare.outputs.ready == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10

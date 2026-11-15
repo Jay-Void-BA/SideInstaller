@@ -183,8 +183,6 @@ jobs:
         run: bash scripts/prepare-minis.sh "$RUNNER_TEMP/siboot"
 
       - name: Build a native ARM64 musl static executable
-        env:
-          IPA_URL: https://github.com/${{ github.repository }}/releases/download/${{ needs.prepare.outputs.tag }}/SideInstaller.ipa
         shell: bash
         run: |
           set -euo pipefail
@@ -192,7 +190,6 @@ jobs:
             -v "$GITHUB_WORKSPACE:$GITHUB_WORKSPACE:ro" \
             -v "$RUNNER_TEMP/siboot:$RUNNER_TEMP/siboot" \
             -w "$RUNNER_TEMP/siboot/minis" \
-            -e SIBOOT_DEFAULT_IPA_URL="$IPA_URL" \
             -e 'RUSTFLAGS=-C target-feature=+crt-static -C relocation-model=static' \
             rust:alpine sh -euc '
               apk add --no-cache build-base cmake perl clang linux-headers
