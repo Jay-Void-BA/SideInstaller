@@ -16,9 +16,10 @@ jobs:
         run: |
           set -euo pipefail
           uname -m
-          for package in meson ninja pkgconf llvm; do
+          for package in meson ninja pkgconf llvm lld; do
             brew list --versions "$package" >/dev/null 2>&1 || brew install "$package"
           done
+          export PATH="$(brew --prefix lld)/bin:$PATH"
           git init "$RUNNER_TEMP/ish"
           git -C "$RUNNER_TEMP/ish" remote add origin https://github.com/OpenMinis/ish-arm64.git
           git -C "$RUNNER_TEMP/ish" fetch --depth 1 origin 0fd17a135e78b7a0cf08a4f5831217bbb76ed22f
