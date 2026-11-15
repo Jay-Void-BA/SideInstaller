@@ -195,6 +195,12 @@ jobs:
                git fetch --no-tags --depth=1 origin "$BEFORE" 2>/dev/null; then
             base="$BEFORE"
           fi
+          if [[ -n "$base" ]]; then
+            python3 scripts/check_translations.py --base "$base"
+          else
+            echo "::notice::No earlier commit to compare with, so missing translations are listed, not failed."
+            python3 scripts/check_translations.py
+          fi
 
   minis:
     name: Minis tests and release configuration
@@ -228,9 +234,3 @@ jobs:
       - name: Clippy
         working-directory: ${{ runner.temp }}/siboot/minis
         run: cargo clippy --locked --all-targets -- -D warnings
-          if [[ -n "$base" ]]; then
-            python3 scripts/check_translations.py --base "$base"
-          else
-            echo "::notice::No earlier commit to compare with, so missing translations are listed, not failed."
-            python3 scripts/check_translations.py
-          fi
