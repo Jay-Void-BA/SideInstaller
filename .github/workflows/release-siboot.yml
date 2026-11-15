@@ -1,0 +1,170 @@
+name: release-siboot
+
+on:
+  workflow_run:
+    workflows: [checks]
+    types: [completed]
+    branches: [main]
+
+concurrency:
+  group: release-siboot
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  prepare:
+    name: Resolve the tested Minis release
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == github.event.repository.default_branch &&
+      github.event.workflow_run.head_repository.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      ready: ${{ steps.existing.outputs.ready }}
+      tag: ${{ steps.meta.outputs.tag }}
+      version: ${{ steps.meta.outputs.version }}
+      ipa_url: ${{ steps.meta.outputs.ipa_url }}
+      notes: ${{ steps.meta.outputs.notes }}
+      source_sha: ${{ github.event.workflow_run.head_sha }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Resolve binary-only release metadata
+        id: meta
+        run: |
+          python3 - <<'PY'
+          import json, os, pathlib, re
+          data = json.loads(pathlib.Path('.github/siboot-release.json').read_text())
+          version = data['version']
+          assert re.fullmatch(r'[0-9]+\.[0-9]+\.[0-9]+', version)
+          notes = pathlib.Path(data['notes'])
+          assert notes.parent == pathlib.Path('release-notes') and notes.is_file()
+          assert data['ipa_url'].startswith('https://github.com/') and '\n' not in data['ipa_url']
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
+              for key, value in dict(version=version, tag='siboot-v' + version, notes=str(notes), ipa_url=data['ipa_url']).items():
+                  print(f'{key}={value}', file=output)
+          PY
+
+      - name: Skip an already published version
+        id: existing
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ steps.meta.outputs.tag }}
+        run: |
+          set -euo pipefail
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo 'ready=false' >> "$GITHUB_OUTPUT"
+            echo "::notice::$TAG is already published; leaving it intact"
+          else
+            if git ls-remote --exit-code --tags origin "refs/tags/$TAG" >/dev/null 2>&1; then
+              echo "::error::$TAG already exists without a release"
+              exit 1
+            fi
+            echo 'ready=true' >> "$GITHUB_OUTPUT"
+          fi
+
+  minis:
+    name: Build and verify siboot-aarch64
+    needs: prepare
+    if: needs.prepare.outputs.ready == 'true'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 60
+    outputs:
+      sha256: ${{ steps.verify.outputs.sha256 }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.prepare.outputs.source_sha }}
+
+      - name: Prepare the tested source
+        env:
+          VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          bash scripts/prepare-minis.sh "$RUNNER_TEMP/siboot"
+          python3 - <<'PY'
+          import os, pathlib, tomllib
+          manifest = pathlib.Path(os.environ['RUNNER_TEMP']) / 'siboot/minis/Cargo.toml'
+          assert tomllib.loads(manifest.read_text())['package']['version'] == os.environ['VERSION']
+          PY
+
+      - name: Build a static ARM64 executable
+        env:
+          IPA_URL: ${{ needs.prepare.outputs.ipa_url }}
+        run: |
+          set -euo pipefail
+          docker run --rm --platform linux/arm64 \
+            -v "$GITHUB_WORKSPACE:$GITHUB_WORKSPACE:ro" \
+            -v "$RUNNER_TEMP/siboot:$RUNNER_TEMP/siboot" \
+            -w "$RUNNER_TEMP/siboot/minis" \
+            -e SIBOOT_DEFAULT_IPA_URL="$IPA_URL" \
+            -e 'RUSTFLAGS=-C target-feature=+crt-static -C relocation-model=static' \
+            rust:alpine sh -euc '
+              apk add --no-cache build-base cmake perl clang linux-headers
+              cargo build --release --locked --target aarch64-unknown-linux-musl
+            '
+
+      - name: Verify and stage the only release asset
+        id: verify
+        run: |
+          set -euo pipefail
+          binary="$RUNNER_TEMP/siboot/minis/target/aarch64-unknown-linux-musl/release/siboot"
+          file "$binary"
+          file "$binary" | grep -q 'ARM aarch64'
+          if readelf -l "$binary" | grep -q INTERP; then
+            echo '::error::The executable must be statically linked'
+            exit 1
+          fi
+          mkdir -p "$RUNNER_TEMP/siboot-asset"
+          cp "$binary" "$RUNNER_TEMP/siboot-asset/siboot-aarch64"
+          sha256sum "$RUNNER_TEMP/siboot-asset/siboot-aarch64"
+          echo "sha256=$(sha256sum "$binary" | cut -d ' ' -f 1)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: siboot-aarch64
+          path: ${{ runner.temp }}/siboot-asset/siboot-aarch64
+          if-no-files-found: error
+          retention-days: 14
+
+  publish:
+    name: Publish siboot-aarch64 only
+    needs: [prepare, minis]
+    if: needs.prepare.outputs.ready == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.prepare.outputs.source_sha }}
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: siboot-aarch64
+          path: ${{ runner.temp }}/siboot-asset
+
+      - name: Verify the digest and publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ needs.prepare.outputs.tag }}
+          NOTES: ${{ needs.prepare.outputs.notes }}
+          SOURCE_SHA: ${{ needs.prepare.outputs.source_sha }}
+          SHA256: ${{ needs.minis.outputs.sha256 }}
+        run: |
+          set -euo pipefail
+          binary="$RUNNER_TEMP/siboot-asset/siboot-aarch64"
+          echo "$SHA256  $binary" | sha256sum --check
+          cp "$NOTES" "$RUNNER_TEMP/siboot-notes.md"
+          printf '\nSHA-256 (`siboot-aarch64`): `%s`\n\nSource: `%s`\n' "$SHA256" "$SOURCE_SHA" >> "$RUNNER_TEMP/siboot-notes.md"
+          gh release create "$TAG" "$binary" --draft --title "$TAG" \
+            --notes-file "$RUNNER_TEMP/siboot-notes.md" --target "$SOURCE_SHA"
+          gh release edit "$TAG" --draft=false --prerelease=false --latest=false
+          gh release view "$TAG" --json url --jq .url | tee -a "$GITHUB_STEP_SUMMARY"

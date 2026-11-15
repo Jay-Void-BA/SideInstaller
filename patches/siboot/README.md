@@ -15,36 +15,36 @@ SideInstaller 的 iOS 应用和 Minis 安装器属于两个仓库。本目录保
 - 页面提供本地 IPA 文件选择、分块导入和文件检查；终端保留 `--ipa` 路径用法。
 - 本地 IPA 不访问 GitHub 下载；普通应用跳过 SideInstaller 专用的配对文件交接。
 - 用户取消登录或输入时直接结束；失败日志保留原有处理方式。
+- Apple／iCloud 登录可选择加密保存，以独立本地口令解锁；同时保护会话、签名私钥和 anisette 缓存，支持更新密码、一次性账号及清除登录。
+- 页面可浏览 Minis／iSH 的配对文件；设备验证成功后以 `0600` 原子保存到程序同目录 `rp_pairing_file.plist`，原文件保留。
+- 递归签名所有 Mach-O 和嵌套代码包，封存 `.config` 等普通资源并核对最终签名清单；上传时保留符号链接。
 
 ## 应用补丁
 
-在干净的 siboot 仓库中执行，`PATCH` 应为本目录补丁的绝对路径：
+补丁依赖本 fork 的 Rust 核心修改。推荐从本仓库准备干净的 Minis 源码：
 
 ```sh
-git checkout 82b808de3a407619be7fbe54b3f313932bb80ade
-git submodule update --init --recursive
-PATCH=/absolute/path/to/SideInstaller/patches/siboot/retry-local-ipa.patch
-git apply --check "$PATCH"
-git apply "$PATCH"
-cd minis
+bash scripts/prepare-minis.sh /tmp/sideinstaller-minis
+cd /tmp/sideinstaller-minis/minis
 cargo test --locked --all-targets
 cargo clippy --locked --all-targets -- -D warnings
 ```
 
 可用 `cargo run --locked --example screens -- local-ipa --web` 预览本地
-文件选择和失败重试；这个预览不会连接 Apple 或真实设备。
+文件选择和失败重试；`cargo run --locked --example screens -- secure-setup --web`
+预览配对文件浏览和加密保存、解锁。这些预览不会连接 Apple 或真实设备，只应输入测试密码。
 
 ## 构建及验证范围
 
 补丁只包含源码，未替换上游仓库已有的 `bin/siboot-aarch64`。
 本 fork 的 CI 会用 `scripts/prepare-minis.sh` 应用补丁并执行测试；所有检查通过后，
-发布工作流构建 ARM64 musl 静态二进制，生成校验值匹配的 `install-minis.sh`，并与
-iOS IPA 一起发布。生成的 Minis 安装器默认安装同一个 Release 的 SideInstaller，
-不会安装上游的旧 IPA。
+`release-siboot.yml` 按 `.github/siboot-release.json` 构建 ARM64 musl 静态二进制，
+仅发布 `siboot-aarch64`。0.19.0 默认 IPA 固定为本 fork 已发布的 v2.1.0；
+可在页面选择其他本地 IPA。本次不生成新 IPA。
 
 手动构建时可设置 `SIBOOT_DEFAULT_IPA_URL` 指定默认安装的 IPA 下载地址。
 上游安装命令仍运行上游已发布的二进制，不会自动包含本补丁。
 
-本次已通过 Rust 全目标测试、Clippy 和 Chromium 手机尺寸下的页面验证
-（无效 IPA 拒绝、分块导入、重试保留前序步骤、刷新恢复重试提示）。iOS 应用已通过
-翻译检查；当前 Linux 环境没有 Xcode，未进行 iOS 编译或真机签名安装。
+Rust 测试包含加密和篡改检测、配对导入不覆盖旧文件、深层 Mach-O 与隐藏资源签名、
+嵌套扩展标识更新及符号链接上传。Chromium 手机尺寸页面验证覆盖目录浏览、遮蔽密码、
+解锁重试和刷新恢复。真实 Apple 账号登录和 iPhone 签名安装仍需真机验证。

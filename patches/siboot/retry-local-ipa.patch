@@ -1,36 +1,139 @@
 diff --git a/minis/Cargo.lock b/minis/Cargo.lock
-index 3254ab0..3042a51 100644
+index 3254ab0..8c87d38 100644
 --- a/minis/Cargo.lock
 +++ b/minis/Cargo.lock
-@@ -2835,6 +2835,7 @@ dependencies = [
+@@ -2812,7 +2812,7 @@ checksum = "f8fadd59c855ef2080decdef8ff161eb6661b86933c9d82e5ba29dc602a55aba"
+ 
+ [[package]]
+ name = "siboot"
+-version = "0.18.1"
++version = "0.19.0"
+ dependencies = [
+  "base64 0.22.1",
+  "chacha20poly1305",
+@@ -2827,6 +2827,7 @@ dependencies = [
+  "reqwest",
+  "rootcause",
+  "rpassword",
++ "scrypt",
+  "serde",
+  "serde_json",
+  "sha2 0.10.9",
+@@ -2835,6 +2836,8 @@ dependencies = [
   "tracing",
   "tracing-subscriber",
   "uuid",
++ "zeroize",
 + "zip",
  ]
  
  [[package]]
 diff --git a/minis/Cargo.toml b/minis/Cargo.toml
-index 38ec01e..5aac749 100644
+index 38ec01e..8b43a71 100644
 --- a/minis/Cargo.toml
 +++ b/minis/Cargo.toml
-@@ -71,6 +71,8 @@ reqwest = { version = "0.13", features = ["json", "gzip"] }
+@@ -1,6 +1,6 @@
+ [package]
+ name = "siboot"
+-version = "0.18.1"
++version = "0.19.0"
+ edition = "2021"
+ description = "PC-free bootstrap that pairs and installs SideInstaller onto the iPhone it runs on, from Open Minis's Linux shell"
+ license = "MIT"
+@@ -71,6 +71,12 @@ reqwest = { version = "0.13", features = ["json", "gzip"] }
  rootcause = "0.12"
  sha2 = "0.11"
  hex = "0.4"
++base64 = "0.22"
++scrypt = "0.12"
++chacha20poly1305 = "0.10"
++zeroize = { version = "1", features = ["derive"] }
 +# Already used by isideload; validates locally selected IPAs before signing.
 +zip = { version = "8.3", default-features = false, features = ["deflate"] }
  # No-echo password read from the terminal, for plain output.
  rpassword = "7"
  # The live screen: the terminal's size, and keys one at a time (termios). Already
+@@ -86,9 +92,7 @@ tracing-subscriber = "0.3"
+ idevice-srp = "0.6"
+ sha2-10 = { package = "sha2", version = "0.10" }
+ hkdf = "0.12"
+-chacha20poly1305 = "0.10"
+ ed25519-dalek = "2"
+-base64 = "0.22"
+ 
+ # isideload signs with apple-codesign-quick; SideInstaller's vendored copy also
+ # signs ExtensionKit extensions (#110). Patches only apply at a workspace root,
 diff --git a/minis/README.md b/minis/README.md
-index 163b7d0..e759adb 100644
+index 163b7d0..cab99f4 100644
 --- a/minis/README.md
 +++ b/minis/README.md
-@@ -44,6 +44,39 @@ SHA-256 the script carries, keeps it at `~/.siboot/bin/siboot` (and
+@@ -4,7 +4,8 @@ Installs SideInstaller onto the iPhone it runs on, signed with your own Apple
+ Account, from the Linux shell of [Open Minis](https://apps.apple.com/app/id6759188481)
+ (free, App Store): no computer, no certificate, no other app to pair with. Since
+ Open Minis 1.16 (App Store, 2026-11-14) siboot pairs the iPhone with itself too
+-([below](#pairing-in-minis)), so it needs 1.16 or later.
++([below](#pairing-in-minis)). Existing RPPairing files can also be imported from
++the Minis/iSH filesystem, including in older Minis versions.
+ 
+ ## Running it
+ 
+@@ -29,11 +30,10 @@ iOS pauses it in the background. The first time, trust your Apple Account in
+ Settings › General › VPN & Device Management. Free accounts' apps last 7 days;
+ SideInstaller can renew itself from then on.
+ 
+-In Open Minis 1.15 or older siboot stops at once and says to update Minis from
+-the App Store (the page has a button for it). Minis doesn't tell the shell its
+-version, so siboot goes by `minis-bonjour`, which came with 1.16. siboot still
+-takes rootshell's file ([`../rootshell`](../rootshell#running-it)) whenever
+-siboot-pair is offering one, for the transfer code it shows.
++Automatic pairing needs Minis 1.16's `minis-bonjour` bridge. In an older Minis,
++select an existing RPPairing file instead. siboot also takes rootshell's file
++([`../rootshell`](../rootshell#running-it)) whenever siboot-pair is offering one,
++for the transfer code it shows.
+ 
+ To answer in the terminal instead, add `-s -- --terminal` after `sh` (or run
+ `siboot --terminal` once it's installed).
+@@ -44,6 +44,76 @@ SHA-256 the script carries, keeps it at `~/.siboot/bin/siboot` (and
  `/usr/local/bin/siboot`), and runs it. After that, `siboot` on its own runs it
  again without downloading.
  
++### Securely save an Apple Account login
++
++After a successful sign-in, choose whether to save the login. A separate local
++unlock passphrase (at least 12 characters, different from the Apple password)
++protects it. iSH has no OS keychain: scrypt derives an encryption key and
++XChaCha20-Poly1305 authenticates the saved email, password, developer session,
++signing private key and anisette cache. The unlock passphrase is never saved.
++Files are private (`0600`), with private storage directories (`0700`). Existing
++plaintext signing data is migrated when encrypted saving is enabled.
++
++Next time, unlock the saved login, unlock and update its password, use another
++account once, or forget the login and local signing data. Forgetting does not
++revoke Apple's certificate. A wrong local passphrase does not contact Apple.
++One-off accounts use an encrypted temporary cache removed when the run ends.
++
++### Select a pairing file from Minis / iSH
++
++The pairing step offers a directory browser and a full-path field, or use
++`siboot --pairing-file /root/phone.plist`. XML/binary RPPairing plists and JSON
++exports with matching public/private keys are supported. Classic lockdown
++pairing files cannot be used for this tunnel.
++
++The selected file is normalized into a private staging file and verified with
++the iPhone. Only after verification does it replace `rp_pairing_file.plist`
++**beside the actual siboot executable**. The source is preserved; a failed
++import leaves the previous pairing file untouched. Saved pairing files in the
++old `~/.siboot` location are migrated when no adjacent file exists.
++
++### Complete signing
++
++Signing discovers nested executable bundles at every depth, signs Mach-O
++images by their file headers (including deep dylibs and extensionless helpers),
++then seals ordinary `.config` files, hidden files and the remaining resources.
++A final resource audit rejects missing or changed seals before installation.
++Relative symlinks are sealed and preserved during AFC upload; links outside
++the app are rejected. The upload is checked before installation starts.
++
 +### Retry a failed step
 +
 +When a step fails, the page keeps the completed steps and offers **Retry step**
@@ -67,7 +170,7 @@ index 163b7d0..e759adb 100644
  ## The screen
  
  With `--terminal`, siboot keeps a small live area under what it has printed:
-@@ -126,7 +159,7 @@ on a Mac, once a browser has it open (`-- --web --open` opens it).
+@@ -126,7 +196,7 @@ on a Mac, once a browser has it open (`-- --web --open` opens it).
  ## When it stops
  
  When a run stops on a problem (not when you stop it: Ctrl-C, nothing typed, a
@@ -76,7 +179,40 @@ index 163b7d0..e759adb 100644
  box: `y` or return copies it, `n` doesn't. The log is what the screen showed,
  as plain lines with the time since the start, the answers to its questions
  (only that something was typed: never a password or a code), idevice's and
-@@ -301,6 +334,8 @@ closing. siboot-pair's own tests, with the same fake iPhone, are in
+@@ -145,7 +215,7 @@ file is.
+ | # | Step | How |
+ |---|---|---|
+ | 1 | Check | GitHub and Apple's sign-in server answer; the iPhone answers RPPairing on `10.7.0.1:49152` through LocalDevVPN |
+-| 2 | Pairing | the file saved in `~/.siboot` on an earlier run, while the iPhone accepts it; else the one siboot-pair offers on `127.0.0.1:61207`, for its transfer code (20 s for each answer), when it's offering; else a new pairing, made here ([below](#pairing-in-minis)); then pair-verified with the iPhone |
++| 2 | Pairing | select a Minis/iSH file, use the saved file beside siboot, take rootshell's offered file, or pair automatically; verify with the iPhone before saving the imported copy |
+ | 3 | Connect | pair-verify → `createListener` → TLS-PSK → CDTunnel → software TCP → RSD, as `tunnel_create_rppairing_multihost` does; lockdownd gives the UDID |
+ | 4 | Apple ID | rust-core's `apple_session.rs`, compiled unchanged: saved token first, then GrandSlam + 2FA, Mac-ADI anisette servers in SideInstaller's Auto order |
+ | 5 | Sign | the latest `SideInstaller.ipa` release, signed with isideload's `sign_app` (device registered, app group, no Increased Memory Limit), as Side by Side does |
+@@ -155,10 +225,10 @@ file is.
+ `siboot check` runs step 1 only, and `siboot connect` steps 1–3.
+ `siboot developer-mode` runs steps 1–3 and then asks for Developer Mode
+ ([below](#developer-mode)).
+-`SIBOOT_APPLE_ID` and `SIBOOT_PASSWORD` skip the prompts. Everything is kept in
+-`~/.siboot`: the pairing file (mode 600), isideload's store (signing key,
+-anisette identity, saved token) and the download. The password is never
+-written anywhere.
++`SIBOOT_APPLE_ID` and `SIBOOT_PASSWORD` supply credentials. The optional encrypted
++login vault, signing store, logs and download are in `~/.siboot` (`--home` can
++change it). The pairing file is saved beside siboot. Passwords are written only
++when encrypted login saving is explicitly selected; they are never logged.
+ 
+ ## Pairing in Minis
+ 
+@@ -191,7 +261,7 @@ has Minis advertise it as **siboot**, and answers with idevice's
+ 5. When the iPhone asks for the code, it shows on the page in large digits and
+    comes as a notification. A stray connection or a mistyped code leaves the
+    entry up for another tap, three connections in all.
+-6. The pairing file goes to `~/.siboot` (mode 600), with the host's altIRK, so
++6. The pairing file goes beside siboot (mode 600), with the host's altIRK, so
+    a later pairing keeps the same host identity. The entry is withdrawn.
+ 7. A notification asks you back to Minis. The silence stops once Minis is in
+    front again (`minis-bonjour list`), and siboot pair-verifies the new file
+@@ -301,6 +371,8 @@ closing. siboot-pair's own tests, with the same fake iPhone, are in
  
  `cargo run --example screens` plays pairing in Minis as the page and the live
  screen show it (`-- rootshell` plays rootshell's hand-off instead).
@@ -86,41 +222,94 @@ index 163b7d0..e759adb 100644
  ## What's been tested
  
 diff --git a/minis/examples/screens.rs b/minis/examples/screens.rs
-index 160bcfa..81a5e90 100644
+index 160bcfa..93e7712 100644
 --- a/minis/examples/screens.rs
 +++ b/minis/examples/screens.rs
-@@ -6,6 +6,7 @@
+@@ -6,6 +6,8 @@
  //! cargo run --example screens -- rootshell     # taking rootshell's pairing
  //! cargo run --example screens -- stop          # one that stops at Connect
  //! cargo run --example screens -- old-minis     # in an Open Minis before 1.16
 +//! cargo run --example screens -- local-ipa --web # Files picker and a failed step's retry
++//! cargo run --example screens -- secure-setup --web # iSH file browser and encrypted login
  //! cargo run --example screens -- developer-mode
  //! cargo run --example screens -- --plain       # the same, as plain lines
  //! cargo run --example screens -- --web         # the same, as the page
-@@ -25,6 +26,8 @@
+@@ -25,6 +27,12 @@
  
  #[path = "../src/ui.rs"]
  mod ui;
 +#[path = "../src/ipa.rs"]
 +mod ipa;
++#[path = "../src/pairing_files.rs"]
++mod pairing_files;
++#[path = "../src/vault.rs"]
++mod vault;
  #[path = "../src/web.rs"]
  mod web;
  
-@@ -54,7 +57,9 @@ fn main() {
+@@ -54,7 +62,11 @@ fn main() {
      }
      let devmode = has("developer-mode");
      let stop = has("stop");
 -    let code = if has("old-minis") {
-+    let code = if has("local-ipa") {
++    let code = if has("secure-setup") {
++        if secure_setup() { 0 } else { 1 }
++    } else if has("local-ipa") {
 +        if local_ipa() { 0 } else { 1 }
 +    } else if has("old-minis") {
          old_minis();
          1
      } else if run(devmode, stop, has("rootshell")) {
-@@ -86,6 +91,33 @@ fn main() {
+@@ -86,6 +98,79 @@ fn main() {
      std::process::exit(code);
  }
  
++/// Uses generated pairing keys and dummy credentials only. No device or Apple
++/// contact; exercises the real browser, masked prompts and encrypted storage.
++fn secure_setup() -> bool {
++    use isideload::util::storage::SideloadingStorage;
++    ui::header("0.19.0", "Pairing and encrypted-login preview. Use dummy credentials only.");
++    let Some(page) = web::page() else { return false };
++    let root = std::env::temp_dir().join(format!("siboot-secure-preview-{}", std::process::id()));
++    let source = root.join("ish/Phone.plist");
++    std::fs::create_dir_all(source.parent().unwrap()).unwrap();
++    std::fs::write(&source, idevice::remote_pairing::RpPairingFile::generate("preview").to_bytes()).unwrap();
++    let destination = root.join("rp_pairing_file.plist");
++    ui::note(&format!("Preview iSH folder: {}", source.parent().unwrap().display()));
++    ui::plan(&["Pairing", "Save login", "Unlock"], 3);
++    ui::step(1, "Selecting an existing pairing file");
++    let Some(Some(selected)) = page.pairing_file(&destination) else { return false };
++    let staged = pairing_files::Staged::from_file(&selected, &destination).unwrap();
++    staged.commit(&destination).unwrap();
++    drop(staged);
++    ui::done("private pairing copy saved (preview only; no device verification)");
++    ui::step(2, "Encrypting dummy login and signing data");
++    let Some(password) = ui::ask_secret("Preview: dummy Apple password", "Password", "use a dummy password", "Password: ").unwrap() else { return false };
++    if !ui::confirm("save this dummy login securely?", false) { return false }
++    let read = |label| ui::ask_secret("Encrypt the saved login", label, "at least 12 characters", "Passphrase: ").unwrap();
++    let Some(first) = read("New unlock passphrase") else { return false };
++    let Some(second) = read("Confirm unlock passphrase") else { return false };
++    if first != second { return false }
++    let saved = vault::create(&root, vault::Credentials { apple_id: "preview@example.invalid".into(), password }, &first).unwrap();
++    let storage = root.join("isideload");
++    saved.cipher.activate(&storage).unwrap();
++    isideload::util::fs_storage::FsStorage::new(storage.clone()).store_data("account/token", b"preview-token").unwrap();
++    ui::done("dummy login and cache encrypted");
++    ui::step(3, "Unlocking the saved login");
++    loop {
++        let Some(phrase) = ui::ask_secret("Unlock saved login", "Unlock passphrase", "your local storage passphrase", "Passphrase: ").unwrap() else { return false };
++        match vault::unlock(&root, &phrase) {
++            Ok(_) => break,
++            Err(_) => ui::warn("Couldn't unlock the saved login. Apple has not been contacted."),
++        }
++    }
++    ui::done("saved login unlocked");
++    ui::finish("Secure setup preview complete", &["No device or Apple contact. The generated preview files will be removed."]);
++    vault::forget(&root).unwrap();
++    std::fs::remove_dir_all(root).unwrap();
++    true
++}
++
 +/// Exercises the real upload and retry UI, without signing in or an iPhone.
 +fn local_ipa() -> bool {
 +    ui::header("0.18.1", "Local IPA and retry preview (no install).");
@@ -151,6 +340,289 @@ index 160bcfa..81a5e90 100644
  /// The stop in an Open Minis older than 1.16 (preflight.rs), with no log to
  /// offer after it.
  fn old_minis() {
+diff --git a/minis/src/account.rs b/minis/src/account.rs
+index b778e40..6dee0ce 100644
+--- a/minis/src/account.rs
++++ b/minis/src/account.rs
+@@ -15,10 +15,11 @@ use isideload::sideload::sideloader::Sideloader;
+ use isideload::sideload::{SideloaderBuilder, TeamSelection};
+ use isideload::util::fs_storage::FsStorage;
+ use rootcause::Report;
++use zeroize::{Zeroize, Zeroizing};
+ 
+ use crate::apple_session;
+ use crate::fail::{Fail, Result};
+-use crate::{ui, Args};
++use crate::{ui, vault, Args};
+ 
+ /// Anisette servers on Apple's macOS ADI library, in the order SideInstaller's
+ /// Auto tries them (`AnisetteServer.macADIOrder`), then its Windows-library one.
+@@ -41,13 +42,82 @@ pub struct Session {
+     pub sideloader: Sideloader,
+     /// The developer team signing for it, as "name (ID)".
+     pub team: String,
++    _temporary: Option<OneOffStore>,
++    _lock: vault::Lock,
++}
++
++struct OneOffStore(PathBuf);
++
++impl Drop for OneOffStore {
++    fn drop(&mut self) {
++        let _ = FsStorage::unprotect_directory(&self.0);
++        let _ = std::fs::remove_dir_all(&self.0);
++    }
++}
++
++enum LoginChoice { Saved(vault::SavedLogin, bool), Manual, Once }
++
++fn saved_login(args: &Args) -> Result<LoginChoice> {
++    if !vault::path(&args.home).exists() { return Ok(LoginChoice::Manual); }
++    loop {
++        let choices = ["Unlock saved Apple Account login", "Unlock and update saved password", "Use another Apple Account once", "Forget saved login"]
++            .map(str::to_string);
++        match ui::choose("Apple Account login", &choices) {
++            Some(index @ (0 | 1)) => {
++                let phrase = Zeroizing::new(ui::ask_secret("Unlock saved login", "Unlock passphrase", "your local storage passphrase", "Unlock passphrase: ")
++                    .map_err(|_| Fail::known("Couldn't read the unlock passphrase."))?
++                    .ok_or_else(|| Fail::by_user("Unlock cancelled."))?);
++                match vault::unlock(&args.home, &phrase) {
++                    Ok(saved) => return Ok(LoginChoice::Saved(saved, index == 1)),
++                    Err(_) => ui::warn("Couldn't unlock the saved login. Check the passphrase; Apple has not been contacted."),
++                }
++            }
++            Some(2) => return Ok(LoginChoice::Once),
++            Some(3) => {
++                ui::note("This removes the saved login and encrypted local signing data. It does not revoke Apple's certificate.");
++                if ui::confirm("forget the saved login and local signing data?", false) {
++                    vault::forget(&args.home).map_err(|_| Fail::known("Couldn't delete the saved login."))?;
++                    return Ok(LoginChoice::Manual);
++                }
++            }
++            _ => return Err(Fail::by_user("Sign-in cancelled.")),
++        }
++    }
++}
++
++fn save_login(args: &Args, apple_id: &str, password: &str) -> Result<Option<vault::SavedLogin>> {
++    use std::io::IsTerminal;
++    if crate::web::page().is_none() && !std::io::stdin().is_terminal() { return Ok(None); }
++    if !ui::confirm("save this Apple Account login securely on this device?", false) { return Ok(None); }
++    ui::note("Choose a separate unlock passphrase of at least 12 characters. It unlocks your saved login each time and is never saved.");
++    loop {
++        let read = |label, prompt| ui::ask_secret("Encrypt the saved login", label, "at least 12 characters", prompt)
++            .map_err(|_| Fail::known("Couldn't read the unlock passphrase."));
++        let Some(first) = read("New unlock passphrase", "New unlock passphrase: ")? else { return Ok(None) };
++        let first = Zeroizing::new(first);
++        if first.chars().count() < 12 || first.as_str() == password {
++            ui::warn("Use a separate unlock passphrase of at least 12 characters.");
++            continue;
++        }
++        let Some(second) = read("Confirm unlock passphrase", "Confirm unlock passphrase: ")? else { return Ok(None) };
++        let second = Zeroizing::new(second);
++        if *first != *second { ui::warn("The unlock passphrases didn't match."); continue; }
++        return vault::create(&args.home, vault::Credentials { apple_id: apple_id.into(), password: password.into() }, &first)
++            .map(Some).map_err(|_| Fail::known("Couldn't save the encrypted login."));
++    }
+ }
+ 
+ pub async fn sign_in(args: &Args) -> Result<Session> {
++    let lock = vault::Lock::acquire(&args.home).map_err(|_| Fail::known("Another siboot run is using this login storage, or it could not be locked."))?;
++    let choice = saved_login(args)?;
++    let once = matches!(&choice, LoginChoice::Once);
++    let edit_password = matches!(&choice, LoginChoice::Saved(_, true));
++    let mut saved = match choice { LoginChoice::Saved(saved, _) => Some(saved), _ => None };
+     let apple_id = match args
+         .apple_id
+         .clone()
+         .or_else(|| std::env::var("SIBOOT_APPLE_ID").ok())
++        .or_else(|| saved.as_ref().map(|s| s.credentials.apple_id.clone()))
+     {
+         Some(id) => id,
+         None => ui::ask_text(
+@@ -67,8 +137,10 @@ pub async fn sign_in(args: &Args) -> Result<Session> {
+     if apple_id.is_empty() {
+         return Err(Fail::by_user("No Apple Account given."));
+     }
+-    let password = match std::env::var("SIBOOT_PASSWORD") {
+-        Ok(p) if !p.is_empty() => p,
++    let password = Zeroizing::new(match std::env::var("SIBOOT_PASSWORD").ok()
++        .filter(|p| !p.is_empty()).or_else(|| saved.as_ref()
++            .filter(|s| !edit_password && s.credentials.apple_id == apple_id).map(|s| s.credentials.password.clone())) {
++        Some(p) => p,
+         _ => ui::ask_secret(
+             "sign in to your Apple Account",
+             "Password",
+@@ -82,31 +154,55 @@ pub async fn sign_in(args: &Args) -> Result<Session> {
+             )
+         })?
+         .unwrap_or_default(),
+-    };
++    });
+     if password.is_empty() {
+         return Err(Fail::by_user("No password given."));
+     }
+ 
+-    let storage = args.home.join("isideload");
+-    std::fs::create_dir_all(&storage).map_err(|e| {
++    let storage = if once { args.home.join(format!("oneoff-{}", uuid::Uuid::new_v4())) } else { args.home.join("isideload") };
++    let temporary = once.then(|| OneOffStore(storage.clone()));
++    vault::private_directory(&storage).map_err(|e| {
+         Fail::new(
+             format!("Couldn't create {}.", storage.display()),
+             e.to_string(),
+         )
+     })?;
+     adopt_folder_typed_as(&storage, &typed, &apple_id);
++    if once {
++        std::sync::Arc::new(vault::Cipher::random()).activate(&storage)
++            .map_err(|_| Fail::known("Couldn't protect this run's temporary signing data."))?;
++    } else if let Some(saved) = &saved {
++        saved.cipher.activate(&storage).map_err(|_| Fail::known("Couldn't decrypt the saved signing data."))?;
++    }
+ 
+     let servers = candidates(args.anisette.as_deref(), last_server(&args.home).as_deref());
++    let refresh_login = edit_password || saved.as_ref().is_some_and(|s|
++        s.credentials.apple_id != apple_id || s.credentials.password.as_str() != password.as_str());
+     let mut last_error = String::new();
+     for server in &servers {
+         ui::status(&format!("signing in through {}", host_of(server)));
+         match apple_session::open(
+-            &apple_id, &password, server, &storage, true, two_factor, "Apple ID",
++            &apple_id, &password, server, &storage, saved.is_some() && !refresh_login, two_factor, "Apple ID",
+         )
+         .await
+         {
+             Ok((developer, teams)) => {
+                 remember_server(&args.home, server);
++                if saved.is_none() && !once {
++                    saved = save_login(args, &apple_id, &password)?;
++                    if let Some(login) = &saved {
++                        login.cipher.activate(&storage).map_err(|_| Fail::known("Couldn't encrypt the signing data."))?;
++                    }
++                }
++                if let Some(login) = saved.as_mut() {
++                    login.credentials.apple_id.clone_from(&apple_id);
++                    login.credentials.password.zeroize();
++                    login.credentials.password = password.to_string();
++                    login.persist(&args.home).map_err(|_| Fail::known("Couldn't update the encrypted login."))?;
++                    apple_session::remember_developer_session(&storage, &apple_id, &developer)
++                        .map_err(|_| Fail::known("Couldn't save the encrypted developer session."))?;
++                    ui::ok("login and signing session saved with authenticated encryption");
++                }
+                 let mut sideloader = SideloaderBuilder::new(developer, apple_id.clone())
+                     .team_selection(TeamSelection::First)
+                     .max_certs_behavior(MaxCertsBehavior::Prompt(Box::new(
+@@ -130,7 +226,7 @@ pub async fn sign_in(args: &Args) -> Result<Session> {
+                     team.team_id
+                 );
+                 ui::ok(&format!("signed in — team {team}"));
+-                return Ok(Session { sideloader, team });
++                return Ok(Session { sideloader, team, _temporary: temporary, _lock: lock });
+             }
+             Err(e) => {
+                 if let Some(advice) = stops_sign_in(&e) {
+diff --git a/minis/src/install.rs b/minis/src/install.rs
+index 904e836..c507fee 100644
+--- a/minis/src/install.rs
++++ b/minis/src/install.rs
+@@ -24,6 +24,7 @@ pub struct Entry {
+     pub relative: String,
+     pub is_dir: bool,
+     pub size: u64,
++    pub symlink: Option<String>,
+ }
+ 
+ /// Returns what went up, as "51.0 MB, 412 files".
+@@ -67,8 +68,13 @@ pub async fn install(connection: &mut Connection, app_dir: &Path) -> Result<Stri
+ 
+     let started = std::time::Instant::now();
+     let mut sent: u64 = 0;
+-    for entry in &entries {
++    for entry in entries.iter().filter(|e| e.symlink.is_none()).chain(entries.iter().filter(|e| e.symlink.is_some())) {
+         let remote = format!("{remote_root}/{}", entry.relative);
++        if let Some(target) = &entry.symlink {
++            afc.link(target.clone(), remote.clone(), idevice::afc::opcode::LinkType::Symlink).await
++                .map_err(|e| Fail::new(format!("Couldn't create the symlink {remote}."), chain(&e)))?;
++            continue;
++        }
+         if entry.is_dir {
+             afc.mk_dir(remote.clone())
+                 .await
+@@ -114,6 +120,8 @@ pub async fn install(connection: &mut Connection, app_dir: &Path) -> Result<Stri
+     for entry in entries.iter().filter(|e| !e.is_dir) {
+         let remote = format!("{remote_root}/{}", entry.relative);
+         match afc.get_file_info(remote).await {
++            Ok(info) if entry.symlink.is_some() && info.st_link_target == entry.symlink => {},
++            Ok(_) if entry.symlink.is_some() => missing.push(format!("{} (symlink target changed)", entry.relative)),
+             Ok(info) if info.size as u64 == entry.size => {}
+             Ok(info) => missing.push(format!(
+                 "{} ({} of {} bytes)",
+@@ -201,13 +209,23 @@ fn walk(root: &Path, dir: &Path, out: &mut Vec<Entry>) -> std::io::Result<()> {
+             .map_err(|e| std::io::Error::other(e.to_string()))?
+             .to_string_lossy()
+             .replace('\\', "/");
+-        // Follows symlinks: AFC uploads their contents as plain files.
+-        let meta = std::fs::metadata(&path)?;
++        let meta = std::fs::symlink_metadata(&path)?;
++        if meta.file_type().is_symlink() {
++            let canonical = path.canonicalize()?;
++            if !canonical.starts_with(root.canonicalize()?) {
++                return Err(std::io::Error::other("A symlink escapes the signed app"));
++            }
++            let target = std::fs::read_link(&path)?;
++            if target.is_absolute() { return Err(std::io::Error::other("App symlinks must use relative targets")); }
++            out.push(Entry { relative, is_dir: false, size: 0, symlink: Some(target.to_string_lossy().into_owned()) });
++            continue;
++        }
+         if meta.is_dir() {
+             out.push(Entry {
+                 relative,
+                 is_dir: true,
+                 size: 0,
++                symlink: None,
+             });
+             walk(root, &path, out)?;
+         } else {
+@@ -215,6 +233,7 @@ fn walk(root: &Path, dir: &Path, out: &mut Vec<Entry>) -> std::io::Result<()> {
+                 relative,
+                 is_dir: false,
+                 size: meta.len(),
++                symlink: None,
+             });
+         }
+     }
+@@ -225,6 +244,30 @@ fn walk(root: &Path, dir: &Path, out: &mut Vec<Entry>) -> std::io::Result<()> {
+ mod tests {
+     use super::*;
+ 
++    #[cfg(unix)]
++    #[test]
++    fn uploads_symlinks_without_flattening_them_and_rejects_external_targets() {
++        use std::os::unix::fs::symlink;
++        let root = std::env::temp_dir().join(format!("siboot-links-{}", uuid::Uuid::new_v4()));
++        std::fs::create_dir_all(root.join("Demo.app/Versions/A")).unwrap();
++        let app = root.join("Demo.app");
++        std::fs::write(app.join("Versions/A/Core"), b"signed Mach-O").unwrap();
++        symlink("A", app.join("Versions/Current")).unwrap();
++        symlink("Versions/Current/Core", app.join("Core")).unwrap();
++        let entries = bundle_entries(&app).unwrap();
++        assert_eq!(entries.iter().find(|e| e.relative == "Core").unwrap().symlink.as_deref(), Some("Versions/Current/Core"));
++        assert_eq!(entries.iter().find(|e| e.relative == "Versions/Current").unwrap().symlink.as_deref(), Some("A"));
++        assert!(!entries.iter().any(|e| e.relative == "Versions/Current/Core"));
++        assert_eq!(entries.iter().map(|e| e.size).sum::<u64>(), 13);
++        std::fs::write(root.join("outside"), b"outside the signed bundle").unwrap();
++        symlink("../outside", app.join("escape")).unwrap();
++        assert!(bundle_entries(&app).is_err());
++        std::fs::remove_file(app.join("escape")).unwrap();
++        symlink("loop", app.join("loop")).unwrap();
++        assert!(bundle_entries(&app).is_err());
++        std::fs::remove_dir_all(root).unwrap();
++    }
++
+     #[test]
+     fn folders_come_before_their_files_and_sizes_add_up() {
+         let root =
 diff --git a/minis/src/ipa.rs b/minis/src/ipa.rs
 new file mode 100644
 index 0000000..32f6b78
@@ -329,23 +801,29 @@ index 0000000..32f6b78
 +    }
 +}
 diff --git a/minis/src/main.rs b/minis/src/main.rs
-index c61bcfe..85c504a 100644
+index c61bcfe..9cdd3d0 100644
 --- a/minis/src/main.rs
 +++ b/minis/src/main.rs
-@@ -29,10 +29,12 @@ mod fail;
+@@ -29,14 +29,18 @@ mod fail;
  #[cfg(test)]
  mod fake_iphone;
  mod install;
 +mod ipa;
  mod keepalive;
  mod pairing;
++mod pairing_files;
  mod preflight;
  mod report;
 +mod retry;
  mod seed;
  mod sign;
  mod tunnel;
-@@ -84,6 +86,7 @@ pub enum Command {
+ mod ui;
++mod vault;
+ mod web;
+ 
+ // rust-core's saved-session sign-in, compiled here unchanged so siboot signs in
+@@ -84,6 +88,7 @@ pub enum Command {
      DeveloperMode,
  }
  
@@ -353,7 +831,34 @@ index c61bcfe..85c504a 100644
  pub struct Args {
      pub command: Command,
      /// With `developer-mode`: turn it on, not only show it.
-@@ -227,7 +230,8 @@ Open Minis, with your own Apple Account.
+@@ -98,6 +103,7 @@ pub struct Args {
+     /// ~/.siboot: the pairing file, isideload's store, downloads.
+     pub home: PathBuf,
+     pub pairing_file: Option<PathBuf>,
++    pub pairing_output: PathBuf,
+     pub apple_id: Option<String>,
+     pub ipa: Option<String>,
+     pub anisette: Option<String>,
+@@ -105,9 +111,7 @@ pub struct Args {
+ 
+ impl Args {
+     pub fn pairing_path(&self) -> PathBuf {
+-        self.pairing_file
+-            .clone()
+-            .unwrap_or_else(|| self.home.join("rp_pairing_file.plist"))
++        self.pairing_output.clone()
+     }
+ }
+ 
+@@ -132,6 +136,7 @@ fn parse_args(argv: impl IntoIterator<Item = String>) -> std::result::Result<Par
+         device: SocketAddr::new(IpAddr::V4(DEFAULT_DEVICE_IP), DEFAULT_RP_PORT),
+         home: default_home(),
+         pairing_file: None,
++        pairing_output: pairing_files::default_path(),
+         apple_id: None,
+         ipa: None,
+         anisette: None,
+@@ -227,7 +232,8 @@ Open Minis, with your own Apple Account.
        prompt that shows only dots.
    {ipa}
        Install this IPA instead of SideInstaller's
@@ -363,16 +868,59 @@ index c61bcfe..85c504a 100644
    {anisette}
        Sign in through this anisette server only.
    {turn_on}
-@@ -461,6 +465,8 @@ where
+@@ -239,10 +245,15 @@ Open Minis, with your own Apple Account.
+   {port}
+       The iPhone's RPPairing port (default {rp}).
+   {pairing_file}
+-      Default ~/.siboot/rp_pairing_file.plist.
++      Import an RPPairing file from Minis/iSH.
++      A verified private copy is saved beside
++      siboot as rp_pairing_file.plist. Without
++      this option, the page offers a browser.
+   {home}
+-      Where siboot keeps its files (default
+-      ~/.siboot).
++      Login vault, signing cache and logs
++      (default ~/.siboot). Saving a login is
++      optional and requires a separate unlock
++      passphrase, which is never saved.
+   {terminal}
+       Answer here in the terminal, not on the
+       page in Minis's browser.
+@@ -261,8 +272,9 @@ Open Minis, with your own Apple Account.
+ {needs}
+   iOS 27 or later, Developer Mode on, Wi-Fi,
+   LocalDevVPN (App Store) connected, and
+-  Open Minis 1.16 or later: siboot stops in
+-  an older one.",
++  Open Minis 1.16 or later for automatic
++  pairing; an existing valid RPPairing file
++  can also be selected in older versions.",
+         name = head("siboot"),
+         usage = head("USAGE"),
+         commands = head("COMMANDS"),
+@@ -290,6 +302,8 @@ Open Minis, with your own Apple Account.
+ }
+ 
+ fn main() -> ExitCode {
++    #[cfg(unix)]
++    unsafe { libc::umask(0o077); }
+     let parsed = match parse_args(std::env::args().skip(1)) {
+         Ok(p) => p,
+         Err(problem) => {
+@@ -459,8 +473,10 @@ where
+ }
+ 
  async fn pipeline(args: &Args) -> Result<()> {
-     std::fs::create_dir_all(&args.home)
+-    std::fs::create_dir_all(&args.home)
++    vault::private_directory(&args.home)
          .map_err(|e| Fail::new(format!("Couldn't create {}.", args.home.display()), e.to_string()))?;
 +    let (selected, _imported_ipa) = select_ipa(args)?;
 +    let args = &selected;
  
      let devmode = args.command == Command::DeveloperMode;
      match args.command {
-@@ -477,30 +483,33 @@ async fn pipeline(args: &Args) -> Result<()> {
+@@ -477,30 +493,34 @@ async fn pipeline(args: &Args) -> Result<()> {
      // tunnel.
      let note = |f: Fail| if devmode { devmode::unreachable_note(f) } else { f };
  
@@ -397,12 +945,13 @@ index c61bcfe..85c504a 100644
      let pairing_path = args.pairing_path();
 -    let source = pairing::ensure(args, &pairing_path).await.map_err(note)?;
 +    let source = retry::step(2, "Pairing this iPhone with siboot", async || {
-+        pairing::ensure(args, &pairing_path).await.map_err(note)
++        pairing::select_and_ensure(args, &pairing_path).await.map_err(note)
 +    }).await?;
      ui::done(match source {
          pairing::Source::Saved => "the saved pairing still works",
          pairing::Source::Rootshell => "taken from rootshell",
          pairing::Source::Minis => "paired here in Minis",
++        pairing::Source::Imported => "selected file verified and saved beside siboot",
      });
  
 -    ui::step(3, "Connecting to this iPhone through LocalDevVPN");
@@ -416,7 +965,7 @@ index c61bcfe..85c504a 100644
      ui::ok(&format!(
          "{} — {} on iOS {}",
          device.name, device.product_type, device.ios_version
-@@ -512,48 +521,92 @@ async fn pipeline(args: &Args) -> Result<()> {
+@@ -512,48 +532,92 @@ async fn pipeline(args: &Args) -> Result<()> {
          return Ok(());
      }
      if devmode {
@@ -525,11 +1074,80 @@ index c61bcfe..85c504a 100644
  /// Step 4 of `siboot developer-mode`, through the open tunnel.
  async fn developer_mode(args: &Args, connection: &mut tunnel::Connection) -> Result<()> {
      let request = if args.turn_on { devmode::Request::TurnOn } else { devmode::Request::Show };
+@@ -627,7 +691,7 @@ mod tests {
+         let args = parse("");
+         assert_eq!(args.command, Command::All);
+         assert_eq!(args.device.to_string(), "10.7.0.1:49152");
+-        assert!(args.pairing_path().ends_with(".siboot/rp_pairing_file.plist"));
++        assert_eq!(args.pairing_path(), pairing_files::default_path());
+     }
+ 
+     #[test]
 diff --git a/minis/src/pairing.rs b/minis/src/pairing.rs
-index 048e534..3225290 100644
+index 048e534..d0ee169 100644
 --- a/minis/src/pairing.rs
 +++ b/minis/src/pairing.rs
-@@ -1340,8 +1340,7 @@ mod tests {
+@@ -100,6 +100,42 @@ pub enum Source {
+     Rootshell,
+     /// A new pairing, made here.
+     Minis,
++    /// A file selected from Minis / iSH, verified before copying it.
++    Imported,
++}
++
++pub async fn select_and_ensure(args: &Args, destination: &Path) -> Result<Source> {
++    use std::io::IsTerminal;
++    let selected = if let Some(path) = &args.pairing_file { Some(path.clone()) }
++    else if let Some(page) = crate::web::page() {
++        page.pairing_file(destination).ok_or_else(|| Fail::by_user("Pairing-file selection cancelled."))?
++    } else if std::io::stdin().is_terminal() {
++        let options = ["Use saved pairing or pair automatically", "Choose a pairing file in Minis / iSH"].map(str::to_string);
++        match ui::choose("Pairing file", &options) {
++            Some(0) => None,
++            Some(1) => Some(PathBuf::from(ui::ask_text("Select a pairing file in Minis / iSH", "File path", "/root/phone.plist", "Pairing file path: ")
++                .ok_or_else(|| Fail::by_user("No pairing file selected."))?)),
++            _ => return Err(Fail::by_user("Pairing-file selection cancelled.")),
++        }
++    } else { None };
++    if let Some(path) = selected {
++        return import_verified(args, &path, destination).await;
++    }
++    let legacy = args.home.join("rp_pairing_file.plist");
++    if !destination.exists() && legacy.is_file() && import_verified(args, &legacy, destination).await.is_ok() {
++        return Ok(Source::Imported);
++    }
++    ensure(args, destination).await
++}
++
++async fn import_verified(args: &Args, source: &Path, destination: &Path) -> Result<Source> {
++    let staged = crate::pairing_files::Staged::from_file(source, destination)
++        .map_err(|e| Fail::new("Couldn't import that pairing file. Choose a readable RPPairing file in Minis / iSH.", e.to_string()))?;
++    ui::activity("verifying the selected pairing file with this iPhone");
++    tunnel::verify(args.device, &staged.path).await?;
++    staged.commit(destination).map_err(|e| Fail::new("Couldn't save the verified pairing file beside siboot.", e.to_string()))?;
++    ui::ok(&format!("pairing file saved to {}", destination.display()));
++    Ok(Source::Imported)
+ }
+ 
+ pub async fn ensure(args: &Args, path: &Path) -> Result<Source> {
+@@ -888,15 +924,7 @@ async fn take(
+ /// Write the pairing file, readable by this user only: it holds the private key.
+ fn save(path: &Path, file: &[u8]) -> Result<()> {
+     let failed = |e: std::io::Error| Fail::new(format!("Couldn't save the pairing file at {}.", path.display()), e.to_string());
+-    if let Some(dir) = path.parent() {
+-        std::fs::create_dir_all(dir).map_err(failed)?;
+-    }
+-    std::fs::write(path, file).map_err(failed)?;
+-    #[cfg(unix)]
+-    {
+-        use std::os::unix::fs::PermissionsExt;
+-        std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600)).map_err(failed)?;
+-    }
++    isideload::util::fs_storage::write_private(path, file).map_err(failed)?;
+     Ok(())
+ }
+ 
+@@ -1340,8 +1368,7 @@ mod tests {
          let started = std::time::Instant::now();
          let failure = take(offer, &path, typing(&["481516"]), Duration::from_millis(300))
              .await
@@ -539,11 +1157,300 @@ index 048e534..3225290 100644
          assert!(started.elapsed() < Duration::from_secs(5));
          assert!(failure.advice.contains("didn't answer"), "{}", failure.advice);
          assert!(!path.exists());
+diff --git a/minis/src/pairing_files.rs b/minis/src/pairing_files.rs
+new file mode 100644
+index 0000000..0c6f67b
+--- /dev/null
++++ b/minis/src/pairing_files.rs
+@@ -0,0 +1,250 @@
++//! Select an iSH pairing file and retain a verified private copy beside siboot.
++
++use std::io::{self, Read};
++use std::path::{Path, PathBuf};
++
++use base64::Engine;
++use idevice::remote_pairing::RpPairingFile;
++use isideload::util::fs_storage::write_private;
++use plist::{Dictionary, Value};
++use serde_json::json;
++use zeroize::Zeroize;
++
++pub const MAX_PAIRING: usize = 64 * 1024;
++
++pub fn default_path() -> PathBuf {
++    std::env::current_exe()
++        .ok()
++        .or_else(|| {
++            let argument = PathBuf::from(std::env::args_os().next()?);
++            if argument.components().count() > 1 || argument.is_absolute() {
++                return argument.canonicalize().ok();
++            }
++            std::env::split_paths(&std::env::var_os("PATH")?)
++                .map(|dir| dir.join(&argument))
++                .find(|p| p.is_file())
++                .and_then(|p| p.canonicalize().ok())
++        })
++        .and_then(|p| p.parent().map(Path::to_path_buf))
++        .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| ".".into()))
++        .join("rp_pairing_file.plist")
++}
++
++pub fn expand_path(path: &Path) -> PathBuf {
++    if path == Path::new("~") {
++        return std::env::var_os("HOME")
++            .map(PathBuf::from)
++            .unwrap_or_else(|| path.into());
++    }
++    match path.strip_prefix("~/") {
++        Ok(rest) => std::env::var_os("HOME")
++            .map(PathBuf::from)
++            .map(|home| home.join(rest))
++            .unwrap_or_else(|| path.into()),
++        Err(_) => path.into(),
++    }
++}
++
++fn invalid() -> io::Error {
++    io::Error::new(io::ErrorKind::InvalidData, "Choose an RPPairing file with matching public/private keys; a classic lockdown pairing file cannot be used here")
++}
++
++pub fn read(path: &Path) -> io::Result<Vec<u8>> {
++    let mut bytes = Vec::new();
++    std::fs::File::open(path)?
++        .take((MAX_PAIRING + 1) as u64)
++        .read_to_end(&mut bytes)?;
++    normalize(&bytes)
++}
++
++pub fn normalize(bytes: &[u8]) -> io::Result<Vec<u8>> {
++    if bytes.len() > MAX_PAIRING {
++        return Err(invalid());
++    }
++    let value = plist::from_bytes::<Value>(bytes)
++        .or_else(|_| {
++            let json: serde_json::Value = serde_json::from_slice(bytes).map_err(|_| invalid())?;
++            json_plist(&json).ok_or_else(invalid)
++        })
++        .map_err(|_| invalid())?;
++    decode(value, 0)
++}
++
++fn decode(value: Value, depth: u8) -> io::Result<Vec<u8>> {
++    if depth > 3 {
++        return Err(invalid());
++    }
++    let Value::Dictionary(dict) = value else {
++        return Err(invalid());
++    };
++    if dict.contains_key("private_key") && dict.contains_key("public_key") {
++        let mut xml = Vec::new();
++        plist::to_writer_xml(&mut xml, &dict).map_err(|_| invalid())?;
++        let file = RpPairingFile::from_bytes(&xml).map_err(|_| invalid())?;
++        if file.identifier.trim().is_empty()
++            || file.e_private_key.verifying_key().to_bytes() != file.e_public_key.to_bytes()
++            || file.alt_irk.as_ref().is_some_and(|irk| irk.len() != 16)
++        {
++            return Err(invalid());
++        }
++        return Ok(file.to_bytes());
++    }
++    for key in [
++        "RPPairing",
++        "RemotePairing",
++        "remote_pairing",
++        "remotePairing",
++        "rp_pairing_file",
++        "remote_pairing_file",
++    ] {
++        if let Some(nested) = dict.get(key) {
++            return match nested {
++                Value::Dictionary(_) => decode(nested.clone(), depth + 1),
++                Value::Data(bytes) => normalize(bytes),
++                Value::String(text) => normalize(text.as_bytes()),
++                _ => Err(invalid()),
++            };
++        }
++    }
++    Err(invalid())
++}
++
++fn json_plist(value: &serde_json::Value) -> Option<Value> {
++    let object = value.as_object()?;
++    let mut dict = Dictionary::new();
++    for (key, value) in object {
++        let parsed = if ["private_key", "public_key", "alt_irk"].contains(&key.as_str()) {
++            let bytes = match value {
++                serde_json::Value::String(s) => {
++                    base64::engine::general_purpose::STANDARD.decode(s).ok()?
++                }
++                serde_json::Value::Array(a) => a
++                    .iter()
++                    .map(|v| v.as_u64().and_then(|n| u8::try_from(n).ok()))
++                    .collect::<Option<Vec<_>>>()?,
++                _ => return None,
++            };
++            Value::Data(bytes)
++        } else if let Some(s) = value.as_str() {
++            Value::String(s.into())
++        } else if value.is_object() {
++            json_plist(value)?
++        } else {
++            continue;
++        };
++        dict.insert(key.clone(), parsed);
++    }
++    Some(Value::Dictionary(dict))
++}
++
++pub struct Staged {
++    pub path: PathBuf,
++    bytes: Vec<u8>,
++}
++
++impl Staged {
++    pub fn from_file(source: &Path, destination: &Path) -> io::Result<Self> {
++        let bytes = read(&expand_path(source))?;
++        let folder = destination.parent().unwrap_or(Path::new("."));
++        let path = folder.join(format!(".pairing-import-{}.plist", uuid::Uuid::new_v4()));
++        write_private(&path, &bytes)?;
++        Ok(Self { path, bytes })
++    }
++
++    pub fn commit(&self, destination: &Path) -> io::Result<()> {
++        write_private(destination, &self.bytes)
++    }
++}
++
++impl Drop for Staged {
++    fn drop(&mut self) {
++        self.bytes.zeroize();
++        let _ = std::fs::remove_file(&self.path);
++    }
++}
++
++/// Only metadata is returned to the private page; pairing contents and keys
++/// never leave the Linux process. Listing is bounded even for /proc or /usr.
++pub fn list_directory(path: &Path) -> io::Result<serde_json::Value> {
++    let path = path.canonicalize()?;
++    if !path.is_dir() {
++        return Err(io::Error::new(
++            io::ErrorKind::NotADirectory,
++            "Choose a directory",
++        ));
++    }
++    let mut entries = Vec::new();
++    let mut truncated = false;
++    for item in std::fs::read_dir(&path)? {
++        if entries.len() == 256 {
++            truncated = true;
++            break;
++        }
++        let item = item?;
++        let child = item.path();
++        let directory = child.is_dir();
++        let extension = child
++            .extension()
++            .and_then(|e| e.to_str())
++            .unwrap_or("")
++            .to_ascii_lowercase();
++        entries.push(json!({"name": item.file_name().to_string_lossy(), "path": child,
++            "directory": directory, "selectable": !directory && ["plist", "json", "mobiledevicepairing", "pairing", "xml"].contains(&extension.as_str())}));
++    }
++    entries.sort_by_key(|v| {
++        (
++            v["directory"] != true,
++            v["name"].as_str().unwrap_or("").to_ascii_lowercase(),
++        )
++    });
++    Ok(
++        json!({"directory": path, "parent": path.parent().unwrap_or(&path), "entries": entries, "truncated": truncated}),
++    )
++}
++
++#[cfg(test)]
++mod tests {
++    use super::*;
++
++    #[test]
++    fn imports_remote_pairing_and_preserves_existing_output_until_verified() {
++        let root =
++            std::env::temp_dir().join(format!("siboot-pairing-import-{}", uuid::Uuid::new_v4()));
++        std::fs::create_dir_all(&root).unwrap();
++        let source = root.join("from-ish.plist");
++        let dest = root.join("rp_pairing_file.plist");
++        let bytes = RpPairingFile::generate("test").to_bytes();
++        std::fs::write(&source, &bytes).unwrap();
++        std::fs::write(&dest, b"old pairing").unwrap();
++        let staged = Staged::from_file(&source, &dest).unwrap();
++        assert_eq!(std::fs::read(&dest).unwrap(), b"old pairing");
++        staged.commit(&dest).unwrap();
++        assert_eq!(std::fs::read(&source).unwrap(), bytes);
++        assert!(RpPairingFile::from_bytes(&std::fs::read(&dest).unwrap()).is_ok());
++        #[cfg(unix)]
++        {
++            use std::os::unix::fs::PermissionsExt;
++            assert_eq!(
++                std::fs::metadata(&dest).unwrap().permissions().mode() & 0o777,
++                0o600
++            );
++        }
++        drop(staged);
++        assert_eq!(std::fs::read_dir(&root).unwrap().count(), 2);
++        assert!(normalize(b"not a pairing").is_err());
++        assert!(normalize(&vec![0; MAX_PAIRING + 1]).is_err());
++        std::fs::remove_dir_all(root).unwrap();
++    }
++
++    #[test]
++    fn directory_browsing_returns_names_without_file_contents() {
++        let root = std::env::temp_dir().join(format!("siboot-browse-{}", uuid::Uuid::new_v4()));
++        std::fs::create_dir_all(root.join("nested")).unwrap();
++        std::fs::write(root.join("phone.plist"), b"secret private key contents").unwrap();
++        let listing = list_directory(&root).unwrap();
++        assert_eq!(listing["entries"][0]["name"], "nested");
++        assert_eq!(listing["entries"][1]["selectable"], true);
++        assert!(!listing.to_string().contains("secret private key"));
++        std::fs::remove_dir_all(root).unwrap();
++    }
++}
 diff --git a/minis/src/preflight.rs b/minis/src/preflight.rs
-index bbd0adc..b6c717a 100644
+index bbd0adc..f94cb43 100644
 --- a/minis/src/preflight.rs
 +++ b/minis/src/preflight.rs
-@@ -95,7 +95,7 @@ async fn check_online(args: &Args) -> Result<()> {
+@@ -16,10 +16,6 @@ use crate::bridge::{Bridge, BridgeError};
+ use crate::fail::{chain, Fail, Result};
+ use crate::{ui, Args, Command};
+ 
+-/// Open Minis in the App Store app, for the page's button. The page hands
+-/// links that aren't http to iOS, so this opens the App Store itself.
+-pub const MINIS_APP_STORE: &str = "itms-apps://apps.apple.com/app/id6759188481";
+-
+ /// What an Open Minis older than 1.16 is told.
+ pub const OLD_MINIS: &str = "This Open Minis is older than 1.16, and siboot needs Open Minis 1.16 \
+      or later: it's the first that can pair this iPhone. Update Open Minis in the App Store, open \
+@@ -30,8 +26,11 @@ pub async fn run(args: &Args) -> Result<bool> {
+     let in_minis = crate::web::available() || std::env::var_os("SIBOOT_MINIS_BIN").is_some();
+     if in_minis {
+         ui::activity("checking this Open Minis");
+-        check_minis(&Bridge::from_env()).await?;
+-        ui::ok("this Open Minis is 1.16 or later");
++        if check_minis(&Bridge::from_env()).await.is_ok() {
++            ui::ok("this Open Minis can create pairing files");
++        } else {
++            ui::note("This Minis cannot create a pairing file itself. Select an existing RPPairing file at the Pairing step.");
++        }
+     }
+     // The tunnel stays on this iPhone; sign-in and the download don't.
+     let online = args.command == Command::All || args.command == Command::Check;
+@@ -72,7 +71,6 @@ pub async fn run(args: &Args) -> Result<bool> {
+ pub async fn check_minis(bridge: &Bridge) -> Result<()> {
+     match bridge.bonjour_types().await {
+         Err(BridgeError::Missing(_)) => {
+-            ui::link("Update Open Minis", MINIS_APP_STORE);
+             Err(Fail::known(OLD_MINIS))
+         }
+         _ => Ok(()),
+@@ -95,7 +93,7 @@ async fn check_online(args: &Args) -> Result<()> {
      let downloads = args
          .ipa
          .as_deref()
@@ -768,11 +1675,387 @@ index 96b7dc1..8ed34e8 100644
  /// A button on the page, in the box the run ends in (`finish` or `failure`):
  /// the app it installed, or the App Store for an update. Nothing on the
  /// terminal.
+diff --git a/minis/src/vault.rs b/minis/src/vault.rs
+new file mode 100644
+index 0000000..78a0e0b
+--- /dev/null
++++ b/minis/src/vault.rs
+@@ -0,0 +1,362 @@
++//! Passphrase-encrypted Apple login and authenticated signing-cache storage.
++//! iSH has no system keychain; the unlock passphrase is never persisted.
++
++use std::io;
++use std::path::{Path, PathBuf};
++use std::sync::Arc;
++
++use chacha20poly1305::aead::{rand_core::RngCore, Aead, KeyInit, OsRng, Payload};
++use chacha20poly1305::{XChaCha20Poly1305, XNonce};
++use isideload::util::fs_storage::{write_private, DataProtector, FsStorage};
++use serde::{Deserialize, Serialize};
++use zeroize::{Zeroize, ZeroizeOnDrop, Zeroizing};
++
++const HEADER: &[u8; 8] = b"SIBOOT01";
++const LOGIN_AAD: &str = "siboot/apple-login/v1";
++const MAX_VAULT: u64 = 64 * 1024;
++
++#[derive(Serialize, Deserialize, Zeroize, ZeroizeOnDrop)]
++pub struct Credentials {
++    pub apple_id: String,
++    pub password: String,
++}
++
++#[derive(Serialize, Deserialize)]
++struct Envelope {
++    version: u8,
++    salt: [u8; 16],
++    sealed: Vec<u8>,
++}
++
++pub struct SavedLogin {
++    pub credentials: Credentials,
++    pub cipher: Arc<Cipher>,
++    salt: [u8; 16],
++}
++
++pub struct Cipher {
++    key: Zeroizing<[u8; 32]>,
++}
++
++/// Hold through sign/install so two processes cannot migrate or overwrite the
++/// same encrypted cache with different keys.
++pub struct Lock(std::fs::File);
++
++impl Lock {
++    pub fn acquire(home: &Path) -> io::Result<Self> {
++        private_directory(home)?;
++        let mut options = std::fs::OpenOptions::new();
++        options.read(true).write(true).create(true).truncate(false);
++        #[cfg(unix)]
++        {
++            use std::os::unix::fs::OpenOptionsExt;
++            options.mode(0o600);
++        }
++        let file = options.open(home.join("apple-login.lock"))?;
++        #[cfg(unix)]
++        {
++            use std::os::fd::AsRawFd;
++            if unsafe { libc::flock(file.as_raw_fd(), libc::LOCK_EX | libc::LOCK_NB) } != 0 {
++                return Err(io::Error::new(
++                    io::ErrorKind::WouldBlock,
++                    "Another siboot run is using this login storage",
++                ));
++            }
++        }
++        Ok(Self(file))
++    }
++}
++
++impl Drop for Lock {
++    fn drop(&mut self) {
++        #[cfg(unix)]
++        {
++            use std::os::fd::AsRawFd;
++            unsafe {
++                libc::flock(self.0.as_raw_fd(), libc::LOCK_UN);
++            }
++        }
++    }
++}
++
++fn invalid() -> io::Error {
++    io::Error::new(
++        io::ErrorKind::InvalidData,
++        "Wrong unlock passphrase or damaged encrypted data",
++    )
++}
++
++pub fn path(home: &Path) -> PathBuf {
++    home.join("apple-login.vault")
++}
++
++pub fn private_directory(path: &Path) -> io::Result<()> {
++    std::fs::create_dir_all(path)?;
++    #[cfg(unix)]
++    {
++        use std::os::unix::fs::PermissionsExt;
++        std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o700))?;
++    }
++    Ok(())
++}
++
++impl Cipher {
++    fn derive(passphrase: &str, salt: &[u8; 16]) -> io::Result<Self> {
++        let mut key = Zeroizing::new([0u8; 32]);
++        // Fixed parameters prevent a modified file from requesting unbounded
++        // memory. scrypt N=32768, r=8, p=1 uses about 32 MiB.
++        let params = scrypt::Params::new(15, 8, 1).map_err(|_| invalid())?;
++        scrypt::scrypt(passphrase.as_bytes(), salt, &params, &mut *key).map_err(|_| invalid())?;
++        Ok(Self { key })
++    }
++
++    pub fn random() -> Self {
++        let mut key = Zeroizing::new([0u8; 32]);
++        OsRng.fill_bytes(&mut *key);
++        Self { key }
++    }
++
++    fn encrypt(&self, aad: &str, plaintext: &[u8]) -> io::Result<Vec<u8>> {
++        let mut nonce = [0u8; 24];
++        OsRng.fill_bytes(&mut nonce);
++        let cipher = XChaCha20Poly1305::new_from_slice(&*self.key).map_err(|_| invalid())?;
++        let ciphertext = cipher
++            .encrypt(
++                XNonce::from_slice(&nonce),
++                Payload {
++                    msg: plaintext,
++                    aad: aad.as_bytes(),
++                },
++            )
++            .map_err(|_| invalid())?;
++        let mut out = Vec::with_capacity(32 + ciphertext.len());
++        out.extend_from_slice(HEADER);
++        out.extend_from_slice(&nonce);
++        out.extend_from_slice(&ciphertext);
++        Ok(out)
++    }
++
++    fn decrypt(&self, aad: &str, bytes: &[u8]) -> io::Result<Vec<u8>> {
++        if bytes.len() < 48 || !bytes.starts_with(HEADER) {
++            return Err(invalid());
++        }
++        let cipher = XChaCha20Poly1305::new_from_slice(&*self.key).map_err(|_| invalid())?;
++        cipher
++            .decrypt(
++                XNonce::from_slice(&bytes[8..32]),
++                Payload {
++                    msg: &bytes[32..],
++                    aad: aad.as_bytes(),
++                },
++            )
++            .map_err(|_| invalid())
++    }
++
++    /// Migrate existing plaintext keys/anisette state before enabling the
++    /// protected FsStorage backend. Interrupted migrations can resume safely.
++    pub fn activate(self: &Arc<Self>, root: &Path) -> io::Result<()> {
++        private_directory(root)?;
++        self.migrate(root, root)?;
++        FsStorage::protect_directory(root, self.clone())
++    }
++
++    fn migrate(&self, root: &Path, dir: &Path) -> io::Result<()> {
++        private_directory(dir)?;
++        for entry in std::fs::read_dir(dir)? {
++            let entry = entry?;
++            let path = entry.path();
++            let kind = entry.file_type()?;
++            if kind.is_symlink() {
++                return Err(io::Error::other(
++                    "Signing storage must not contain symlinks",
++                ));
++            }
++            if kind.is_dir() {
++                self.migrate(root, &path)?;
++            } else if kind.is_file() {
++                let relative = path
++                    .strip_prefix(root)
++                    .map_err(io::Error::other)?
++                    .to_str()
++                    .ok_or_else(invalid)?;
++                let bytes = Zeroizing::new(std::fs::read(&path)?);
++                if bytes.starts_with(HEADER) {
++                    let _checked = Zeroizing::new(self.open(relative, &bytes)?);
++                    #[cfg(unix)]
++                    {
++                        use std::os::unix::fs::PermissionsExt;
++                        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600))?;
++                    }
++                } else {
++                    write_private(&path, &self.seal(relative, &bytes)?)?;
++                }
++            }
++        }
++        Ok(())
++    }
++}
++
++impl DataProtector for Cipher {
++    fn seal(&self, key: &str, data: &[u8]) -> io::Result<Vec<u8>> {
++        self.encrypt(&format!("siboot/storage/{key}"), data)
++    }
++    fn open(&self, key: &str, data: &[u8]) -> io::Result<Vec<u8>> {
++        self.decrypt(&format!("siboot/storage/{key}"), data)
++    }
++}
++
++pub fn create(home: &Path, credentials: Credentials, passphrase: &str) -> io::Result<SavedLogin> {
++    if passphrase.chars().count() < 12 || passphrase == credentials.password {
++        return Err(io::Error::new(
++            io::ErrorKind::InvalidInput,
++            "Use a separate unlock passphrase of at least 12 characters",
++        ));
++    }
++    private_directory(home)?;
++    let mut salt = [0u8; 16];
++    OsRng.fill_bytes(&mut salt);
++    let saved = SavedLogin {
++        credentials,
++        cipher: Arc::new(Cipher::derive(passphrase, &salt)?),
++        salt,
++    };
++    saved.persist(home)?;
++    Ok(saved)
++}
++
++pub fn unlock(home: &Path, passphrase: &str) -> io::Result<SavedLogin> {
++    let file = path(home);
++    if std::fs::metadata(&file)?.len() > MAX_VAULT {
++        return Err(invalid());
++    }
++    let envelope: Envelope =
++        serde_json::from_slice(&std::fs::read(file)?).map_err(|_| invalid())?;
++    if envelope.version != 1 {
++        return Err(invalid());
++    }
++    let cipher = Arc::new(Cipher::derive(passphrase, &envelope.salt)?);
++    let plaintext = Zeroizing::new(cipher.decrypt(LOGIN_AAD, &envelope.sealed)?);
++    let credentials = serde_json::from_slice(&plaintext).map_err(|_| invalid())?;
++    Ok(SavedLogin {
++        credentials,
++        cipher,
++        salt: envelope.salt,
++    })
++}
++
++impl SavedLogin {
++    pub fn persist(&self, home: &Path) -> io::Result<()> {
++        let plaintext =
++            Zeroizing::new(serde_json::to_vec(&self.credentials).map_err(|_| invalid())?);
++        let envelope = Envelope {
++            version: 1,
++            salt: self.salt,
++            sealed: self.cipher.encrypt(LOGIN_AAD, &plaintext)?,
++        };
++        write_private(
++            &path(home),
++            &serde_json::to_vec(&envelope).map_err(|_| invalid())?,
++        )
++    }
++}
++
++pub fn forget(home: &Path) -> io::Result<()> {
++    let storage = home.join("isideload");
++    if storage.is_dir() {
++        FsStorage::unprotect_directory(&storage)?;
++        std::fs::remove_dir_all(storage)?;
++    }
++    match std::fs::remove_file(path(home)) {
++        Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(()),
++        result => result,
++    }
++}
++
++#[cfg(test)]
++mod tests {
++    use super::*;
++    use isideload::util::storage::SideloadingStorage;
++
++    #[test]
++    fn login_and_cache_are_authenticated_encrypted_and_private() {
++        let home = std::env::temp_dir().join(format!("siboot-vault-{}", uuid::Uuid::new_v4()));
++        let saved = create(
++            &home,
++            Credentials {
++                apple_id: "test@example.invalid".into(),
++                password: "apple-secret".into(),
++            },
++            "separate local unlock passphrase",
++        )
++        .unwrap();
++        let raw = std::fs::read(path(&home)).unwrap();
++        assert!(!String::from_utf8_lossy(&raw).contains("apple-secret"));
++        assert!(!String::from_utf8_lossy(&raw).contains("test@example.invalid"));
++        assert!(unlock(&home, "wrong passphrase").is_err());
++        let reopened = unlock(&home, "separate local unlock passphrase").unwrap();
++        assert_eq!(reopened.credentials.password, "apple-secret");
++        let root = home.join("isideload");
++        private_directory(&root).unwrap();
++        std::fs::write(root.join("legacy-key"), b"private-key").unwrap();
++        saved.cipher.activate(&root).unwrap();
++        let storage = FsStorage::new(root.clone());
++        assert_eq!(
++            storage.retrieve_data("legacy-key").unwrap().unwrap(),
++            b"private-key"
++        );
++        storage
++            .store_data("account/developer_session.json", b"session-token")
++            .unwrap();
++        assert!(storage
++            .store_data("../outside", b"must not escape")
++            .is_err());
++        let file = root.join("account/developer_session.json");
++        let mut bytes = std::fs::read(&file).unwrap();
++        assert!(!String::from_utf8_lossy(&bytes).contains("session-token"));
++        assert_eq!(
++            storage
++                .retrieve_data("account/developer_session.json")
++                .unwrap()
++                .unwrap(),
++            b"session-token"
++        );
++        assert!(
++            saved.cipher.open("other-key", &bytes).is_err(),
++            "files cannot be swapped"
++        );
++        bytes[40] ^= 1;
++        std::fs::write(&file, bytes).unwrap();
++        assert!(
++            storage
++                .retrieve_data("account/developer_session.json")
++                .is_err(),
++            "tampering must fail closed"
++        );
++        #[cfg(unix)]
++        {
++            use std::os::unix::fs::PermissionsExt;
++            assert_eq!(
++                std::fs::metadata(path(&home)).unwrap().permissions().mode() & 0o777,
++                0o600
++            );
++            assert_eq!(
++                std::fs::metadata(&home).unwrap().permissions().mode() & 0o777,
++                0o700
++            );
++        }
++        forget(&home).unwrap();
++        assert!(!path(&home).exists());
++        std::fs::remove_dir_all(home).unwrap();
++    }
++
++    #[test]
++    fn concurrent_logins_cannot_overwrite_the_same_vault() {
++        let home = std::env::temp_dir().join(format!("siboot-vault-lock-{}", uuid::Uuid::new_v4()));
++        let first = Lock::acquire(&home).unwrap();
++        assert!(Lock::acquire(&home).is_err());
++        drop(first);
++        let second = Lock::acquire(&home).unwrap();
++        drop(second);
++        std::fs::remove_dir_all(home).unwrap();
++    }
++}
 diff --git a/minis/src/web.html b/minis/src/web.html
-index 996d032..13b855f 100644
+index 996d032..7378e67 100644
 --- a/minis/src/web.html
 +++ b/minis/src/web.html
-@@ -285,6 +285,8 @@ footer{display:flex; align-items:center; justify-content:space-between; gap:12px
+@@ -116,6 +116,7 @@ body:not(.details) .step[data-state=done] .item.ok{display:none}
+ .button.secondary{border-color:var(--hairline); background:var(--control); color:var(--text)}
+ .button.quiet{padding:0 12px; background:none; color:var(--text-2)}
+ .choices{display:grid; gap:8px; margin-top:14px}
++.file-browser{max-height:18rem; overflow:auto; padding:2px}
+ .button.choice{justify-content:flex-start; width:100%; height:auto; min-height:48px; padding:12px 16px; border-color:var(--hairline); border-radius:var(--r-control); background:var(--raised); color:var(--text); line-height:1.3; text-align:left}
+ /* What to do elsewhere (pairing in Settings), numbered, before it starts. */
+ .ready-steps{margin-top:12px; counter-reset:ready}
+@@ -285,6 +286,8 @@ footer{display:flex; align-items:center; justify-content:space-between; gap:12px
      s.line.textContent = cap(title);
      s.startedAt = at;
      s.time.textContent = "0:00";
@@ -781,12 +2064,77 @@ index 996d032..13b855f 100644
      place();
    }
  
-@@ -433,7 +435,56 @@ footer{display:flex; align-items:center; justify-content:space-between; gap:12px
+@@ -433,13 +436,129 @@ footer{display:flex; align-items:center; justify-content:space-between; gap:12px
      const actions = make("div", "actions");
      let focus = null;
  
 -    if (e.kind === "text" || e.kind === "secret" || e.kind === "line") {
-+    if (e.kind === "ipa") {
++    if (e.kind === "pairing") {
++      askEl.append(make("p", "hint", "Choose a file from Minis's Linux filesystem. The verified copy is saved to " + e.destination));
++      const folder = make("label", "field");
++      folder.append(make("span", "field-label", "Folder in Minis / iSH"));
++      const directory = make("input", "input");
++      directory.value = e.directory;
++      directory.setAttribute("aria-label", "Folder in Minis / iSH");
++      directory.autocapitalize = "off";
++      directory.spellcheck = false;
++      folder.append(directory);
++      askEl.append(folder);
++      const navigation = make("div", "actions");
++      let parent = e.directory;
++      navigation.append(button("Open folder", "secondary", "button", () => browse(directory.value)));
++      navigation.append(button("Up", "quiet", "button", () => browse(parent)));
++      askEl.append(navigation);
++      const list = make("ul", "choices file-browser");
++      const message = make("p", "hint");
++      message.setAttribute("role", "status");
++      askEl.append(list, message);
++      const field = make("label", "field");
++      field.append(make("span", "field-label", "Pairing file path"));
++      const input = make("input", "input");
++      input.setAttribute("aria-label", "Pairing file path");
++      input.autocapitalize = "off";
++      input.autocomplete = "off";
++      input.spellcheck = false;
++      input.placeholder = "/root/phone.plist";
++      field.append(input);
++      askEl.append(field);
++      const submit = () => {
++        if (!input.value.trim()) { message.textContent = "Choose a pairing file, or enter its path in Minis."; return; }
++        send({ path: input.value });
++      };
++      askEl.onsubmit = (ev) => { ev.preventDefault(); submit(); };
++      actions.append(button("Use pairing file", "primary", "button", submit));
++      actions.append(button(e.saved ? "Use saved pairing" : "Pair automatically", "secondary", "button", () => send({ auto: true })));
++      actions.append(button("Cancel", "quiet", "button", () => send({ cancel: true })));
++      async function browse(path) {
++        message.textContent = "Opening folder…";
++        try {
++          const response = await fetch("files", { method: "POST", headers: { "Content-Type": "application/json" },
++            body: JSON.stringify({ id: e.id, directory: path }), cache: "no-store" });
++          if (!response.ok) throw new Error("Couldn't open that directory in Minis / iSH.");
++          const data = await response.json();
++          if (!asking || asking.id !== e.id) return;
++          directory.value = data.directory;
++          parent = data.parent;
++          list.textContent = "";
++          for (const file of data.entries) {
++            if (!file.directory && !file.selectable) continue;
++            const li = make("li");
++            li.append(button((file.directory ? "📁 " : "") + file.name, "choice", "button", () => {
++              if (file.directory) browse(file.path);
++              else { input.value = file.path; message.textContent = "Selected " + file.name; }
++            }));
++            list.append(li);
++          }
++          message.textContent = data.truncated ? "Showing the first 256 entries. Enter a full path if needed."
++            : list.children.length ? "Select a folder or pairing file above." : "No pairing files here. Open another folder or enter a full file path.";
++        } catch (error) {
++          if (asking && asking.id === e.id) message.textContent = error.message;
++        }
++      }
++      browse(e.directory);
++    } else if (e.kind === "ipa") {
 +      actions.append(button("Download SideInstaller", "primary", "button", () => send({ release: true })));
 +      const field = make("label", "field");
 +      field.append(make("span", "field-label", "Or choose a local .ipa from Files"));
@@ -839,7 +2187,16 @@ index 996d032..13b855f 100644
        const field = make("label", "field");
        if (e.label) field.append(make("span", "field-label", e.label));
        const input = make("input", "input");
-@@ -508,6 +559,15 @@ footer{display:flex; align-items:center; justify-content:space-between; gap:12px
+       if (e.kind === "secret") {
+         input.type = "password";
+-        input.autocomplete = "current-password";
++        input.autocomplete = /passphrase/i.test(e.label || "")
++          ? /^(New|Confirm)/.test(e.label || "") ? "new-password" : "off"
++          : "current-password";
+       } else if (/^e-?mail$/i.test(e.label || "")) {
+         input.type = "email";
+         input.autocomplete = "username";
+@@ -508,6 +627,15 @@ footer{display:flex; align-items:center; justify-content:space-between; gap:12px
        }
        actions.append(button(e.button || "Start", "primary", "button", () => send({ go: true })));
        actions.append(button("Cancel", "quiet", "button", () => send({ cancel: true })));
@@ -855,7 +2212,7 @@ index 996d032..13b855f 100644
      } else if (e.kind === "confirm") {
        actions.append(button("Yes", e.default ? "primary" : "secondary", "button", () => send({ yes: true })));
        actions.append(button("No", e.default ? "secondary" : "primary", "button", () => send({ yes: false })));
-@@ -580,6 +640,7 @@ footer{display:flex; align-items:center; justify-content:space-between; gap:12px
+@@ -580,6 +708,7 @@ footer{display:flex; align-items:center; justify-content:space-between; gap:12px
        case "step": begin(e.n, e.title, e.at); break;
        case "status": setStatus(e.text); break;
        case "done": settle("done", e.summary); break;
@@ -864,7 +2221,7 @@ index 996d032..13b855f 100644
        case "progress": progress(e); break;
        case "progress_end": progressEnd(); break;
 diff --git a/minis/src/web.rs b/minis/src/web.rs
-index 9066841..642a469 100644
+index 9066841..7d83041 100644
 --- a/minis/src/web.rs
 +++ b/minis/src/web.rs
 @@ -29,6 +29,7 @@ use std::collections::HashMap;
@@ -875,17 +2232,48 @@ index 9066841..642a469 100644
  use std::process::{Command, Stdio};
  use std::sync::atomic::{AtomicUsize, Ordering};
  use std::sync::{Arc, Condvar, Mutex, MutexGuard, OnceLock};
-@@ -186,6 +187,9 @@ struct State {
+@@ -186,6 +187,10 @@ struct State {
      /// The progress last sent, so a bar sends one event a percent.
      progress: Option<(String, u64)>,
      ended: bool,
 +    ipa_folder: Option<PathBuf>,
 +    upload: Option<crate::ipa::Upload>,
 +    imported_ipa: Option<PathBuf>,
++    pairing_question: bool,
  }
  
  /// A six-digit code, or what the page asked for instead.
-@@ -341,6 +345,32 @@ impl Server {
+@@ -263,6 +268,7 @@ impl Server {
+         question["t"] = json!("ask");
+         question["id"] = json!(id);
+         state.asking = Some(id);
++        state.pairing_question = question["kind"] == json!("pairing");
+         state.answer = None;
+         shared.push(&mut state, question);
+         let answer = loop {
+@@ -275,6 +281,7 @@ impl Server {
+                 .unwrap_or_else(|e| e.into_inner());
+         };
+         state.asking = None;
++        state.pairing_question = false;
+         shared.push(&mut state, json!({"t": "answered", "id": id}));
+         answer
+     }
+@@ -296,10 +303,9 @@ impl Server {
+             if cancelled(&answer) {
+                 return None;
+             }
+-            if let Some(value) = answer["value"]
+-                .as_str()
+-                .map(str::trim)
+-                .filter(|v| !v.is_empty())
++            if let Some(value) = answer["value"].as_str()
++                .map(|value| if secret { value } else { value.trim() })
++                .filter(|v| !v.trim().is_empty())
+             {
+                 return Some(value.to_string());
+             }
+@@ -341,6 +347,47 @@ impl Server {
          answer["yes"].as_bool().unwrap_or(false)
      }
  
@@ -915,10 +2303,25 @@ index 9066841..642a469 100644
 +        }
 +    }
 +
++    /// A path in Minis's Linux filesystem, or automatic pairing. A cancelled
++    /// question stops; an empty path is asked again rather than accepted.
++    pub fn pairing_file(&self, destination: &Path) -> Option<Option<PathBuf>> {
++        loop {
++            let answer = self.ask(json!({"kind": "pairing", "question": "Pairing file in Minis / iSH",
++                "directory": destination.parent().unwrap_or(Path::new(".")), "destination": destination,
++                "saved": destination.is_file()}));
++            if cancelled(&answer) { return None; }
++            if answer["auto"] == json!(true) { return Some(None); }
++            if let Some(path) = answer["path"].as_str().map(str::trim).filter(|s| !s.is_empty()) {
++                return Some(Some(crate::pairing_files::expand_path(Path::new(path))));
++            }
++        }
++    }
++
      /// What to do elsewhere, as numbered `steps` with `notes` under them, and
      /// `button` to start: true when it's tapped, false on Cancel.
      pub fn ready(&self, title: &str, steps: &[&str], notes: &[&str], button: &str) -> bool {
-@@ -558,7 +588,12 @@ fn read_request(stream: &TcpStream) -> Result<Request, u16> {
+@@ -558,7 +605,12 @@ fn read_request(stream: &TcpStream) -> Result<Request, u16> {
      };
      if let Some(length) = request.header("content-length") {
          let length: usize = length.parse().map_err(|_| 400u16)?;
@@ -932,18 +2335,19 @@ index 9066841..642a469 100644
              return Err(413);
          }
          let mut body = vec![0; length];
-@@ -606,8 +641,9 @@ fn handle(shared: &Shared, stream: TcpStream) -> io::Result<()> {
+@@ -606,8 +658,10 @@ fn handle(shared: &Shared, stream: TcpStream) -> io::Result<()> {
          ),
          ("GET", "/events") => events(shared, &stream, &request),
          ("POST", "/answer") => answer(shared, &stream, &request),
 +        ("POST", "/upload") => upload(shared, &stream, &request),
++        ("POST", "/files") => files(shared, &stream, &request),
          ("POST", "/stop") => stop(shared, &stream, &request),
 -        (_, "" | "/" | "/events" | "/answer" | "/stop") => refuse(&stream, 405),
-+        (_, "" | "/" | "/events" | "/answer" | "/stop" | "/upload") => refuse(&stream, 405),
++        (_, "" | "/" | "/events" | "/answer" | "/stop" | "/upload" | "/files") => refuse(&stream, 405),
          _ => refuse(&stream, 404),
      }
  }
-@@ -641,6 +677,9 @@ fn answer(shared: &Shared, stream: &TcpStream, request: &Request) -> io::Result<
+@@ -641,6 +695,9 @@ fn answer(shared: &Shared, stream: &TcpStream, request: &Request) -> io::Result<
      };
      let taken = {
          let mut state = shared.lock();
@@ -953,7 +2357,7 @@ index 9066841..642a469 100644
          if state.asking == Some(id) && state.answer.is_none() {
              state.answer = Some(given);
              shared.changed.notify_all();
-@@ -653,6 +692,50 @@ fn answer(shared: &Shared, stream: &TcpStream, request: &Request) -> io::Result<
+@@ -653,6 +710,66 @@ fn answer(shared: &Shared, stream: &TcpStream, request: &Request) -> io::Result<
      respond(stream, if taken { 204 } else { 409 }, &[], b"")
  }
  
@@ -1001,10 +2405,26 @@ index 9066841..642a469 100644
 +    }
 +}
 +
++fn files(shared: &Shared, stream: &TcpStream, request: &Request) -> io::Result<()> {
++    let given = match posted_json(shared, request) { Ok(v) => v, Err(status) => return refuse(stream, status) };
++    {
++        let state = shared.lock();
++        if given["id"].as_u64() != state.asking || !state.pairing_question || state.answer.is_some() {
++            return refuse(stream, 409);
++        }
++    }
++    let Some(directory) = given["directory"].as_str().filter(|s| !s.is_empty()) else { return refuse(stream, 400) };
++    let path = crate::pairing_files::expand_path(Path::new(directory));
++    match crate::pairing_files::list_directory(&path) {
++        Ok(listing) => respond(stream, 200, &[("Content-Type", "application/json")], listing.to_string().as_bytes()),
++        Err(_) => respond(stream, 400, &[("Content-Type", "application/json")], br#"{"error":"Couldn't open that directory in Minis / iSH."}"#),
++    }
++}
++
  fn stop(shared: &Shared, stream: &TcpStream, request: &Request) -> io::Result<()> {
      if let Err(status) = posted_json(shared, request) {
          return refuse(stream, status);
-@@ -788,7 +871,9 @@ fn reason(status: u16) -> &'static str {
+@@ -788,7 +905,9 @@ fn reason(status: u16) -> &'static str {
          409 => "Conflict",
          413 => "Payload Too Large",
          415 => "Unsupported Media Type",
@@ -1014,7 +2434,7 @@ index 9066841..642a469 100644
          _ => "Error",
      }
  }
-@@ -1054,6 +1139,83 @@ mod tests {
+@@ -1054,6 +1173,83 @@ mod tests {
          )
      }
  
@@ -1097,4 +2517,49 @@ index 9066841..642a469 100644
 +
      #[test]
      fn a_question_waits_for_its_answer() {
+         let server = leaked();
+@@ -1091,6 +1287,44 @@ mod tests {
+         assert!(state.events.iter().all(|e| !e.contains("me@example.com")));
+     }
+ 
++    #[test]
++    fn passwords_and_unlock_passphrases_preserve_spaces_and_never_replay() {
++        let server = leaked();
++        let mut reader = subscribe(server, None);
++        let secret = asked(server, |s| s.text("Unlock saved login", "Unlock passphrase", "", true));
++        let question = until(&mut reader, "ask");
++        reply(server, question["id"].as_u64().unwrap(), json!({"value": "  private passphrase  "}));
++        assert_eq!(secret.join().unwrap().as_deref(), Some("  private passphrase  "));
++        assert!(server.shared.lock().events.iter().all(|event| !event.contains("private passphrase")));
++    }
++
++    #[test]
++    fn linux_file_browser_is_bound_to_the_active_pairing_question() {
++        let server = leaked();
++        let folder = std::env::temp_dir().join(format!("siboot-pairing-browser-{}", uuid::Uuid::new_v4()));
++        std::fs::create_dir_all(&folder).unwrap();
++        std::fs::write(folder.join("phone.plist"), b"private pairing keys").unwrap();
++        let dest = folder.join("rp_pairing_file.plist");
++        let mut reader = subscribe(server, None);
++        let picked = asked(server, move |s| s.pairing_file(&dest));
++        let question = until(&mut reader, "ask");
++        assert_eq!(question["kind"], "pairing");
++        let id = question["id"].as_u64().unwrap();
++        let endpoint = format!("{}/files", base(server));
++        let body = json!({"id": id, "directory": folder}).to_string();
++        assert_eq!(post(server, &endpoint, &json!({"id": id+1, "directory": folder}).to_string(), ""), 409);
++        assert_eq!(post(server, &endpoint, &body, "Origin: https://elsewhere.invalid\r\n"), 403);
++        let raw = format!("POST {endpoint} HTTP/1.1\r\nHost: {}\r\nContent-Type: application/json\r\nContent-Length: {}\r\n\r\n{body}", host(server), body.len());
++        let (status, _, listing) = exchange(server, &raw);
++        assert_eq!(status, 200);
++        assert!(listing.contains("phone.plist"));
++        assert!(!listing.contains("private pairing keys"));
++        reply(server, id, json!({"path": folder.join("phone.plist")}));
++        assert_eq!(picked.join().unwrap(), Some(Some(folder.join("phone.plist"))));
++        assert_eq!(post(server, &endpoint, &body, ""), 409, "closed questions cannot browse files");
++        std::fs::remove_dir_all(folder).unwrap();
++    }
++
+     #[test]
+     fn an_empty_answer_asks_again_and_cancel_stops() {
          let server = leaked();

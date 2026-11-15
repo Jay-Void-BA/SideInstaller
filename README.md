@@ -113,6 +113,12 @@ Rust core, translations and patched Minis source before publishing a version
 from `.github/release.json`; the release assets are built from that exact
 tested commit.
 
+Minis-only versions use `.github/siboot-release.json` and the `release-siboot`
+workflow after the same checks pass. `siboot-v0.19.0` publishes only
+`siboot-aarch64`: encrypted Apple/iCloud login saving, a Minis/iSH pairing-file
+browser, pairing storage beside the executable, and complete recursive signing
+with a final resource audit. Its default IPA remains this fork's v2.1.0.
+
 Once paired, `siboot developer-mode` in Open Minis asks the iPhone to show the Developer Mode switch
 in Settings, or with `--turn-on` to turn it on ([details](https://github.com/FrizzleM/siboot/blob/main/minis/README.md#developer-mode)).
 

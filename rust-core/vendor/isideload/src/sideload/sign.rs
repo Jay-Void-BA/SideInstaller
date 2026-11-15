@@ -82,7 +82,7 @@ fn app_extension_ids(bundle: &Bundle) -> Vec<String> {
     bundle
         .collect_nested_bundles()
         .iter()
-        .filter(|nested| nested.bundle_dir.extension().and_then(|e| e.to_str()) == Some("appex"))
+        .filter(|nested| matches!(nested.bundle_dir.extension().and_then(|e| e.to_str()), Some("appex" | "app" | "xpc")))
         .filter_map(|nested| nested.bundle_identifier().map(str::to_string))
         .collect()
 }

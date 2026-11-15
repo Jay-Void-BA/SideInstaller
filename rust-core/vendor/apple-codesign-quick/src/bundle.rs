@@ -7,6 +7,7 @@ use rayon::prelude::*;
 use sha1::Digest as _;
 use std::collections::BTreeMap;
 use std::fs;
+use std::io::Read;
 use std::path::{Path, PathBuf};
 
 const FAIRPLAY_DIR: &str = "SC_Info";
@@ -54,6 +55,9 @@ impl Bundle {
         if !info_path.exists() {
             return Err(CodeSignError::MissingInfoPlist(info_path));
         }
+        let root = path.canonicalize().map_err(|source| CodeSignError::io(&path, source))?;
+        let info_target = info_path.canonicalize().map_err(|source| CodeSignError::io(&info_path, source))?;
+        if !info_target.starts_with(root) { return Err(CodeSignError::macho(&info_path, "Info.plist escapes its bundle")); }
 
         let file =
             fs::File::open(&info_path).map_err(|source| CodeSignError::io(&info_path, source))?;
@@ -79,7 +83,14 @@ impl Bundle {
     }
 
     pub fn executable_name(&self) -> Result<&str> {
-        self.info_string("CFBundleExecutable")
+        let name = self.info_string("CFBundleExecutable")?;
+        if name.is_empty() || Path::new(name).components().any(|c| !matches!(c, std::path::Component::Normal(_))) {
+            return Err(CodeSignError::macho(&self.path, "invalid executable path"));
+        }
+        let image = self.path.join(name).canonicalize().map_err(|source| CodeSignError::io(self.path.join(name), source))?;
+        let root = self.path.canonicalize().map_err(|source| CodeSignError::io(&self.path, source))?;
+        if !image.starts_with(root) { return Err(CodeSignError::macho(&self.path, "executable escapes its bundle")); }
+        Ok(name)
     }
 
     pub fn sign(&mut self, settings: &BundleSigningSettings<'_>) -> Result<CodeResourcesMaps> {
@@ -99,6 +110,9 @@ impl Bundle {
         let sub_bundles_for_hashing = sub_bundles.clone();
 
         let code_signature_dir = self.path.join(CODE_SIGNATURE_DIR);
+        if code_signature_dir.exists() {
+            fs::remove_dir_all(&code_signature_dir).map_err(|source| CodeSignError::io(&code_signature_dir, source))?;
+        }
         fs::create_dir_all(&code_signature_dir)
             .map_err(|source| CodeSignError::io(&code_signature_dir, source))?;
 
@@ -182,32 +196,28 @@ impl Bundle {
 
     fn sub_bundles(&self) -> Result<Vec<PathBuf>> {
         let mut bundles = Vec::new();
-        // SideInstaller, 2026-11-01: Extensions too, where ExtensionKit app
-        // extensions live, but only its .appex folders. Anything else in it
-        // stays sealed as plain files, as it was before.
-        let folders = [
-            ("Frameworks", None),
-            ("PlugIns", None),
-            ("Extensions", Some("appex")),
-        ];
-        for (folder, extension) in folders {
-            let dir = self.path.join(folder);
-            if !dir.exists() {
-                continue;
-            }
-
+        let mut pending = vec![self.path.clone()];
+        while let Some(dir) = pending.pop() {
             for entry in fs::read_dir(&dir).map_err(|source| CodeSignError::io(&dir, source))? {
                 let entry = entry.map_err(|source| CodeSignError::io(&dir, source))?;
                 let path = entry.path();
-                if entry
-                    .file_type()
-                    .map_err(|source| CodeSignError::io(&path, source))?
-                    .is_dir()
-                    && path.join("Info.plist").exists()
-                    && extension
-                        .is_none_or(|wanted| path.extension().is_some_and(|ext| ext == wanted))
-                {
+                if !entry.file_type().map_err(|source| CodeSignError::io(&path, source))?.is_dir()
+                    || path == self.path.join(CODE_SIGNATURE_DIR) || path == self.path.join(FAIRPLAY_DIR) { continue; }
+                let info = path.join("Info.plist");
+                let known_code_bundle = matches!(path.extension().and_then(|e| e.to_str()), Some("app" | "appex" | "framework" | "xpc"));
+                let executable_bundle = if info.is_file() {
+                    match plist::from_file::<_, Dictionary>(&info) {
+                        Ok(dict) => dict.get("CFBundleExecutable").and_then(Value::as_string).is_some(),
+                        Err(error) if known_code_bundle => return Err(error.into()),
+                        Err(_) => false,
+                    }
+                } else { false };
+                if known_code_bundle || executable_bundle {
+                    // The child owns all code and resources beneath it. It
+                    // discovers its own children before signing its main image.
                     bundles.push(path);
+                } else {
+                    pending.push(path);
                 }
             }
         }
@@ -230,6 +240,7 @@ struct FileHash {
     sha1: [u8; 20],
     sha256: [u8; 32],
     optional: bool,
+    symlink: Option<String>,
 }
 
 #[derive(Debug)]
@@ -248,6 +259,13 @@ fn merge_sub_bundle_resources(
         parent_path,
         &sub.path.join(&sub.executable),
     )?);
+    let executable = sub.path.join(&sub.executable);
+    if fs::symlink_metadata(&executable).map_err(|source| CodeSignError::io(&executable, source))?.file_type().is_symlink() {
+        let target = executable.canonicalize().map_err(|source| CodeSignError::io(&executable, source))?;
+        let root = parent_path.canonicalize().map_err(|source| CodeSignError::io(parent_path, source))?;
+        let relative = target.strip_prefix(root).map_err(|_| CodeSignError::macho(&target, "nested executable escapes its bundle"))?;
+        maps.insert_hash(hash_bundle_file(parent_path, &parent_path.join(relative))?);
+    }
     maps.insert_hash(hash_bundle_file(
         parent_path,
         &sub.path.join(CODE_SIGNATURE_DIR).join(CODE_RESOURCES_FILE),
@@ -265,6 +283,12 @@ pub struct CodeResourcesMaps {
 impl CodeResourcesMaps {
     fn insert_hash(&mut self, hash: FileHash) {
         self.hashes.push(hash.clone());
+        if let Some(target) = hash.symlink {
+            let mut entry = Dictionary::new();
+            entry.insert("symlink".into(), Value::String(target));
+            self.files2.insert(hash.relative_path, Value::Dictionary(entry));
+            return;
+        }
         let sha1 = hash.sha1.to_vec();
         if !omit_from_files(&hash.relative_path) {
             if hash.optional {
@@ -315,6 +339,7 @@ fn omit_from_files2(relative_path: &str) -> bool {
 pub fn sign_bundle(path: impl Into<PathBuf>, settings: &BundleSigningSettings<'_>) -> Result<()> {
     let mut bundle = Bundle::open(path)?;
     bundle.sign(settings)?;
+    verify_bundle_resources(bundle.path())?;
     Ok(())
 }
 
@@ -347,16 +372,23 @@ fn collect_own_bundle_files(
 ) -> Result<BundleFiles> {
     let mut resource_files = Vec::new();
     let mut libraries = Vec::new();
+    let main_image = bundle_path.join(executable).canonicalize().ok();
 
     walk_files_pruned(
         bundle_path,
-        &mut |dir| !sub_bundles.iter().any(|sub_bundle| sub_bundle == dir),
+        &mut |dir| !sub_bundles.iter().any(|sub_bundle| sub_bundle == dir)
+            && dir != bundle_path.join(CODE_SIGNATURE_DIR) && dir != bundle_path.join(FAIRPLAY_DIR),
         &mut |path| {
             let relative = relative_path_string(bundle_path, path)?;
-            if path.extension().and_then(|value| value.to_str()) == Some("dylib") {
+            let canonical = path.canonicalize().map_err(|source| CodeSignError::io(path, source))?;
+            let root = bundle_path.canonicalize().map_err(|source| CodeSignError::io(bundle_path, source))?;
+            if !canonical.starts_with(&root) { return Err(CodeSignError::macho(path, "symlink escapes the app bundle")); }
+            let symbolic = fs::symlink_metadata(path).map_err(|source| CodeSignError::io(path, source))?.file_type().is_symlink();
+            let is_main = main_image.as_ref() == Some(&canonical);
+            if !is_main && !symbolic && (looks_like_macho(path)? || path.extension().and_then(|value| value.to_str()) == Some("dylib")) {
                 libraries.push(path.to_path_buf());
             }
-            if should_hash_resource(&relative, executable) {
+            if !is_main && should_hash_resource(&relative, executable) {
                 resource_files.push(path.to_path_buf());
             }
             Ok(())
@@ -425,7 +457,7 @@ fn walk_files_pruned(
                 .map_err(|source| CodeSignError::io(&path, source))?;
             if file_type.is_dir() && should_descend(&path) {
                 stack.push(path);
-            } else if file_type.is_file() {
+            } else if file_type.is_file() || file_type.is_symlink() {
                 visitor(&path)?;
             }
         }
@@ -434,23 +466,33 @@ fn walk_files_pruned(
 }
 
 fn should_hash_resource(relative: &str, executable: &str) -> bool {
-    if relative == executable || relative.starts_with(FAIRPLAY_DIR) {
-        return false;
-    }
+    relative != executable && relative != FAIRPLAY_DIR && !relative.starts_with("SC_Info/")
+        && !relative.starts_with("_CodeSignature/")
+}
 
-    for nested_root in ["Frameworks/", "PlugIns/"] {
-        if let Some(rest) = relative.strip_prefix(nested_root)
-            && rest.contains('/')
-        {
-            return false;
-        }
-    }
-
-    true
+fn looks_like_macho(path: &Path) -> Result<bool> {
+    let mut file = fs::File::open(path).map_err(|source| CodeSignError::io(path, source))?;
+    let mut header = [0u8; 12];
+    let len = file.read(&mut header).map_err(|source| CodeSignError::io(path, source))?;
+    if len < 4 { return Ok(false); }
+    let magic = u32::from_be_bytes(header[..4].try_into().unwrap());
+    if matches!(magic, 0xfeedface | 0xcefaedfe | 0xfeedfacf | 0xcffaedfe) { return Ok(true); }
+    if len < 12 { return Ok(false); }
+    let (count, cpu) = match magic {
+        0xcafebabe | 0xcafebabf => (u32::from_be_bytes(header[4..8].try_into().unwrap()), u32::from_be_bytes(header[8..12].try_into().unwrap())),
+        0xbebafeca | 0xbfbafeca => (u32::from_le_bytes(header[4..8].try_into().unwrap()), u32::from_le_bytes(header[8..12].try_into().unwrap())),
+        _ => return Ok(false),
+    };
+    // CAFEBABE is also Java's magic; validate a real Mach CPU type.
+    Ok((1..=32).contains(&count) && matches!(cpu & 0x00ffffff, 7 | 12 | 18))
 }
 
 fn hash_bundle_file(bundle_path: &Path, path: &Path) -> Result<FileHash> {
     let relative_path = relative_path_string(bundle_path, path)?;
+    if fs::symlink_metadata(path).map_err(|source| CodeSignError::io(path, source))?.file_type().is_symlink() {
+        let target = fs::read_link(path).map_err(|source| CodeSignError::io(path, source))?;
+        return Ok(FileHash { relative_path, sha1: [0; 20], sha256: [0; 32], optional: false, symlink: Some(path_to_forward_slashes(&target)?) });
+    }
     let data = read_file_bytes(path)?;
     let (sha1, sha256) = hash_file_data(data.as_slice());
     Ok(FileHash {
@@ -458,7 +500,33 @@ fn hash_bundle_file(bundle_path: &Path, path: &Path) -> Result<FileHash> {
         relative_path,
         sha1,
         sha256,
+        symlink: None,
     })
+}
+
+/// Audit the final tree, after every nested image and resource has been signed.
+/// This catches omitted .config files and stale hashes before installation.
+pub fn verify_bundle_resources(path: &Path) -> Result<()> {
+    let bundle = Bundle::open(path)?;
+    let executable = bundle.executable_name()?;
+    let main = path.join(executable).canonicalize().map_err(|source| CodeSignError::io(path, source))?;
+    let sealed: Dictionary = plist::from_file(path.join(CODE_SIGNATURE_DIR).join(CODE_RESOURCES_FILE))?;
+    let files = sealed.get("files2").and_then(Value::as_dictionary).ok_or_else(|| CodeSignError::macho(path, "missing resource seal"))?;
+    walk_files_pruned(path,
+        &mut |dir| dir != path.join(CODE_SIGNATURE_DIR) && dir != path.join(FAIRPLAY_DIR),
+        &mut |file| {
+            let relative = relative_path_string(path, file)?;
+            if omit_from_files2(&relative) || file.canonicalize().ok().as_ref() == Some(&main) { return Ok(()); }
+            let entry = files.get(&relative).and_then(Value::as_dictionary)
+                .ok_or_else(|| CodeSignError::macho(file, "resource was not sealed"))?;
+            let actual = hash_bundle_file(path, file)?;
+            let matches = match actual.symlink {
+                Some(target) => entry.get("symlink").and_then(Value::as_string) == Some(target.as_str()),
+                None => entry.get("hash2").and_then(Value::as_data) == Some(actual.sha256.as_slice()),
+            };
+            if !matches { return Err(CodeSignError::macho(file, "resource seal does not match its final contents")); }
+            Ok(())
+        })
 }
 
 fn hash_file_data(data: &[u8]) -> ([u8; 20], [u8; 32]) {
@@ -589,12 +657,76 @@ fn join_relative(root: &str, child: &str) -> String {
 mod tests {
     use super::*;
 
+    #[test]
+    fn complete_signing_covers_deep_images_hidden_configs_and_nested_bundles() {
+        let root = std::env::temp_dir().join(format!("complete-signing-{}", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()));
+        let bundle = |relative: &str, executable: &str| {
+            let folder = root.join(relative);
+            fs::create_dir_all(&folder).unwrap();
+            let mut info = Dictionary::new();
+            info.insert("CFBundleIdentifier".into(), format!("example.{}", executable).into());
+            info.insert("CFBundleExecutable".into(), executable.into());
+            plist::to_file_xml(folder.join("Info.plist"), &info).unwrap();
+            fs::write(folder.join(executable), crate::macho::tests::minimal_macho_with_empty_signature()).unwrap();
+        };
+        bundle("", "Main");
+        bundle("Resources/Deep/Helper.appex", "Helper");
+        bundle("Frameworks/Nested/Engine.framework", "Engine");
+        for relative in ["Frameworks/Deep/libHidden.dylib", "PlugIns/Tools/helper", "Resources/Disguised.config"] {
+            let file = root.join(relative);
+            fs::create_dir_all(file.parent().unwrap()).unwrap();
+            fs::write(file, crate::macho::tests::minimal_macho_with_empty_signature()).unwrap();
+        }
+        for relative in ["Frameworks/Deep/settings.config", "PlugIns/Tools/.config", "Resources/.config/settings.json"] {
+            let file = root.join(relative);
+            fs::create_dir_all(file.parent().unwrap()).unwrap();
+            fs::write(file, b"config bytes must be sealed").unwrap();
+        }
+        fs::create_dir_all(root.join("_CodeSignature")).unwrap();
+        fs::write(root.join("_CodeSignature/old-resource-rule"), b"old").unwrap();
+        let settings = BundleSigningSettings::new("COMPLETETEAM", Dictionary::new(), None);
+        sign_bundle(&root, &settings).unwrap();
+        assert!(!root.join("_CodeSignature/old-resource-rule").exists());
+        for relative in ["Main", "Resources/Deep/Helper.appex/Helper", "Frameworks/Nested/Engine.framework/Engine", "Frameworks/Deep/libHidden.dylib", "PlugIns/Tools/helper", "Resources/Disguised.config"] {
+            let bytes = fs::read(root.join(relative)).unwrap();
+            assert!(bytes.windows(b"COMPLETETEAM".len()).any(|b| b == b"COMPLETETEAM"), "{relative} was not signed");
+        }
+        verify_bundle_resources(&root).unwrap();
+        fs::write(root.join("PlugIns/Tools/.config"), b"tampered after signing").unwrap();
+        assert!(verify_bundle_resources(&root).is_err(), "config changes must invalidate the resource seal");
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn complete_signing_seals_symlinks_and_their_actual_code_without_following_external_paths() {
+        use std::os::unix::fs::symlink;
+        let root = std::env::temp_dir().join(format!("complete-symlinks-{}", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()));
+        fs::create_dir_all(root.join("Resources")).unwrap();
+        let mut info = Dictionary::new();
+        info.insert("CFBundleIdentifier".into(), "example.main".into());
+        info.insert("CFBundleExecutable".into(), "Main".into());
+        plist::to_file_xml(root.join("Info.plist"), &info).unwrap();
+        fs::write(root.join("Main"), crate::macho::tests::minimal_macho_with_empty_signature()).unwrap();
+        fs::write(root.join("Resources/real.dylib"), crate::macho::tests::minimal_macho_with_empty_signature()).unwrap();
+        symlink("real.dylib", root.join("Resources/alias.dylib")).unwrap();
+        let settings = BundleSigningSettings::new("LINKTEAM", Dictionary::new(), None);
+        sign_bundle(&root, &settings).unwrap();
+        verify_bundle_resources(&root).unwrap();
+        let sealed: Dictionary = plist::from_file(root.join("_CodeSignature/CodeResources")).unwrap();
+        assert_eq!(sealed["files2"].as_dictionary().unwrap()["Resources/alias.dylib"].as_dictionary().unwrap()["symlink"].as_string(), Some("real.dylib"));
+        symlink(std::env::temp_dir(), root.join("Resources/outside")).unwrap();
+        assert!(sign_bundle(&root, &settings).is_err());
+        fs::remove_dir_all(root).unwrap();
+    }
+
     fn test_hash(relative_path: &str) -> FileHash {
         FileHash {
             relative_path: relative_path.to_string(),
             sha1: [1; 20],
             sha256: [2; 32],
             optional: false,
+            symlink: None,
         }
     }
 

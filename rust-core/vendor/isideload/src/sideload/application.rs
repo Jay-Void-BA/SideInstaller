@@ -145,24 +145,7 @@ impl Application {
         main_app_bundle_id: &str,
         main_app_id_str: &str,
     ) -> Result<(), Report> {
-        let extensions = self.bundle.app_extensions_mut();
-        for ext in extensions.iter_mut() {
-            if let Some(id) = ext.bundle_identifier() {
-                if !(id.starts_with(main_app_bundle_id) && id.len() > main_app_bundle_id.len()) {
-                    bail!(SideloadError::InvalidBundle(format!(
-                        "Extension {} is not part of the main app bundle identifier: {}",
-                        ext.bundle_name().unwrap_or("Unknown"),
-                        id
-                    )));
-                } else {
-                    ext.set_bundle_identifier(&format!(
-                        "{}{}",
-                        main_app_id_str,
-                        &id[main_app_bundle_id.len()..]
-                    ));
-                }
-            }
-        }
+        self.bundle.rebase_app_extensions(main_app_bundle_id, main_app_id_str)?;
         self.bundle.set_bundle_identifier(main_app_id_str);
 
         Ok(())

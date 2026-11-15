@@ -6,7 +6,7 @@ pub mod provisioning;
 pub mod rustcrypto_cms;
 pub mod signature;
 
-pub use bundle::{Bundle, BundleSigningSettings, CodeResourcesMaps, sign_bundle};
+pub use bundle::{Bundle, BundleSigningSettings, CodeResourcesMaps, sign_bundle, verify_bundle_resources};
 pub use error::{CodeSignError, Result};
 pub use macho::{
     DEFAULT_CMS_BLOB_RESERVATION, MachOSigningConfig, sign_macho_data, sign_macho_file,

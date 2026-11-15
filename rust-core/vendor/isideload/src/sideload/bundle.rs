@@ -44,16 +44,10 @@ impl Bundle {
             "Failed to parse Info.plist".to_string(),
         ))?;
 
-        // App extensions: the NSExtension kind (widgets, share extensions...)
-        // in PlugIns, and the ExtensionKit kind (`EXAppExtensionAttributes`,
-        // such as a Now Playing remote-media extension) in Extensions. iOS
-        // wants both kinds' bundle IDs under the app's, so both are rebased,
-        // provisioned and signed alike. In Extensions only `.appex` folders
-        // count, as for apple-codesign-quick, which signs them on their own.
-        let mut app_extensions = child_bundles(&bundle_path, "PlugIns", None)?;
-        app_extensions.extend(child_bundles(&bundle_path, "Extensions", Some("appex"))?);
-
-        let frameworks = child_bundles(&bundle_path, "Frameworks", None)?;
+        // Discover executable bundles at every depth, including code inside
+        // resource bundles. Apps, app extensions and XPC services need their
+        // identifiers rebased and provisioning metadata written before signing.
+        let (app_extensions, frameworks) = discover_children(&bundle_path)?;
 
         // Find all .dylib files in the bundle directory (recursive)
         let libraries = find_dylibs(&bundle_path, &bundle_path)?;
@@ -130,6 +124,22 @@ impl Bundle {
         plist::to_file_binary(&info_plist_path, &self.app_info).context(
             SideloadError::InvalidBundle("Failed to write Info.plist".to_string()),
         )?;
+        for child in self.app_extensions.iter().chain(self.frameworks.iter()) {
+            child.write_info()?;
+        }
+        Ok(())
+    }
+
+    pub fn rebase_app_extensions(&mut self, old: &str, new: &str) -> Result<(), Report> {
+        for child in &mut self.app_extensions {
+            let id = child.bundle_identifier().ok_or_else(|| report!("Nested executable bundle has no identifier"))?.to_string();
+            let suffix = id.strip_prefix(old).filter(|s| s.starts_with('.'))
+                .ok_or_else(|| report!("Nested executable bundle is outside the app's identifier"))?;
+            child.set_bundle_identifier(&format!("{new}{suffix}"));
+        }
+        for child in self.app_extensions.iter_mut().chain(self.frameworks.iter_mut()) {
+            child.rebase_app_extensions(old, new)?;
+        }
         Ok(())
     }
 
@@ -196,32 +206,33 @@ fn suffix_under<'a>(identifier: &'a str, prefix: &str) -> Option<&'a str> {
     (rest.is_empty() || rest.starts_with('.')).then_some(rest)
 }
 
-/// The bundles in `bundle_path`'s `folder`, if it has one: each folder in it
-/// with an Info.plist, and with `extension` as well when one is given. A bundle
-/// that fails to load is left out.
-fn child_bundles(
-    bundle_path: &Path,
-    folder: &str,
-    extension: Option<&str>,
-) -> Result<Vec<Bundle>, Report> {
-    let dir = bundle_path.join(folder);
-    if !dir.exists() {
-        return Ok(Vec::new());
-    }
-
-    Ok(fs::read_dir(&dir)
-        .context(SideloadError::InvalidBundle(format!(
-            "Failed to read {folder} directory"
-        )))?
-        .filter_map(|entry| entry.ok())
-        .filter(|entry| {
+/// Find each immediate executable child, descending through ordinary folders
+/// and resource-only bundles. A malformed executable bundle is an error.
+fn discover_children(root: &Path) -> Result<(Vec<Bundle>, Vec<Bundle>), Report> {
+    let mut extensions = Vec::new();
+    let mut frameworks = Vec::new();
+    let mut pending = vec![root.to_path_buf()];
+    while let Some(dir) = pending.pop() {
+        for entry in fs::read_dir(&dir).context("Couldn't inspect nested bundles")? {
+            let entry = entry.context("Couldn't inspect a nested bundle")?;
             let path = entry.path();
-            entry.file_type().map(|ft| ft.is_dir()).unwrap_or(false)
-                && path.join("Info.plist").exists()
-                && extension.is_none_or(|wanted| path.extension().is_some_and(|ext| ext == wanted))
-        })
-        .filter_map(|entry| Bundle::new(entry.path()).ok())
-        .collect())
+            if !entry.file_type().context("Couldn't inspect a nested bundle")?.is_dir()
+                || path == root.join("_CodeSignature") || path == root.join("SC_Info") { continue; }
+            let extension = path.extension().and_then(|s| s.to_str()).unwrap_or("");
+            let known = matches!(extension, "app" | "appex" | "framework" | "xpc");
+            let info = path.join("Info.plist");
+            let executable = plist::from_file::<_, Dictionary>(&info).ok()
+                .is_some_and(|d| d.get("CFBundleExecutable").and_then(Value::as_string).is_some());
+            if known || executable {
+                let child = Bundle::new(path.clone())?;
+                if matches!(extension, "app" | "appex" | "xpc") { extensions.push(child); }
+                else { frameworks.push(child); }
+            } else { pending.push(path); }
+        }
+    }
+    extensions.sort_by(|a, b| a.bundle_dir.cmp(&b.bundle_dir));
+    frameworks.sort_by(|a, b| a.bundle_dir.cmp(&b.bundle_dir));
+    Ok((extensions, frameworks))
 }
 
 fn assert_bundle(condition: bool, msg: &str) -> Result<(), Report> {
@@ -359,6 +370,39 @@ pub(crate) mod tests {
             .map(|framework| framework.bundle_identifier().unwrap())
             .collect();
         assert_eq!(frameworks, ["io.flutter.flutter"]);
+    }
+
+    #[test]
+    fn deep_executable_bundles_are_discovered_rebased_and_written_before_signing() {
+        let dir = TempDir::new();
+        let app = dir.0.join("Runner.app");
+        write_bundle(&app, "com.example.app");
+        let resource = app.join("Assets/Strings.bundle");
+        write_bundle(&resource, "org.example.strings");
+        let extension = resource.join("Helpers/Widget.appex");
+        write_bundle(&extension, "com.example.app.widget");
+        let service = extension.join("Services/Worker.xpc");
+        write_bundle(&service, "com.example.app.widget.worker");
+        let framework = app.join("Deep/Code/Core.framework");
+        write_bundle(&framework, "org.example.core");
+        let nested_app = framework.join("Helpers/Companion.app");
+        write_bundle(&nested_app, "com.example.app.companion");
+        let mut bundle = Bundle::new(app.clone()).unwrap();
+        bundle.rebase_app_extensions("com.example.app", "com.example.app.TEAM").unwrap();
+        bundle.set_bundle_identifier("com.example.app.TEAM");
+        bundle.write_info().unwrap();
+        for (path, expected) in [
+            (&extension, "com.example.app.TEAM.widget"),
+            (&service, "com.example.app.TEAM.widget.worker"),
+            (&nested_app, "com.example.app.TEAM.companion"),
+            (&resource, "org.example.strings"),
+            (&framework, "org.example.core"),
+        ] {
+            let info: Dictionary = plist::from_file(path.join("Info.plist")).unwrap();
+            assert_eq!(info["CFBundleIdentifier"].as_string(), Some(expected));
+        }
+        fs::create_dir_all(app.join("Broken/MissingInfo.appex")).unwrap();
+        assert!(Bundle::new(app).is_err(), "malformed code must not be silently skipped");
     }
 
     fn bundle(bundle_id: &str, task_ids: Option<&[&str]>) -> Bundle {

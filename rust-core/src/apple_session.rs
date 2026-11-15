@@ -23,6 +23,7 @@ use isideload::{
         teams::{DeveloperTeam, TeamsApi},
     },
     util::fs_storage::FsStorage,
+    util::storage::SideloadingStorage,
 };
 use rootcause::Report;
 use serde::{Deserialize, Serialize};
@@ -124,7 +125,9 @@ fn session_path(storage_dir: &Path, apple_id: &str) -> PathBuf {
 }
 
 fn load(storage_dir: &Path, apple_id: &str) -> Option<SavedSession> {
-    let bytes = std::fs::read(session_path(storage_dir, apple_id)).ok()?;
+    let path = session_path(storage_dir, apple_id);
+    let key = path.strip_prefix(storage_dir).ok()?.to_str()?;
+    let bytes = FsStorage::new(storage_dir.to_path_buf()).retrieve_data(key).ok()??;
     serde_json::from_slice(&bytes).ok()
 }
 
@@ -132,12 +135,16 @@ fn load(storage_dir: &Path, apple_id: &str) -> Option<SavedSession> {
 /// partial file.
 fn store(storage_dir: &Path, session: &SavedSession) -> std::io::Result<()> {
     let path = session_path(storage_dir, &session.apple_id);
-    if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent)?;
-    }
-    let tmp = path.with_extension("json.tmp");
-    std::fs::write(&tmp, serde_json::to_vec(session).map_err(std::io::Error::other)?)?;
-    std::fs::rename(tmp, path)
+    let key = path.strip_prefix(storage_dir).map_err(std::io::Error::other)?.to_string_lossy();
+    FsStorage::new(storage_dir.to_path_buf())
+        .store_data(&key, &serde_json::to_vec(session).map_err(std::io::Error::other)?)
+        .map_err(|_| std::io::Error::other("Couldn't save the developer session"))
+}
+
+/// Used after an interactive client opts into encrypted persistence.
+#[allow(dead_code)] // Called by the separate Minis binary, which includes this module.
+pub(crate) fn remember_developer_session(storage_dir: &Path, apple_id: &str, developer: &DeveloperSession) -> std::io::Result<()> {
+    store(storage_dir, &SavedSession::new(apple_id, developer.adsid(), developer.token(), unix_now()))
 }
 
 /// Drop an account's saved session. Returns whether there was one.
