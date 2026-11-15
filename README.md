@@ -30,18 +30,19 @@
 
 ## 下载和启动
 
-发布附件只有 **`siboot-aarch64`**。在 Minis 终端选择一个固定目录下载和运行，配对文件会保存在该程序的同目录。
+发布附件只有 **`siboot-aarch64`**。在 Minis 终端选择一个固定目录下载和运行，配对文件会保存在该程序的同目录。下载先写入带版本号的 `.part` 文件，避免把旧版本续传成新版本。
 
 ```sh
 curl -fL -C - --retry 5 --retry-all-errors \
-  -o siboot-aarch64 \
+  -o siboot-aarch64-v0.20.0.part \
   https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.20.0/siboot-aarch64
-sha256sum ./siboot-aarch64
+sha256sum ./siboot-aarch64-v0.20.0.part
 ```
 
 将输出与[发布页面](https://github.com/Jay-Void-BA/SideInstaller/releases/tag/siboot-v0.20.0)的 SHA-256 核对，完全一致后再执行：
 
 ```sh
+mv ./siboot-aarch64-v0.20.0.part ./siboot-aarch64
 chmod +x ./siboot-aarch64
 ./siboot-aarch64 --version
 ./siboot-aarch64
