@@ -24,7 +24,7 @@ jobs:
           git -C "$RUNNER_TEMP/ish" fetch --depth 1 origin 0fd17a135e78b7a0cf08a4f5831217bbb76ed22f
           git -C "$RUNNER_TEMP/ish" checkout --detach FETCH_HEAD
           meson setup "$RUNNER_TEMP/ish-build" "$RUNNER_TEMP/ish" -Dguest_arch=arm64 -Dlog=strace --buildtype=release
-          meson compile -C "$RUNNER_TEMP/ish-build" -j4 ish
+          ninja -C "$RUNNER_TEMP/ish-build" -j4 ish
       - name: Compare startup in the actual iSH engine
         run: |
           python3 - <<'PY'
