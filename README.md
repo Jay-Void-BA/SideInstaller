@@ -1,78 +1,83 @@
 <h1 align="center">siboot</h1>
 
 <p align="center">
-  在 iPhone／iPad 上签名、安装与续签本地 IPA。<br>
-  为 rootshell 移植的完整 WASI 安装器。
+  <strong>English</strong> · <a href="README.zh-CN.md">简体中文</a>
+</p>
+
+<p align="center">
+  Sign, install, and renew local IPA files on your iPhone or iPad.<br>
+  A complete WASI installer for rootshell.
 </p>
 
 <p align="center">
   <a href="https://github.com/Jay-Void-BA/SideInstaller/releases/tag/siboot-v0.21.1"><img src="https://img.shields.io/badge/release-0.21.1-2563eb?style=flat-square" alt="siboot 0.21.1"></a>
-  <a href="https://github.com/Jay-Void-BA/SideInstaller/actions/workflows/checks.yml"><img src="https://github.com/Jay-Void-BA/SideInstaller/actions/workflows/checks.yml/badge.svg?branch=main" alt="CI 检查状态"></a>
-  <a href="#requirements"><img src="https://img.shields.io/badge/platform-rootshell%20%7C%20iOS%2027%2B-64748b?style=flat-square" alt="rootshell · iOS／iPadOS 27+"></a>
-  <a href="https://github.com/Jay-Void-BA/SideInstaller/blob/main/LICENSE.md"><img src="https://img.shields.io/badge/license-Custom-64748b?style=flat-square" alt="SideInstaller 自定义许可证"></a>
+  <a href="https://github.com/Jay-Void-BA/SideInstaller/actions/workflows/checks.yml"><img src="https://github.com/Jay-Void-BA/SideInstaller/actions/workflows/checks.yml/badge.svg?branch=main" alt="CI status"></a>
+  <a href="#requirements"><img src="https://img.shields.io/badge/platform-rootshell%20%7C%20iOS%2027%2B-64748b?style=flat-square" alt="rootshell · iOS / iPadOS 27+"></a>
+  <a href="https://github.com/Jay-Void-BA/SideInstaller/blob/main/LICENSE.md"><img src="https://img.shields.io/badge/license-Custom-64748b?style=flat-square" alt="SideInstaller custom license"></a>
 </p>
 
 <p align="center">
-  <a href="https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.21.1/siboot.wasm">下载 siboot.wasm</a> ·
-  <a href="#quick-start">快速开始</a> ·
-  <a href="#usage">常用命令</a> ·
-  <a href="#performance">性能诊断</a> ·
-  <a href="#migration">旧版迁移</a> ·
-  <a href="#development">开发</a>
+  <a href="https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.21.1/siboot.wasm">Download</a> ·
+  <a href="#quick-start">Quick start</a> ·
+  <a href="#usage">Usage</a> ·
+  <a href="#performance">Diagnostics</a> ·
+  <a href="#migration">Migration</a> ·
+  <a href="#development">Development</a>
 </p>
 
 <p align="center">
-  维护与移植：<a href="https://github.com/Jay-Void-BA">Jay-Void-BA</a> ·
-  原作者：<a href="https://github.com/FrizzleM">FrizzleM</a>
+  Maintained by <a href="https://github.com/Jay-Void-BA">Jay-Void-BA</a> ·
+  Original concept by <a href="https://github.com/FrizzleM">FrizzleM</a>
 </p>
 
 > [!IMPORTANT]
-> **iSH／Minis 旧版已弃用（deprecated）**，不再提供该平台的功能更新或二进制发布。已有用户请按[迁移指南](#migration)转到 rootshell；历史源码和 Release 仅留存供迁移与参考。
+> **The iSH / Minis version is deprecated.** It no longer receives feature updates or binary releases. Existing users can follow the [migration guide](#migration) to move to rootshell. Historical source and releases remain available for reference.
 
-## 功能
+## Features
 
-| 功能 | 说明 |
+| Feature | Description |
 | --- | --- |
-| 本地安装 | 在 rootshell 内完成设备配对、Apple 登录、IPA 签名、上传和安装 |
-| 完整签名 | 递归处理主程序、扩展、Framework、dylib 与其他 Mach-O，封存并复核 `.config` 等资源 |
-| 快速续签 | 缓存上次应用的原始 IPA，使用 `renew` 重新签名安装 |
-| 加密登录 | 使用独立本地口令保护账户、会话与签名私钥，支持输入时显示／隐藏密码 |
-| 步骤重试 | 出错后重试当前步骤，安装重试复用已完成的签名结果 |
-| 性能诊断 | 按需将阶段耗时、网络与文件传输统计写入程序同目录 |
-| 中文／英文 | 默认中文，使用 `--lang en` 切换英文 |
+| Local installation | Pair your device, sign in to Apple, sign an IPA, and install it from rootshell |
+| Complete signing | Recursively sign apps, extensions, frameworks, dylibs, and other Mach-O files; seal and verify resources such as `.config` files |
+| Quick renewal | Keep the original IPA from the last installation and renew it with `renew` |
+| Encrypted credentials | Protect account data, sessions, and signing keys with a separate local passphrase; reveal or hide passwords while typing |
+| Step retries | Retry a failed step; installation retries reuse completed signing work |
+| Performance logs | Save stage timings, network statistics, and file transfer measurements beside the program |
+| Chinese and English | Chinese interface by default; use `--lang en` for English |
 
-安装流程全部在 rootshell 和 `siboot.wasm` 内执行，设备连接仍需 LocalDevVPN。本程序只接受本地 IPA，不提供 SideInstaller IPA 下载入口，也不在运行时检测软件更新。
+The installation workflow runs entirely in rootshell and `siboot.wasm`. Device connectivity requires LocalDevVPN. Bring your own local IPA; there is no SideInstaller IPA download option or automatic update check.
 
 <a id="requirements"></a>
 
-## 运行条件
+## Requirements
 
-| 项目 | 要求 |
+| Component | Requirement |
 | --- | --- |
-| 系统 | iOS／iPadOS **27+**，已开启开发者模式 |
-| 终端 | 最新版 [rootshell](https://github.com/kitknox/rootshell)，支持 WASI Preview 1、socket/TLS 和终端 raw 模式 |
-| 设备连接 | [LocalDevVPN](https://apps.apple.com/app/id6755608044) 已连接，Wi-Fi 开启 |
-| 签名材料 | 自己的 Apple 账户、可用网络和本地 IPA |
+| System | iOS / iPadOS **27+**, with Developer Mode enabled |
+| Terminal | The latest [rootshell](https://github.com/kitknox/rootshell), with WASI Preview 1, socket/TLS, and raw terminal support |
+| Device connection | [LocalDevVPN](https://apps.apple.com/app/id6755608044) connected, with Wi-Fi enabled |
+| Signing | Your own Apple Account, an internet connection, and a local IPA |
 
-Apple 登录、anisette 和签名配置需要联网。rootshell 是应用名称，不代表获得 iOS root 权限。
+Apple authentication, anisette, and provisioning require internet access. The name rootshell does not imply iOS root access.
 
 <a id="quick-start"></a>
+<a id="rootshell-版配置"></a>
 
-## rootshell 版配置
+## Getting started
 
-### 1. 安装应用与配置权限
+### 1. Install the apps and configure permissions
 
-安装最新版 rootshell（[App Store](https://apps.apple.com/app/rootshell-local-terminal-ssh/id6755794662)／[中国区 App Store](https://apps.apple.com/app/rootshell-%E6%9C%AC%E5%9C%B0%E7%BB%88%E7%AB%AF-ssh/id6763402687)）和 [LocalDevVPN](https://apps.apple.com/app/id6755608044)。
+Install the latest rootshell from the [App Store](https://apps.apple.com/app/rootshell-local-terminal-ssh/id6755794662) or [China App Store](https://apps.apple.com/app/rootshell-%E6%9C%AC%E5%9C%B0%E7%BB%88%E7%AB%AF-ssh/id6763402687), and install [LocalDevVPN](https://apps.apple.com/app/id6755608044).
 
-1. 在系统“设置 › 隐私与安全性 › 开发者模式”中开启开发者模式，按提示重启并确认。
-2. 打开 Wi-Fi，在 LocalDevVPN 中添加系统 VPN 配置并连接，确认状态为 **Connected**。安装和续签期间保持 LocalDevVPN 为当前连接的 VPN。
-3. 允许 rootshell 访问**本地网络**。若曾拒绝，在“设置 › 隐私与安全性 › 本地网络 › rootshell”中开启；首次弹窗出现时选择允许。
-4. 新配对前，在 rootshell 的 **Settings › Location Diary Mode** 中开启定位日记模式，选择 **Session Only**，按提示授予定位权限，使切换到系统设置时程序能继续运行。配对完成后可关闭；重新配对时再开启。
-5. 允许 rootshell 发送通知，以便在系统设置中查看六位配对码。配对码也会显示在终端中。
+1. Enable **Settings › Privacy & Security › Developer Mode**, then restart and confirm when prompted.
+2. Enable Wi-Fi. Add the VPN configuration in LocalDevVPN and connect. Confirm that it shows **Connected**, and keep LocalDevVPN as the active VPN during installation and renewal.
+3. Allow rootshell to access the **Local Network**. If you previously denied access, enable it under **Settings › Privacy & Security › Local Network › rootshell**.
+4. Before creating a pairing, enable **Settings › Location Diary Mode** in rootshell, select **Session Only**, and grant location access when prompted. This keeps the program running while you switch to system settings. You can turn it off after pairing; enable it again when creating another pairing.
+5. Allow rootshell notifications so you can read the six-digit pairing code while in Settings. The code also appears in the terminal.
 
-### 2. 准备工作目录
+### 2. Create a working directory
 
-在 rootshell 中新建 **Local Shell（本地终端）** 标签页。以下命令均在这台 iPhone／iPad 的本地终端执行。在默认起始目录逐条运行：
+Open a **Local Shell** tab in rootshell. Run the following commands one at a time from its default starting directory, on the iPhone or iPad itself:
 
 ```sh
 mkdir -p siboot
@@ -80,191 +85,192 @@ cd siboot
 pwd
 ```
 
-在“文件 › 浏览 › 我的 iPhone／iPad › rootshell › siboot”中放入自己的 `App.ipa`。iCloud Drive、下载目录或其他应用中的文件，需要先拷贝到 rootshell 可访问的应用目录。新建标签页后先进入 `siboot` 目录。
+Copy your `App.ipa` into **Files › Browse › On My iPhone / iPad › rootshell › siboot**. Files in iCloud Drive, Downloads, or another app need to be copied into rootshell's accessible app directory first. Return to the `siboot` directory when opening a new terminal tab.
 
-### 3. 下载并校验
+### 3. Download and verify
 
-保持终端位于刚才的目录，逐条执行：
+Run these commands from the working directory:
 
 ```sh
 curl -fL -C - -o siboot-v0.21.1.wasm.part https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.21.1/siboot.wasm
 sha256sum siboot-v0.21.1.wasm.part
 ```
 
-与 [Release](https://github.com/Jay-Void-BA/SideInstaller/releases/tag/siboot-v0.21.1) 附件 [SHA256SUMS](https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.21.1/SHA256SUMS) 核对一致后，再运行：
+Compare the hash with [SHA256SUMS](https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.21.1/SHA256SUMS) attached to the [release](https://github.com/Jay-Void-BA/SideInstaller/releases/tag/siboot-v0.21.1). When it matches, run:
 
 ```sh
 mv siboot-v0.21.1.wasm.part siboot.wasm
 ./siboot.wasm --version
 ```
 
-版本输出应包含 `siboot 0.21.1 (rootshell)`。也可以通过 Safari 下载 `siboot.wasm`，复制到 `rootshell/siboot` 后校验。
+The output should include `siboot 0.21.1 (rootshell)`. You can also download `siboot.wasm` in Safari, copy it into `rootshell/siboot`, and verify it there.
 
 > [!TIP]
-> 下载时保持 rootshell 在前台。中断后用同一条 `curl` 命令续传，并再次核对哈希。使用带版本号的 `.part` 文件，避免把旧版本内容续传进新版本；校验一致后再改名运行。
+> Keep rootshell in the foreground while downloading. If the transfer is interrupted, resume with the same `curl` command and check the hash again. Use a versioned `.part` filename to keep downloads from different releases separate. Rename and run the file only after verification succeeds.
 
+<a id="first-install"></a>
 <a id="首次配对与安装"></a>
 
-### 4. 配对并安装
+### 4. Pair and install
 
-确认 LocalDevVPN 已连接，Location Diary Mode 已设为 Session Only。在工作目录逐条运行：
+Confirm that LocalDevVPN is connected and Location Diary Mode is set to Session Only. From the working directory, run:
 
 ```sh
 ifconfig en0 > ifconfig.txt
 ./siboot.wasm pair
 ```
 
-按提示打开“设置 › 隐私与安全性 › 开发者模式”，点击 **Pair with siboot**，输入设备密码及通知／终端中的六位配对码。返回 rootshell，确认配对成功后运行：
+Open **Settings › Privacy & Security › Developer Mode**, tap **Pair with siboot**, and enter your device passcode followed by the six-digit code from the notification or terminal. Return to rootshell, confirm that pairing succeeded, and run:
 
 ```sh
 ./siboot.wasm --ipa App.ipa
 ```
 
-按提示登录 Apple 账户、输入验证码，等待签名、上传核对和系统安装完成。首次启动应用时，需在“设置 › 通用 › VPN 与设备管理”中信任开发者。
+Follow the prompts to sign in to your Apple Account and enter any verification code. Wait for signing, upload verification, and system installation to finish. Before launching the installed app for the first time, trust its developer under **Settings › General › VPN & Device Management**.
 
-文件名含空格时使用引号，例如 `--ipa "My App.ipa"`。也可运行 `./siboot.wasm`，通过交互菜单选择 IPA 和配对方式；已有配对文件的用户可直接[导入配对](#migration)。
+Quote filenames containing spaces, for example `--ipa "My App.ipa"`. You can also run `./siboot.wasm` to choose an IPA and pairing method from the interactive menu. If you already have a pairing file, [import it](#migration) instead.
 
 <details>
-<summary>无法取得 Wi-Fi 地址时</summary>
+<summary>If the Wi-Fi address cannot be detected</summary>
 
-在“设置 › Wi-Fi › 当前网络右侧 ⓘ › IP 地址”查看本机 IPv4。将下列示例地址替换为本机地址，代替读取 `ifconfig.txt`：
+Find your device's IPv4 address under **Settings › Wi-Fi › ⓘ beside the current network › IP Address**. Replace the example below with that address to pair without `ifconfig.txt`:
 
 ```sh
 ./siboot.wasm pair --wifi-ip 192.168.1.10
 ```
 
-这个地址用于新配对。日常通过 LocalDevVPN 连接设备的默认地址为 `10.7.0.1:49152`，通常无需修改 `--device-ip` 或 `--port`。
+This address is used for a new pairing. Normal device connections use `10.7.0.1:49152` through LocalDevVPN; you usually do not need to change `--device-ip` or `--port`.
 
 </details>
 
 <details>
-<summary>文件、配对与缓存的保存位置</summary>
+<summary>Files, pairing records, and cached data</summary>
 
-配对、登录和成功安装后，会自动生成相应文件：
+Pairing, sign-in, and a successful installation create the corresponding files:
 
 ```text
 siboot/
-  siboot.wasm                程序
-  App.ipa                    自行准备的本地 IPA
-  ifconfig.txt               新配对前生成的 Wi-Fi 信息
-  rp_pairing_file.plist       已保存的配对文件
-  .siboot/                   加密登录与快速续签缓存
-  siboot-perf-*.jsonl         启用 --perf-log 后的性能日志
+  siboot.wasm                Program
+  App.ipa                    Your local IPA
+  ifconfig.txt               Wi-Fi information for a new pairing
+  rp_pairing_file.plist       Saved pairing record
+  .siboot/                   Encrypted sign-in data and renewal cache
+  siboot-perf-*.jsonl         Performance logs, when --perf-log is enabled
 ```
 
-默认数据目录为程序旁的 `.siboot/`。保留配对文件与数据目录，下次即可复用配对、解锁登录并快速续签。程序升级时，将新版 `siboot.wasm` 放回同一目录。
+The default data directory is `.siboot/` beside the program. Keep it and the pairing record to reuse pairing, unlock saved credentials, and renew the last app. When upgrading, put the new `siboot.wasm` back in the same directory.
 
 </details>
 
 <a id="usage"></a>
 
-## 常用命令
+## Usage
 
-| 命令 | 用途 |
+| Command | Purpose |
 | --- | --- |
-| `./siboot.wasm --ipa App.ipa` | 签名安装本地 IPA |
-| `./siboot.wasm renew` | 续签上次安装的应用 |
-| `./siboot.wasm --perf-log --ipa App.ipa` | 安装并保存性能日志 |
-| `./siboot.wasm pair` | 创建配对，保存到程序同目录 |
-| `./siboot.wasm check` | 检查 VPN 设备连接 |
-| `./siboot.wasm connect` | 验证已保存的配对与完整隧道 |
-| `./siboot.wasm developer-mode` | 请求显示开发者模式 |
-| `./siboot.wasm developer-mode --turn-on` | 确认后请求重启以启用开发者模式 |
-| `./siboot.wasm --lang en` | 使用英文界面 |
-| `./siboot.wasm --help` | 查看全部选项 |
+| `./siboot.wasm --ipa App.ipa` | Sign and install a local IPA |
+| `./siboot.wasm renew` | Renew the last installed app |
+| `./siboot.wasm --perf-log --ipa App.ipa` | Install with performance logging |
+| `./siboot.wasm pair` | Create a pairing record beside the program |
+| `./siboot.wasm check` | Check the VPN connection to the device |
+| `./siboot.wasm connect` | Verify saved pairing and the complete tunnel |
+| `./siboot.wasm developer-mode` | Request that Developer Mode be shown |
+| `./siboot.wasm developer-mode --turn-on` | Request a restart to enable Developer Mode after confirmation |
+| `./siboot.wasm --lang en` | Use the English interface |
+| `./siboot.wasm --help` | Show all options |
 
-### 快速续签
+### Quick renewal
 
-成功安装后，程序保存上次应用的**原始 IPA**。下次运行 `./siboot.wasm renew`，或在启动菜单选择“快速续签”，即可使用上次的开发者团队重新获取签名配置、完整签名并安装。原始 IPA 移走后仍可续签。
+After a successful installation, siboot saves the app's **original IPA**. Run `./siboot.wasm renew`, or choose quick renewal from the startup menu, to obtain fresh provisioning, sign the complete app, and install it using the same developer team. Renewal still works after the source IPA is moved.
 
-免费账户的应用通常有效 7 天，应在到期前续签。续签仍需联网、LocalDevVPN、解锁本地登录存储，以及 Apple 要求的验证。
+Apps signed with a free account typically expire after seven days. Renew before expiry. Renewal requires internet access, LocalDevVPN, your local vault passphrase, and any verification requested by Apple.
 
-### 登录与密码
+### Credentials and passwords
 
-登录时可选择保存 Apple／iCloud 账户。账户密码、会话、签名私钥及 anisette 缓存使用 **scrypt + XChaCha20-Poly1305** 加密，每次使用独立的本地口令解锁。口令至少 12 个字符，不能与 Apple 密码相同，也不会被保存。
+You can save your Apple / iCloud account during sign-in. Account passwords, sessions, signing keys, and the anisette cache are encrypted using **scrypt + XChaCha20-Poly1305** and unlocked with a separate local passphrase. The passphrase must contain at least 12 characters, must differ from your Apple password, and is never stored.
 
-输入密码时，按终端 **Ctrl-V** 切换显示／隐藏，提交时清除显示内容。账户密码和解锁口令保留原有空格及 Unicode 字符。登录菜单支持更新密码、临时使用其他账户和忘记登录。
+Press **Ctrl-V** in the terminal to reveal or hide a password while typing. Visible input is cleared when submitted. Passwords and vault passphrases preserve spaces and Unicode characters. The account menu lets you update a password, temporarily use another account, or forget saved credentials.
 
 <a id="performance"></a>
 
-## 性能诊断日志
+## Performance diagnostics
 
-复现安装或续签缓慢时，增加 `--perf-log`：
+Add `--perf-log` when investigating slow installation or renewal:
 
 ```sh
 ./siboot.wasm --perf-log --ipa App.ipa
 ./siboot.wasm renew --perf-log
 ```
 
-每次运行会在 **`siboot.wasm` 同目录** 新建独立的 `siboot-perf-时间戳-序号.jsonl`，启动与结束时显示具体位置。默认关闭，旧日志保留，`--home` 不改变日志位置。
+Each run creates a separate `siboot-perf-<timestamp>-<sequence>.jsonl` file **beside `siboot.wasm`** and prints its location at startup and completion. Logging is off by default. Existing logs are kept, and `--home` does not change their location.
 
-日志包含签名、网络、逐文件上传和系统安装耗时，便于定位瓶颈。不记录文件名、账户、密码、验证码、令牌、密钥、URL 或请求／响应正文。`--verbose` 用于在终端显示错误详情，可以同时使用。
+Logs include signing, network, per-file upload, and system installation timings. They exclude filenames, account names, passwords, verification codes, tokens, keys, URLs, and request or response bodies. Use `--verbose` alongside this option for error details in the terminal.
 
 <details>
-<summary>日志字段、统计与计时限制</summary>
+<summary>Log fields, statistics, and timing limits</summary>
 
-日志为逐行 JSON，包含版本、时间戳、阶段与重试序号，以及：
+Each line is a JSON event containing version information, timestamps, stages, retry numbers, and relevant measurements:
 
-| 范围 | 记录内容 |
+| Area | Measurements |
 | --- | --- |
-| 签名与本地计算 | scrypt 解锁、RSA 密钥生成、CSR、解压、Mach-O 签名、资源哈希与封印复核耗时 |
-| 网络 | HTTP 请求、WebSocket 握手／接收耗时、状态码和字节数；宿主连接调用合计 DNS、TCP 与 TLS 时间 |
-| 收发统计 | 次数、字节数、累计及最长耗时、采样延迟分桶估计的 P50／P95 上界；协作轮询的短暂超时与实际读写错误分别统计 |
-| 上传与安装 | 条目编号、大小、打开／分块写入／关闭耗时、上传核对和 iOS 安装进度 |
-| 其他 | 用户输入等待、续签缓存耗时、WASM 线性内存容量 |
+| Signing and local computation | scrypt unlock, RSA key generation, CSR, extraction, Mach-O signing, resource hashing, and seal verification timings |
+| Network | HTTP requests, WebSocket handshake and receive timings, status codes, and bytes; host connection calls combine DNS, TCP, and TLS time |
+| Send and receive statistics | Calls, bytes, cumulative and maximum duration, estimated P50 / P95 histogram upper bounds; cooperative polling timeouts are counted separately from actual I/O errors |
+| Upload and installation | Entry numbers and sizes, open / chunk write / close timings, upload verification, and iOS installation progress |
+| Other | Input waiting time, renewal cache timings, and WASM linear memory capacity |
 
-最后一行 `summary` 汇总结果、各操作统计和 `log_write_us`（已统计的序列化／写入耗时）。文件按编号关联，可以将日志用于后续性能分析。
+The final `summary` event contains the outcome, operation statistics, and `log_write_us`, the measured serialization and write time. Files are identified by entry number.
 
-关键阶段立即刷新，持续 I/O 约每秒刷新统计。详细事件达到 **16 MiB** 后停止新增，仍保留最终统计和 `dropped_events` 数量。正常退出会写入摘要；强制终止可能缺少最后的缓冲数据及摘要。
+Critical stages flush immediately; ongoing I/O flushes statistics roughly once per second. Detailed events stop at **16 MiB**, while final statistics and the `dropped_events` count are retained. Normal exits write a summary. Force-quitting may lose the last buffered events and summary.
 
-这些是**墙钟耗时**，嵌套／并发操作会重叠，不能简单相加；WASI 时钟通常约 1 ms 精度。计时不包括 rootshell 加载 WASM 的时间；内存字段是线性内存容量，不是系统进程的实际 RAM 占用。开启日志也会增加采集和写入开销，建议与关闭日志的运行结果对照。
+Measurements are **wall-clock durations**. Nested or concurrent operations overlap and must not be added together. The WASI clock usually has about 1 ms resolution. Timing excludes loading the WASM module. Memory values describe linear memory capacity rather than physical process RAM. Logging adds collection and write overhead; compare runs with logging enabled and disabled.
 
 </details>
 
 <details>
-<summary>完整签名、上传与步骤重试</summary>
+<summary>Signing, uploads, and retries</summary>
 
-- 递归签名主程序、App Extension、ExtensionKit、Framework、dylib 和其他 Mach-O。
-- 封存并复核 `.config`、隐藏文件等资源。普通配置文件通过资源封印保护，不是可独立代码签名的程序。
-- 保留 IPA 内符号链接；rootshell 的 WASI 文件层中保留链接元数据，上传时通过 AFC 在设备上重建。
-- 大文件以 1 MiB 缓冲区读取和发送，安装前核对所有文件大小和链接目标。
-- 步骤失败后可重试当前步骤。安装重试复用已完成的签名结果，并重新建立隧道。
+- Sign the main executable, App Extensions, ExtensionKit extensions, frameworks, dylibs, and other Mach-O files recursively.
+- Seal and verify `.config`, hidden files, and other resources. Configuration files are protected by the resource seal; they are not independently signed executables.
+- Preserve IPA symbolic links through WASI file metadata, then recreate them on the device through AFC.
+- Read and send large files with a 1 MiB buffer; verify all file sizes and link targets before installation.
+- Retry the current step after a failure. Installation retries reuse completed signing work and establish a new tunnel.
 
 </details>
 
 <a id="migration"></a>
 
-## iSH／Minis 版弃用与迁移
+## Migrating from iSH / Minis
 
-iSH／Minis 旧版已弃用，不再更新功能或发布新的 `siboot-aarch64`。历史 [0.20.0 Release](https://github.com/Jay-Void-BA/SideInstaller/releases/tag/siboot-v0.20.0) 仅作归档。该文件是 Linux ARM64 程序，不能在 rootshell 中执行。
+The iSH / Minis version is deprecated and no longer receives feature updates or new `siboot-aarch64` builds. The [0.20.0 release](https://github.com/Jay-Void-BA/SideInstaller/releases/tag/siboot-v0.20.0) is an archive. Its Linux ARM64 executable cannot run in rootshell.
 
-1. 按[rootshell 版配置](#quick-start)安装应用、配置权限并下载 `siboot.wasm`。
-2. 从旧应用通过“文件”的分享或拷贝功能，导出**原始 IPA** 和 RPPairing 文件到 `rootshell/siboot`。两者的文件系统属于不同应用，无法直接互相访问。
-3. 在 rootshell 本地终端进入该目录，替换下列文件名后运行：
+1. Follow [Getting started](#quick-start) to install the apps, configure permissions, and download `siboot.wasm`.
+2. Use Files or the old app's sharing feature to export the **original IPA** and RPPairing record into `rootshell/siboot`. The apps have separate filesystems and cannot access each other's sandbox directly.
+3. Open that directory in rootshell's local terminal, replace the filenames below with your own, and run:
 
    ```sh
    ./siboot.wasm --pairing-file from-ish.plist --ipa App.ipa
    ```
 
-4. 在 rootshell 重新登录并保存本地登录存储。第一次成功安装后会建立新的续签缓存，后续运行 `./siboot.wasm renew`。
+4. Sign in again and save credentials in rootshell. The first successful installation creates a new renewal cache; use `./siboot.wasm renew` afterward.
 
-支持 RPPairing 的 plist、JSON 和已知包装格式；传统电脑 lockdown 配对文件不能直接用于这个隧道。没有可用文件时，在 rootshell 中[重新配对](#首次配对与安装)。
+RPPairing plist, JSON, and known wrapper formats are supported. Traditional desktop lockdown pairing files cannot be used for this tunnel. If you do not have a usable record, [create a new pairing](#first-install).
 
-导入时先验证文件与本机的配对，再将副本保存为 **程序同目录的 `rp_pairing_file.plist`**。导入失败时保留旧副本和源文件。配对文件含设备信任密钥，请妥善保管。
+Imports are verified against the device before a copy is saved as **`rp_pairing_file.plist` beside the program**. Failed imports preserve both the saved record and the source file. Pairing records contain device trust keys; keep them private.
 
-## 常见问题
+## Troubleshooting
 
-### 安装耗时较长
+### Installation takes a long time
 
-程序分别显示上传、文件核对和 iOS 安装耗时。解压、哈希／签名、Apple／anisette 请求、加密隧道、许多小文件的往返及系统 `installd` 都可能占用时间。rootshell 使用 WASM，不保证比 Minis 更快；系统安装时间由 iOS 决定。使用[性能诊断日志](#performance)判断具体耗时阶段。
+siboot reports upload, file verification, and iOS installation timings separately. Extraction, hashing and signing, Apple and anisette requests, encrypted tunnels, many small-file round trips, and system `installd` work can all contribute. Running as WASM in rootshell does not guarantee a speedup over Minis; system installation time is controlled by iOS. Use [performance logs](#performance) to locate the slow stage.
 
-### 配对入口没有出现
+### The pairing entry does not appear
 
-确认 Wi-Fi 已开启、rootshell 已获本地网络权限，Location Diary Mode 为 Session Only。切换到系统设置时保持程序运行，等待数秒；换过 Wi-Fi 后重新生成 `ifconfig.txt`，或显式传入本机 `--wifi-ip`。
+Check that Wi-Fi is on, rootshell has Local Network permission, and Location Diary Mode is set to Session Only. Keep the program running while switching to Settings and allow a few seconds for discovery. After changing Wi-Fi networks, regenerate `ifconfig.txt` or pass the device's current `--wifi-ip` explicitly.
 
-### 数据目录提示被占用
+### The data directory is reported as busy
 
-若上次被强制终止，先结束所有 siboot 标签页，确认没有程序仍在使用该目录，再逐条执行：
+If a previous run was force-quit, close all siboot terminal tabs first. Confirm that no process is still using the directory, then run these commands one at a time:
 
 ```sh
 rm .siboot/apple-login.active
@@ -273,14 +279,14 @@ rm .siboot/apple-login.active
 
 <a id="development"></a>
 
-## 开发与验证
+## Development
 
-rootshell 是当前面向用户维护和发布的目标。仓库保留上游 iOS 应用、已弃用的 iSH／Minis 源码及兼容性测试，共享同一套签名核心。源码布局见[补丁说明](https://github.com/Jay-Void-BA/SideInstaller/blob/main/patches/siboot/README.md)。
+rootshell is the actively maintained user-facing target. The repository retains the original iOS app, deprecated iSH / Minis sources, and compatibility checks around the shared signing core. See the [source preparation guide](https://github.com/Jay-Void-BA/SideInstaller/blob/main/patches/siboot/README.md) for the layout.
 
 <details>
-<summary>从源码构建与运行检查</summary>
+<summary>Build from source and run checks</summary>
 
-在 SideInstaller 仓库根目录执行：
+From the SideInstaller repository root:
 
 ```sh
 bash scripts/prepare-minis.sh /tmp/siboot-source
@@ -289,27 +295,27 @@ cargo build --manifest-path /tmp/siboot-source/rootshell/Cargo.toml --release --
 bash scripts/check-rootshell-runtime.sh /tmp/siboot-source/rootshell/target/wasm32-wasip1/release/siboot.wasm /tmp/siboot-source/rootshell/target/wasm32-wasip1/release/examples/runtime_check.wasm
 ```
 
-脚本名称为兼容已有开发流程保留。旧源码和测试的留存，不代表继续支持旧版安装方式。
+The script name is retained for compatibility with existing development workflows. Keeping old source and tests does not imply continued support for the deprecated installation method.
 
 </details>
 
-CI 检查共享 Rust 测试、rootshell 测试、WASI 编译，以及固定版本 **rootshell 原版 Worker** 中的加密保存、CSR、完整 CMS 签名、符号链接、续签、密码切换、HTTP／WebSocket 和软件 TCP 传输。通过全部检查后，发布流程为尚未发布的版本生成 `siboot.wasm` 与 SHA-256，并标记 Latest。
+CI covers shared Rust tests, rootshell tests, WASI builds, and execution in a pinned, unmodified **rootshell Worker**. Runtime checks exercise encrypted storage, CSR generation, complete CMS signatures, symbolic links, renewal, password visibility, HTTP / WebSocket, and software TCP transport. Once checks pass, the release workflow builds `siboot.wasm` and its SHA-256 manifest for an unpublished version and marks that release as Latest.
 
-**尚未完成真实 Apple 账号到 iPhone 安装的端到端验证。**
+**End-to-end installation with a real Apple Account and iPhone has not yet been verified.**
 
-## 作者与致谢
+## Acknowledgements
 
-| 作者／项目 | 贡献 |
+| Author / project | Contribution |
 | --- | --- |
-| [Jay-Void-BA](https://github.com/Jay-Void-BA) | 本 fork 定制、维护与 rootshell 移植 |
-| [FrizzleM](https://github.com/FrizzleM) | 原作 [siboot](https://github.com/FrizzleM/siboot) 与 [SideInstaller by FrizzleM](https://github.com/FrizzleM/SideInstaller) |
-| [kitknox/rootshell](https://github.com/kitknox/rootshell) | 终端与 WASM 运行环境 |
-| [jkcoxson/idevice](https://github.com/jkcoxson/idevice) | 设备通信 |
-| [nab138/isideload](https://github.com/nab138/isideload) | 侧载与签名流程 |
-| [apple-codesign-quick](https://github.com/Dadoum/apple-crates) | Apple 代码签名 |
+| [Jay-Void-BA](https://github.com/Jay-Void-BA) | Development, maintenance, and rootshell support |
+| [FrizzleM](https://github.com/FrizzleM) | Original ideas and projects: [siboot](https://github.com/FrizzleM/siboot) and [SideInstaller by FrizzleM](https://github.com/FrizzleM/SideInstaller); this implementation includes code from those projects |
+| [kitknox/rootshell](https://github.com/kitknox/rootshell) | Terminal and WASM runtime |
+| [jkcoxson/idevice](https://github.com/jkcoxson/idevice) | Device communication |
+| [nab138/isideload](https://github.com/nab138/isideload) | Sideloading and signing workflows |
+| [apple-codesign-quick](https://github.com/Dadoum/apple-crates) | Apple code signing |
 
-Jay-Void-BA 与 FrizzleM 的署名均保留在运行界面中。原作者信息、历史源码、版权及许可证继续保留。
+Thanks to FrizzleM for the original design and groundwork. Both Jay-Void-BA and FrizzleM remain credited in the running program. Original copyright notices and applicable licenses are retained.
 
-## 许可证
+## License
 
-本仓库沿用 [SideInstaller 自定义许可证](https://github.com/Jay-Void-BA/SideInstaller/blob/main/LICENSE.md)，使用与分发请遵循其中条款。各 vendored 依赖保留其作者与各自许可证。
+See the [SideInstaller license](https://github.com/Jay-Void-BA/SideInstaller/blob/main/LICENSE.md) for usage and distribution terms. Vendored dependencies retain their own copyright notices and licenses.

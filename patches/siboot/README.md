@@ -4,7 +4,7 @@
 
 [retry-local-ipa.patch](retry-local-ipa.patch) 包含当前 rootshell 完整安装器、保留的 Minis 安装器、共享中文词条及上游仓库文档。共享核心位于本仓库的 `rust-core/`；准备脚本将其接入源码树。
 
-**iSH／Minis 旧版已弃用（deprecated）**，不再提供该平台的功能更新或二进制发布。rootshell 的应用安装、权限、网络、目录及配对配置见[主 README](../../README.md#rootshell-版配置)。旧版源码与兼容性测试仅保留供共享实现、迁移和参考。
+**iSH／Minis 旧版已弃用（deprecated）**，不再提供该平台的功能更新或二进制发布。rootshell 的应用安装、权限、网络、目录及配对配置见[主 README](../../README.zh-CN.md#quick-start)。旧版源码与兼容性测试仅保留供共享实现、迁移和参考。
 
 ## 准备与构建
 
@@ -38,4 +38,4 @@ rootshell 新增 `--perf-log`，在 WASM 同目录生成独立的 JSONL 性能�
 
 `.github/siboot-release.json` 声明当前版本。`checks.yml` 检查共享核心、Minis 和 rootshell；rootshell 额外进行 WASI 编译及固定版本原版 Worker 中的离线运行测试。`release-siboot.yml` 仅针对通过全部检查的同一源码提交构建，复验后发布 `siboot.wasm`、`SHA256SUMS`，并标记 Latest。
 
-实际 Apple 登录及 iPhone 安装仍需真机验证。已弃用的 Minis 0.20.0 的 `siboot-aarch64` 仅保留为历史归档；基线中已有的二进制和安装脚本不作为本 fork 当前的发布成品。旧用户应按主 README 将 IPA 与 RPPairing 文件复制到 rootshell 后迁移。
+实际 Apple 登录及 iPhone 安装仍需真机验证。已弃用的 Minis 0.20.0 的 `siboot-aarch64` 仅保留为历史归档；基线中已有的二进制和安装脚本不作为当前发布成品。旧用户应按主 README 将 IPA 与 RPPairing 文件复制到 rootshell 后迁移。
