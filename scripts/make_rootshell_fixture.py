@@ -17,7 +17,7 @@ def macho():
     return data
 
 
-def create(folder):
+def create(folder, large_directory=False):
     folder = pathlib.Path(folder)
     folder.mkdir(parents=True, exist_ok=True)
     # This key belongs only to an offline fixture, never an Apple Account.
@@ -44,6 +44,10 @@ def create(folder):
             archive.writestr(base + '.config', b'must be sealed')
         for name in ['Resources/.config', 'PlugIns/Tools/injected.dylib', 'Hidden/.bin/driver']:
             archive.writestr('Payload/Fixture.app/' + name, b'configuration' if name.endswith('.config') else macho())
+        if large_directory:
+            for index in range(320):
+                archive.writestr(f'Payload/Fixture.app/ManyFiles/resource-{index:04d}.dat', b'must be sealed beyond the first readdir buffer')
+            (folder / 'large-directory.fixture').write_text('320')
         link = zipfile.ZipInfo('Payload/Fixture.app/Resources/link.dylib')
         link.create_system = 3
         link.external_attr = 0o120777 << 16
@@ -64,4 +68,4 @@ def create(folder):
 
 
 if __name__ == '__main__':
-    create(sys.argv[1])
+    create(sys.argv[1], '--large-directory' in sys.argv[2:])

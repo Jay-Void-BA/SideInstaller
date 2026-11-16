@@ -1,5 +1,12 @@
 # Changelog
 
+## siboot 0.21.2 — older rootshell startup compatibility
+
+- Load the receive-timeout API through the optional ABI and reject zero-returning stubs during capability detection.
+- Start on older rootshell Workers; keep pairing and TCP reachability checks available without entering an unbounded receive. Full installation and renewal fail clearly before Apple sign-in when host receive timeouts are missing.
+- Publish a build-175 host backport for developers rebuilding rootshell, including receive timeouts and complete directory pagination.
+- Gate releases on legacy, modern, and backported Workers; verify complete sealing of a directory containing 320 resources.
+
 ## siboot 0.21.1 — rootshell 性能日志
 
 - 增加 `--perf-log`，在 WASM 同目录生成独立的 JSONL 诊断日志。

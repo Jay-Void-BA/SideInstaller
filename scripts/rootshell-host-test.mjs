@@ -13,13 +13,14 @@ import { gzipSync } from 'node:zlib';
 import { spawnSync } from 'node:child_process';
 import assert from 'node:assert/strict';
 
-export const HOST_REV = 'f5adabe57ddb2959922e135e622fb9776641735f';
 const ERRNO = { ENOENT: 44, EEXIST: 20, EACCES: 2, EPERM: 2, ENOTDIR: 54, EISDIR: 31, ENOTEMPTY: 55, ECONNREFUSED: 14, ETIMEDOUT: 73 };
 
 export async function runWasm(workerSource, wasm, argv, { root, input = '', env = {}, timeout = 60000, failLogWritesAfter = Infinity } = {}) {
   root ??= fs.mkdtempSync(path.join(os.tmpdir(), 'siboot-rootshell-'));
   const handles = new Map([[3, { path: root, preopen: '.' }], [4, { path: root, preopen: '/' }]]);
   const sockets = new Map();
+  const socketOperations = {};
+  const receiveTimeouts = workerSource.includes('rootshell_socket_set_recv_timeout(fd,');
   let next = 5, nextSocket = 10, raw = false, stdout = '', stderr = '', calls = 0, logWrites = 0;
   let inputBytes = Buffer.from(input), inputOffset = 0;
   const rawModes = [];
@@ -79,9 +80,10 @@ export async function runWasm(workerSource, wasm, argv, { root, input = '', env 
     }
   };
   const socketCall = async p => {
+    socketOperations[p.op] = (socketOperations[p.op] || 0) + 1;
     const s = sockets.get(p.fd);
     switch (p.op) {
-      case 'socket': { const fd = nextSocket++; sockets.set(fd, { timeout: 30000, buffer: Buffer.alloc(0), ended: false, changed: new EventEmitter() }); return { fd }; }
+      case 'socket': { const fd = nextSocket++; sockets.set(fd, { timeout: receiveTimeouts ? 30000 : null, buffer: Buffer.alloc(0), ended: false, changed: new EventEmitter() }); return { fd }; }
       case 'connect': case 'tls_connect': {
         assert(s);
         // Tests never contact an Apple Account or an external service.
@@ -93,7 +95,12 @@ export async function runWasm(workerSource, wasm, argv, { root, input = '', env 
         await new Promise((resolve, reject) => { s.stream.once(p.op === 'tls_connect' ? 'secureConnect' : 'connect', resolve); s.stream.once('error', reject); });
         return {};
       }
-      case 'set_recv_timeout': s.timeout = p.timeoutMs; return {};
+      case 'set_recv_timeout': {
+        assert(receiveTimeouts, 'the legacy Swift broker has no timeout operation');
+        if (!s) return { errno: 8 };
+        s.timeout = p.timeoutMs || null;
+        return {};
+      }
       case 'send': {
         const bytes = Buffer.from(p.data, 'base64');
         const count = Math.min(bytes.length, 997); // Deliberate short writes.
@@ -102,7 +109,7 @@ export async function runWasm(workerSource, wasm, argv, { root, input = '', env 
       }
       case 'recv': {
         if (!s.buffer.length && !s.ended && !s.error) {
-          await new Promise(resolve => { const done = () => { clearTimeout(timer); s.changed.removeListener('change', done); resolve(); }; const timer = setTimeout(done, s.timeout || 30000); s.changed.once('change', done); });
+          await new Promise(resolve => { const done = () => { clearTimeout(timer); s.changed.removeListener('change', done); resolve(); }; const timer = s.timeout == null ? undefined : setTimeout(done, s.timeout); s.changed.once('change', done); });
         }
         if (s.error) return { errno: s.error };
         if (!s.buffer.length) return s.ended ? { data: '' } : { errno: 6 };
@@ -129,7 +136,7 @@ export async function runWasm(workerSource, wasm, argv, { root, input = '', env 
       await worker.terminate();
       for (const h of handles.values()) if (h.native != null) fs.closeSync(h.native);
       for (const s of sockets.values()) s.stream?.destroy();
-      error ? reject(error) : resolve({ code, stdout, stderr, rawModes, raw, calls, root });
+      error ? reject(error) : resolve({ code, stdout, stderr, rawModes, raw, calls, root, socketOperations });
     };
     const timer = setTimeout(() => finish(new Error(`rootshell WASM timed out: ${stdout.slice(-1500)} ${stderr}`)), timeout);
     worker.on('error', error => finish(error));
@@ -178,12 +185,20 @@ function performanceLog(result, directory = result.root) {
 }
 
 if (process.argv[1] === new URL(import.meta.url).pathname) {
-  const [workerPath, wasm, probe] = process.argv.slice(2);
+  const [workerPath, wasm, probe, profile = 'modern'] = process.argv.slice(2);
+  assert(['modern', 'legacy', 'backport'].includes(profile), `unknown host profile ${profile}`);
+  const legacy = profile === 'legacy';
+  console.log(`Checking rootshell Worker profile: ${profile}`);
   assert(workerPath && wasm, 'usage: node rootshell-host-test.mjs WASM_WORKER_JS SIBOOT_WASM');
   const source = fs.readFileSync(workerPath, 'utf8');
   const module = new WebAssembly.Module(fs.readFileSync(wasm));
   for (const imp of WebAssembly.Module.imports(module)) {
+    if (imp.module === 'env') {
+      assert.equal(imp.name, 'rootshell_socket_set_recv_timeout', `unexpected optional import ${imp.name}`);
+      continue;
+    }
     assert(['wasi_snapshot_preview1', 'rootshell_socket', 'rootshell_terminal'].includes(imp.module), `unexpected import ${imp.module}.${imp.name}`);
+    assert.notEqual(imp.name, 'rootshell_socket_set_recv_timeout', 'optional timeout ABI must not prevent legacy module startup');
     assert(!/thread|pthread|sock_/.test(imp.name), `unported import ${imp.name}`);
   }
   for (const arg of ['--version', '--help']) {
@@ -227,13 +242,50 @@ if (process.argv[1] === new URL(import.meta.url).pathname) {
   assert.equal(cannotLog.code, 1);
   assert(cannotLog.stderr.includes("Couldn't create the performance log."));
   console.log('PASS rootshell Worker opt-in performance logs, unique filenames, failure/cancellation summaries and storage errors');
+  if (legacy) {
+    assert(!source.includes('rootshell_socket_set_recv_timeout(fd,'), 'legacy tests must use the unmodified old Worker');
+    const renamed = await runWasm(source, wasm, ['/j.wasm', '--version']);
+    assert.equal(renamed.code, 0, renamed.stdout + renamed.stderr);
+    assert(!renamed.stderr.includes('must be callable'));
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'siboot-legacy-'));
+    const fixture = spawnSync('python3', [new URL('./make_rootshell_fixture.py', import.meta.url).pathname, root], { encoding: 'utf8' });
+    assert.equal(fixture.status, 0, fixture.stderr);
+    fs.copyFileSync(path.join(root, 'Fixture.ipa'), path.join(root, 'App.ipa'));
+    const blocked = await runWasm(source, wasm, ['./siboot.wasm', '--ipa', '/App.ipa', '--perf-log', '--lang', 'en'], { root });
+    assert.equal(blocked.code, 1, blocked.stdout + blocked.stderr);
+    assert(blocked.stdout.includes('lacks socket receive-timeout support'), blocked.stdout);
+    assert.deepEqual(blocked.socketOperations, {}, 'unsupported installation must fail before network or Apple login');
+    assert.equal(performanceLog(blocked).summary.outcome, 'error');
+    assert(performanceLog(blocked).records.some(r => r.event === 'runtime.capabilities' && r.data.receive_timeouts === 0));
+    for (const command of ['connect', 'developer-mode']) {
+      const result = await runWasm(source, wasm, ['./siboot.wasm', command, '--lang', 'en']);
+      assert.equal(result.code, 1, result.stdout + result.stderr);
+      assert(result.stdout.includes('lacks socket receive-timeout support'));
+      assert.deepEqual(result.socketOperations, {});
+    }
+    const chinese = await runWasm(source, wasm, ['./siboot.wasm', 'connect']);
+    assert.equal(chinese.code, 1);
+    assert(chinese.stdout.includes('缺少 socket 接收超时接口'), chinese.stdout);
+    const listener = net.createServer(connection => connection.on('error', () => {}));
+    await new Promise(resolve => listener.listen(0, '127.0.0.1', resolve));
+    try {
+      const result = await runWasm(source, wasm, ['./siboot.wasm', 'check', '--device-ip', '127.0.0.1', '--port', String(listener.address().port), '--lang', 'en']);
+      assert.equal(result.code, 0, result.stdout + result.stderr);
+      assert(result.stdout.includes('TCP reachability only'));
+      assert.equal(result.socketOperations.connect, 1);
+      assert.equal(result.socketOperations.recv, undefined, 'legacy reachability must never enter an unbounded read');
+      assert.equal(result.socketOperations.set_recv_timeout, undefined);
+    } finally { listener.close(); }
+    console.log('PASS unmodified legacy Worker starts, reports unavailable capabilities before login, and checks TCP without unbounded receives');
+  }
   if (probe) {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'siboot-offline-'));
-    const fixture = spawnSync('python3', [new URL('./make_rootshell_fixture.py', import.meta.url).pathname, root], { encoding: 'utf8' });
+    const fixture = spawnSync('python3', [new URL('./make_rootshell_fixture.py', import.meta.url).pathname, root, ...(!legacy ? ['--large-directory'] : [])], { encoding: 'utf8' });
     assert.equal(fixture.status, 0, fixture.stderr);
     const offline = await runWasm(source, probe, ['./runtime_check.wasm', '--perf-log'], { root, timeout: 180000 });
     assert.equal(offline.code, 0, offline.stdout + offline.stderr);
     for (const marker of ['VAULT_OK', 'CSR_OK', 'COMPLETE_SIGNING_OK', 'INVALID_LINKS_REJECTED', 'RENEW_PAIRING_OK']) assert(offline.stdout.includes(marker), offline.stdout);
+    if (!legacy) assert(offline.stdout.includes('LARGE_DIRECTORY_SEALED'), offline.stdout);
     const offlineLog = performanceLog(offline);
     for (const operation of ['vault.scrypt', 'sign.csr', 'ipa.extract', 'sign.macho', 'sign.macho.encode', 'sign.resource', 'sign.resource.hash', 'sign.verify_seals']) {
       assert(offlineLog.records.some(record => record.operation === operation || record.metrics?.[operation]), `missing performance measurement: ${operation}`);
@@ -252,6 +304,7 @@ if (process.argv[1] === new URL(import.meta.url).pathname) {
     assert(!cancelled.stdout.includes('never-log-this-secret'));
     assert.deepEqual(cancelled.rawModes, [true, false]);
     assert(performanceLog(cancelled).records.some(record => record.operation === 'ui.wait' && record.outcome === 'cancelled'));
+    if (!legacy) {
     const untrusted = tls.createServer({ key: fs.readFileSync(path.join(root, 'test-key.pem')), cert: fs.readFileSync(path.join(root, 'test-cert.pem')) });
     untrusted.on('tlsClientError', () => {});
     await new Promise(resolve => untrusted.listen(0, '127.0.0.1', resolve));
@@ -337,6 +390,7 @@ if (process.argv[1] === new URL(import.meta.url).pathname) {
       assert(logFailure.stderr.includes('The performance log could not be completely saved.'));
       console.log('PASS rootshell Worker HTTP, anisette WebSocket, short writes, concurrent TCP/timers and 64 KiB software TCP transfer');
     } finally { server.close(); }
+    }
   }
   console.log(`WASM SHA-256 ${createHash('sha256').update(fs.readFileSync(wasm)).digest('hex')}`);
 }

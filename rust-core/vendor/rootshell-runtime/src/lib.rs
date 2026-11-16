@@ -11,10 +11,50 @@ unsafe extern "C" {
     fn rootshell_socket_socket(domain: i32, kind: i32, fd_out: *mut i32) -> i32;
     fn rootshell_socket_connect_host(fd: i32, host: *const u8, len: i32, port: i32) -> i32;
     fn rootshell_socket_tls_connect_host(fd: i32, host: *const u8, len: i32, port: i32) -> i32;
-    fn rootshell_socket_set_recv_timeout(fd: i32, timeout_ms: u32) -> i32;
     fn rootshell_socket_send(fd: i32, buf: *const u8, len: i32, sent: *mut u32) -> i32;
     fn rootshell_socket_recv(fd: i32, buf: *mut u8, len: i32, received: *mut u32) -> i32;
     fn rootshell_socket_close(fd: i32) -> i32;
+}
+
+// Older rootshell Workers stub unknown `env` functions, but reject missing
+// functions in `rootshell_socket` before `_start`, even for --version/--help.
+// Probe the optional function with an invalid fd: the real host returns EBADF;
+// an old Worker's zero-returning stub must never count as timeout support.
+#[cfg(target_os = "wasi")]
+#[link(wasm_import_module = "env")]
+unsafe extern "C" {
+    fn rootshell_socket_set_recv_timeout(fd: i32, timeout_ms: u32) -> i32;
+}
+
+pub const RECEIVE_TIMEOUT_REQUIRED: &str = "This rootshell build lacks socket receive-timeout support. Pairing and connection checks are available; full installation and renewal require a newer rootshell build or the receive-timeout backport.";
+
+#[cfg(any(target_os = "wasi", test))]
+fn is_timeout_api(code: i32) -> bool {
+    code == 8 // EBADF from the real broker, not success from an env stub.
+}
+
+pub fn receive_timeout_supported() -> bool {
+    #[cfg(target_os = "wasi")]
+    {
+        static SUPPORTED: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+        *SUPPORTED
+            .get_or_init(|| is_timeout_api(unsafe { rootshell_socket_set_recv_timeout(-1, 1) }))
+    }
+    #[cfg(not(target_os = "wasi"))]
+    {
+        true
+    }
+}
+
+pub fn require_receive_timeout() -> io::Result<()> {
+    if receive_timeout_supported() {
+        Ok(())
+    } else {
+        Err(io::Error::new(
+            io::ErrorKind::Unsupported,
+            RECEIVE_TIMEOUT_REQUIRED,
+        ))
+    }
 }
 
 #[cfg(target_os = "wasi")]
@@ -60,7 +100,7 @@ impl Socket {
             &[],
         );
         perf::checkpoint();
-        let result = Self::connect_inner(host, port, tls);
+        let result = Self::connect_inner(host, port, tls, true);
         span.finish(
             if result.is_ok() {
                 perf::Outcome::Ok
@@ -72,7 +112,27 @@ impl Socket {
         result
     }
 
-    fn connect_inner(host: &str, port: u16, tls: bool) -> io::Result<Self> {
+    /// Check TCP reachability without exposing an unbounded reader to callers.
+    /// This remains usable on old hosts that have no receive-timeout API.
+    pub fn probe_connection(host: &str, port: u16) -> io::Result<()> {
+        let span = perf::span("socket.probe_connect", &[]);
+        perf::checkpoint();
+        let result = Self::connect_inner(host, port, false, false).map(drop);
+        span.finish(
+            if result.is_ok() {
+                perf::Outcome::Ok
+            } else {
+                perf::Outcome::Error
+            },
+            &[],
+        );
+        result
+    }
+
+    fn connect_inner(host: &str, port: u16, tls: bool, read_timeout: bool) -> io::Result<Self> {
+        if read_timeout {
+            require_receive_timeout()?;
+        }
         #[cfg(target_os = "wasi")]
         {
             let mut fd = -1;
@@ -96,7 +156,9 @@ impl Socket {
                 }
             };
             errno(code)?;
-            socket.set_read_timeout(Duration::from_secs(30))?;
+            if read_timeout {
+                socket.set_read_timeout(Duration::from_secs(30))?;
+            }
             Ok(socket)
         }
         #[cfg(not(target_os = "wasi"))]
@@ -118,7 +180,9 @@ impl Socket {
                             stream,
                             cooperative: false,
                         };
-                        socket.set_read_timeout(Duration::from_secs(30))?;
+                        if read_timeout {
+                            socket.set_read_timeout(Duration::from_secs(30))?;
+                        }
                         return Ok(socket);
                     }
                     Err(e) => error = e,
@@ -129,6 +193,7 @@ impl Socket {
     }
 
     pub fn set_read_timeout(&self, duration: Duration) -> io::Result<()> {
+        require_receive_timeout()?;
         #[cfg(target_os = "wasi")]
         unsafe {
             errno(rootshell_socket_set_recv_timeout(
@@ -278,3 +343,26 @@ pub mod fs {
 pub mod vfs;
 
 pub mod perf;
+
+#[cfg(test)]
+mod compatibility_tests {
+    #[test]
+    fn missing_function_stub_is_not_a_capability() {
+        assert!(super::is_timeout_api(8));
+        for code in [0, 1, 28, 52, 76, -1] {
+            assert!(!super::is_timeout_api(code), "unexpected host errno {code}");
+        }
+    }
+
+    #[test]
+    fn reachability_probe_closes_without_waiting_for_data() {
+        use std::io::Read;
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        super::Socket::probe_connection("127.0.0.1", listener.local_addr().unwrap().port())
+            .unwrap();
+        let (mut peer, _) = listener.accept().unwrap();
+        peer.set_read_timeout(Some(std::time::Duration::from_secs(1)))
+            .unwrap();
+        assert_eq!(peer.read(&mut [0]).unwrap(), 0);
+    }
+}

@@ -1,8 +1,8 @@
 diff --git a/README.md b/README.md
-index 683de33..ef48429 100644
+index 683de33..940908b 100644
 --- a/README.md
 +++ b/README.md
-@@ -1,3 +1,321 @@
+@@ -1,3 +1,334 @@
 -To use it, follow the following instructions: https://sideinstaller.net/install.html
 +<h1 align="center">siboot</h1>
  
@@ -17,14 +17,14 @@ index 683de33..ef48429 100644
 +</p>
 +
 +<p align="center">
-+  <a href="https://github.com/Jay-Void-BA/SideInstaller/releases/tag/siboot-v0.21.1"><img src="https://img.shields.io/badge/release-0.21.1-2563eb?style=flat-square" alt="siboot 0.21.1"></a>
++  <a href="https://github.com/Jay-Void-BA/SideInstaller/releases/tag/siboot-v0.21.2"><img src="https://img.shields.io/badge/release-0.21.2-2563eb?style=flat-square" alt="siboot 0.21.2"></a>
 +  <a href="https://github.com/Jay-Void-BA/SideInstaller/actions/workflows/checks.yml"><img src="https://github.com/Jay-Void-BA/SideInstaller/actions/workflows/checks.yml/badge.svg?branch=main" alt="CI status"></a>
 +  <a href="#requirements"><img src="https://img.shields.io/badge/platform-rootshell%20%7C%20iOS%2027%2B-64748b?style=flat-square" alt="rootshell · iOS / iPadOS 27+"></a>
 +  <a href="https://github.com/Jay-Void-BA/SideInstaller/blob/main/LICENSE.md"><img src="https://img.shields.io/badge/license-Custom-64748b?style=flat-square" alt="SideInstaller custom license"></a>
 +</p>
 +
 +<p align="center">
-+  <a href="https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.21.1/siboot.wasm">Download</a> ·
++  <a href="https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.21.2/siboot.wasm">Download</a> ·
 +  <a href="#quick-start">Quick start</a> ·
 +  <a href="#usage">Usage</a> ·
 +  <a href="#performance">Diagnostics</a> ·
@@ -67,6 +67,19 @@ index 683de33..ef48429 100644
 +
 +Apple authentication, anisette, and provisioning require internet access. The name rootshell does not imply iOS root access.
 +
++<a id="compatibility"></a>
++
++## rootshell compatibility
++
++| Runtime capability | Available functionality |
++| --- | --- |
++| Older Workers, including the 1.0.15 / build-175 ABI, without receive timeouts | Startup, help, the menu, pairing, and TCP reachability checks with `check` |
++| Workers with the socket receive-timeout API | The complete installation, renewal, and device tunnel workflow |
++
++The receive-timeout function is optional at load time. If it is missing, installation, renewal, `connect`, and Developer Mode operations stop with an explanation before Apple sign-in. A successful `check` on an older host confirms TCP reachability only.
++
++For complete installation, update rootshell to a build with `rootshell_socket_set_recv_timeout` (verified with the upstream build-178 Worker). Developers retaining build 175 can apply the [host backport](https://github.com/Jay-Void-BA/SideInstaller/blob/main/patches/rootshell/README.md) and rebuild rootshell. The patch also fixes directory pagination so large bundles are enumerated completely. Updating the WASM file alone cannot add a missing host API.
++
 +<a id="quick-start"></a>
 +<a id="rootshell-版配置"></a>
 +
@@ -99,18 +112,18 @@ index 683de33..ef48429 100644
 +Run these commands from the working directory:
 +
 +```sh
-+curl -fL -C - -o siboot-v0.21.1.wasm.part https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.21.1/siboot.wasm
-+sha256sum siboot-v0.21.1.wasm.part
++curl -fL -C - -o siboot-v0.21.2.wasm.part https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.21.2/siboot.wasm
++sha256sum siboot-v0.21.2.wasm.part
 +```
 +
-+Compare the hash with [SHA256SUMS](https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.21.1/SHA256SUMS) attached to the [release](https://github.com/Jay-Void-BA/SideInstaller/releases/tag/siboot-v0.21.1). When it matches, run:
++Compare the hash with [SHA256SUMS](https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.21.2/SHA256SUMS) attached to the [release](https://github.com/Jay-Void-BA/SideInstaller/releases/tag/siboot-v0.21.2). When it matches, run:
 +
 +```sh
-+mv siboot-v0.21.1.wasm.part siboot.wasm
++mv siboot-v0.21.2.wasm.part siboot.wasm
 +./siboot.wasm --version
 +```
 +
-+The output should include `siboot 0.21.1 (rootshell)`. You can also download `siboot.wasm` in Safari, copy it into `rootshell/siboot`, and verify it there.
++The output should include `siboot 0.21.2 (rootshell)`. You can also download `siboot.wasm` in Safari, copy it into `rootshell/siboot`, and verify it there.
 +
 +> [!TIP]
 +> Keep rootshell in the foreground while downloading. If the transfer is interrupted, resume with the same `curl` command and check the hash again. Use a versioned `.part` filename to keep downloads from different releases separate. Rename and run the file only after verification succeeds.
@@ -306,7 +319,7 @@ index 683de33..ef48429 100644
 +
 +</details>
 +
-+CI covers shared Rust tests, rootshell tests, WASI builds, and execution in a pinned, unmodified **rootshell Worker**. Runtime checks exercise encrypted storage, CSR generation, complete CMS signatures, symbolic links, renewal, password visibility, HTTP / WebSocket, and software TCP transport. Once checks pass, the release workflow builds `siboot.wasm` and its SHA-256 manifest for an unpublished version and marks that release as Latest.
++CI covers shared Rust tests, rootshell tests, WASI builds, and a pinned Worker matrix: an unmodified older host, an unmodified newer host, and the build-175 host with the published backport. Checks exercise startup and capability errors on the older host; capable hosts also verify complete signing of large directories, HTTP / WebSocket, cooperative TCP, encrypted storage, and renewal. Once checks pass, the release workflow publishes `siboot.wasm`, the optional host backport, and their SHA-256 manifest, then marks the release as Latest.
 +
 +**End-to-end installation with a real Apple Account and iPhone has not yet been verified.**
 +
@@ -328,10 +341,10 @@ index 683de33..ef48429 100644
 +See the [SideInstaller license](https://github.com/Jay-Void-BA/SideInstaller/blob/main/LICENSE.md) for usage and distribution terms. Vendored dependencies retain their own copyright notices and licenses.
 diff --git a/README.zh-CN.md b/README.zh-CN.md
 new file mode 100644
-index 0000000..da3bcaa
+index 0000000..4550c6b
 --- /dev/null
 +++ b/README.zh-CN.md
-@@ -0,0 +1,320 @@
+@@ -0,0 +1,333 @@
 +<h1 align="center">siboot</h1>
 +
 +<p align="center">
@@ -344,14 +357,14 @@ index 0000000..da3bcaa
 +</p>
 +
 +<p align="center">
-+  <a href="https://github.com/Jay-Void-BA/SideInstaller/releases/tag/siboot-v0.21.1"><img src="https://img.shields.io/badge/release-0.21.1-2563eb?style=flat-square" alt="siboot 0.21.1"></a>
++  <a href="https://github.com/Jay-Void-BA/SideInstaller/releases/tag/siboot-v0.21.2"><img src="https://img.shields.io/badge/release-0.21.2-2563eb?style=flat-square" alt="siboot 0.21.2"></a>
 +  <a href="https://github.com/Jay-Void-BA/SideInstaller/actions/workflows/checks.yml"><img src="https://github.com/Jay-Void-BA/SideInstaller/actions/workflows/checks.yml/badge.svg?branch=main" alt="CI 检查状态"></a>
 +  <a href="#requirements"><img src="https://img.shields.io/badge/platform-rootshell%20%7C%20iOS%2027%2B-64748b?style=flat-square" alt="rootshell · iOS／iPadOS 27+"></a>
 +  <a href="https://github.com/Jay-Void-BA/SideInstaller/blob/main/LICENSE.md"><img src="https://img.shields.io/badge/license-Custom-64748b?style=flat-square" alt="SideInstaller 自定义许可证"></a>
 +</p>
 +
 +<p align="center">
-+  <a href="https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.21.1/siboot.wasm">下载 siboot.wasm</a> ·
++  <a href="https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.21.2/siboot.wasm">下载 siboot.wasm</a> ·
 +  <a href="#quick-start">快速开始</a> ·
 +  <a href="#usage">常用命令</a> ·
 +  <a href="#performance">性能诊断</a> ·
@@ -394,6 +407,19 @@ index 0000000..da3bcaa
 +
 +Apple 登录、anisette 和签名配置需要联网。rootshell 是应用名称，不代表获得 iOS root 权限。
 +
++<a id="compatibility"></a>
++
++## rootshell 兼容性
++
++| 运行时能力 | 可用功能 |
++| --- | --- |
++| 缺少接收超时接口的旧 Worker，包括 1.0.15／build 175 的接口版本 | 启动、帮助、菜单、配对，以及 `check` 的 TCP 连通性检查 |
++| 提供 socket 接收超时接口的 Worker | 完整安装、续签及设备隧道流程 |
++
++接收超时函数改为可选加载。缺少接口时，安装、续签、`connect` 和开发者模式操作会在 Apple 登录前明确提示原因。旧版的 `check` 成功仅表示 TCP 可以连接。
++
++完整安装需要更新到包含 `rootshell_socket_set_recv_timeout` 的 rootshell（已验证上游 build 178 Worker）。保留 build 175 的开发者也可应用[宿主回移补丁](https://github.com/Jay-Void-BA/SideInstaller/blob/main/patches/rootshell/README.md)并自行编译 rootshell；补丁同时修复大目录枚举，避免漏掉签名资源。单独更新 WASM 无法补齐宿主缺少的接口。
++
 +<a id="quick-start"></a>
 +
 +## rootshell 版配置
@@ -425,18 +451,18 @@ index 0000000..da3bcaa
 +保持终端位于刚才的目录，逐条执行：
 +
 +```sh
-+curl -fL -C - -o siboot-v0.21.1.wasm.part https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.21.1/siboot.wasm
-+sha256sum siboot-v0.21.1.wasm.part
++curl -fL -C - -o siboot-v0.21.2.wasm.part https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.21.2/siboot.wasm
++sha256sum siboot-v0.21.2.wasm.part
 +```
 +
-+与 [Release](https://github.com/Jay-Void-BA/SideInstaller/releases/tag/siboot-v0.21.1) 附件 [SHA256SUMS](https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.21.1/SHA256SUMS) 核对一致后，再运行：
++与 [Release](https://github.com/Jay-Void-BA/SideInstaller/releases/tag/siboot-v0.21.2) 附件 [SHA256SUMS](https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.21.2/SHA256SUMS) 核对一致后，再运行：
 +
 +```sh
-+mv siboot-v0.21.1.wasm.part siboot.wasm
++mv siboot-v0.21.2.wasm.part siboot.wasm
 +./siboot.wasm --version
 +```
 +
-+版本输出应包含 `siboot 0.21.1 (rootshell)`。也可以通过 Safari 下载 `siboot.wasm`，复制到 `rootshell/siboot` 后校验。
++版本输出应包含 `siboot 0.21.2 (rootshell)`。也可以通过 Safari 下载 `siboot.wasm`，复制到 `rootshell/siboot` 后校验。
 +
 +> [!TIP]
 +> 下载时保持 rootshell 在前台。中断后用同一条 `curl` 命令续传，并再次核对哈希。使用带版本号的 `.part` 文件，避免把旧版本内容续传进新版本；校验一致后再改名运行。
@@ -632,7 +658,7 @@ index 0000000..da3bcaa
 +
 +</details>
 +
-+CI 检查共享 Rust 测试、rootshell 测试、WASI 编译，以及固定版本 **rootshell 原版 Worker** 中的加密保存、CSR、完整 CMS 签名、符号链接、续签、密码切换、HTTP／WebSocket 和软件 TCP 传输。通过全部检查后，发布流程为尚未发布的版本生成 `siboot.wasm` 与 SHA-256，并标记 Latest。
++CI 检查共享 Rust、rootshell、WASI 编译，以及固定版本 Worker 矩阵：未修改的旧宿主、未修改的新宿主和应用已公开回移补丁的 build 175。旧宿主验证启动与能力不足提示；具备接口的宿主额外验证大目录完整签名、HTTP／WebSocket、协作 TCP、加密保存及续签。全部检查通过后，为尚未发布的版本生成 `siboot.wasm`、可选宿主补丁及 SHA-256，并标记 Latest。
 +
 +**尚未完成真实 Apple 账号到 iPhone 安装的端到端验证。**
 +
@@ -1357,10 +1383,10 @@ index 160bcfa..5be024e 100644
              "reaching Apple's sign-in server",
 diff --git a/minis/locales/zh-CN.json b/minis/locales/zh-CN.json
 new file mode 100644
-index 0000000..14f0c55
+index 0000000..75bd2f1
 --- /dev/null
 +++ b/minis/locales/zh-CN.json
-@@ -0,0 +1,449 @@
+@@ -0,0 +1,451 @@
 +{
 +  "Another siboot run is using this login storage, or it could not be locked.": "另一个 siboot 正在使用登录存储，或无法锁定存储。",
 +  "Apple Account email:": "Apple 账号邮箱：",
@@ -1808,7 +1834,9 @@ index 0000000..14f0c55
 +  "Performance log:": "性能日志：",
 +  "Couldn't create the performance log.": "无法创建性能日志。",
 +  "The performance log could not be completely saved.": "性能日志未能完整保存。",
-+  "Performance log saved: {path}": "性能日志已保存：{path}"
++  "Performance log saved: {path}": "性能日志已保存：{path}",
++  "This rootshell build lacks socket receive-timeout support. Pairing and connection checks are available; full installation and renewal require a newer rootshell build or the receive-timeout backport.": "此 rootshell 版本缺少 socket 接收超时接口。可使用配对和连接检查；完整安装及续签需要更新 rootshell，或自行编译接收超时回移补丁。",
++  "The iPhone answers. This check confirms TCP reachability only.": "iPhone 已响应。本次检查仅确认 TCP 可以连接。"
 +}
 diff --git a/minis/src/account.rs b/minis/src/account.rs
 index b778e40..31acafc 100644
@@ -5656,7 +5684,7 @@ index 9066841..b4b1891 100644
      fn an_empty_answer_asks_again_and_cancel_stops() {
          let server = leaked();
 diff --git a/rootshell/Cargo.lock b/rootshell/Cargo.lock
-index 86f81bc..af468f1 100644
+index 86f81bc..ea2c03f 100644
 --- a/rootshell/Cargo.lock
 +++ b/rootshell/Cargo.lock
 @@ -2,16 +2,32 @@
@@ -8555,7 +8583,7 @@ index 86f81bc..af468f1 100644
 -name = "siboot-pair"
 -version = "0.4.0"
 +name = "siboot-rootshell"
-+version = "0.21.1"
++version = "0.21.2"
  dependencies = [
 + "apple-codesign-quick",
   "base64 0.22.1",
@@ -9384,7 +9412,7 @@ index 86f81bc..af468f1 100644
 + "simd-adler32",
 +]
 diff --git a/rootshell/Cargo.toml b/rootshell/Cargo.toml
-index 128e6d7..f22b92b 100644
+index 128e6d7..4dbf085 100644
 --- a/rootshell/Cargo.toml
 +++ b/rootshell/Cargo.toml
 @@ -1,52 +1,62 @@
@@ -9392,7 +9420,7 @@ index 128e6d7..f22b92b 100644
 -name = "siboot-pair"
 -version = "0.4.0"
 +name = "siboot-rootshell"
-+version = "0.21.1"
++version = "0.21.2"
  edition = "2021"
 -description = "siboot's pairing step for rootshell's WASM runtime: pairs the iPhone with itself from an App Store app"
 +description = "Full local IPA signing, installation and renewal in rootshell by Jay-Void-BA, based on FrizzleM/siboot"
@@ -9478,12 +9506,12 @@ index 128e6d7..f22b92b 100644
  panic = "abort"
  strip = true
 diff --git a/rootshell/README.md b/rootshell/README.md
-index 927169f..10009f2 100644
+index 927169f..d74afee 100644
 --- a/rootshell/README.md
 +++ b/rootshell/README.md
-@@ -1,136 +1,77 @@
+@@ -1,136 +1,81 @@
 -# siboot-pair for rootshell
-+# siboot for rootshell · 0.21.1
++# siboot for rootshell · 0.21.2
  
 -siboot's pairing step, as a WASM program for
 -[rootshell](https://apps.apple.com/app/rootshell-local-terminal-ssh/id6755794662)
@@ -9506,13 +9534,17 @@ index 927169f..10009f2 100644
 -Session Only**: it keeps rootshell running while you're in Settings. Then, in
 -its local shell, one line at a time (rootshell doesn't run them joined with
 -`&&`):
-+## 首次配置
++## 运行时兼容性
  
 -```sh
 -curl -fsSLO https://raw.githubusercontent.com/FrizzleM/siboot/main/rootshell/bin/siboot-pair.wasm
 -ifconfig en0 > ifconfig.txt
 -./siboot-pair.wasm
 -```
++旧版（包括 1.0.15／build 175 接口）可启动、配对和运行 `check`。完整安装、续签、隧道和开发者模式需要宿主接收超时接口；缺少时会在登录前提示。请更新 rootshell，或由开发者应用 [build-175 回移补丁](https://github.com/Jay-Void-BA/SideInstaller/blob/main/patches/rootshell/README.md)后自行编译。详细限制见主 README 的兼容性表。
++
++## 首次配置
++
 +1. 安装最新版 [rootshell](https://github.com/kitknox/rootshell#readme) 和 [LocalDevVPN](https://apps.apple.com/app/id6755608044)，在 rootshell 中打开 **Local Shell（本地终端）**。
 +2. 在系统设置开启开发者模式，按提示重启并确认；打开 Wi-Fi，允许 rootshell 访问本地网络和发送通知；在 LocalDevVPN 中添加 VPN 配置并连接，确认 **Connected**。
 +3. 新配对前，在 rootshell 的 **Settings › Location Diary Mode** 中开启定位日记模式，选择 **Session Only** 并按提示授予定位权限，便于切换到系统设置时保活。配置完成后可关闭该模式。
@@ -9520,23 +9552,19 @@ index 927169f..10009f2 100644
 +5. 在这个目录下载并核对程序：
 +
 +   ```sh
-+   curl -fL -C - -o siboot-v0.21.1.wasm.part https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.21.1/siboot.wasm
-+   sha256sum siboot-v0.21.1.wasm.part
++   curl -fL -C - -o siboot-v0.21.2.wasm.part https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.21.2/siboot.wasm
++   sha256sum siboot-v0.21.2.wasm.part
 +   ```
 +
-+   与 [Release 的 SHA256SUMS](https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.21.1/SHA256SUMS) 一致后，再逐条运行：
++   与 [Release 的 SHA256SUMS](https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.21.2/SHA256SUMS) 一致后，再逐条运行：
 +
 +   ```sh
-+   mv siboot-v0.21.1.wasm.part siboot.wasm
++   mv siboot-v0.21.2.wasm.part siboot.wasm
 +   ./siboot.wasm --version
 +   ifconfig en0 > ifconfig.txt
 +   ./siboot.wasm pair
 +   ```
- 
--Open **Settings › Privacy & Security › Developer Mode**, scroll to the bottom,
--tap **Pair with siboot**, and enter your passcode and the 6-digit code
--siboot-pair shows in large digits (it also arrives as a notification). Leave
--rootshell running, and in Open Minis's terminal run:
++
 +6. 按提示到“设置 › 隐私与安全性 › 开发者模式”点击 **Pair with siboot**，输入设备密码和通知／终端中的六位配对码。若不能读取 Wi-Fi 地址，用 `./siboot.wasm pair --wifi-ip 192.168.1.10`，将示例地址换成本机 Wi-Fi IPv4。
 +7. 返回 rootshell，运行 `./siboot.wasm --ipa App.ipa` 并按提示登录。以后在相同目录运行 `./siboot.wasm renew` 快速续签，保持 LocalDevVPN 连接。文件名含空格时用引号。
 +
@@ -9545,7 +9573,11 @@ index 927169f..10009f2 100644
 +旧版用户先通过“文件”导出原始 IPA 与 RPPairing 文件，再在 rootshell 中运行 `./siboot.wasm --pairing-file from-ish.plist --ipa App.ipa`，将名称替换为实际文件名，验证配对后重新登录。没有可用配对文件时按上述步骤新建配对。
 +
 +## 开发
-+
+ 
+-Open **Settings › Privacy & Security › Developer Mode**, scroll to the bottom,
+-tap **Pair with siboot**, and enter your passcode and the 6-digit code
+-siboot-pair shows in large digits (it also arrives as a notification). Leave
+-rootshell running, and in Open Minis's terminal run:
 +在 SideInstaller 仓库根目录准备源码：
  
  ```sh
@@ -9683,10 +9715,10 @@ index 927169f..10009f2 100644
 +原版 Worker 运行检查覆盖默认关闭、同目录定位、`--home`、独立文件、成功／失败／取消、日志写入失败及密码、令牌、请求正文过滤。组件单元测试覆盖日志上限、摘要保留、计数器和延迟分桶。
 diff --git a/rootshell/examples/runtime_check.rs b/rootshell/examples/runtime_check.rs
 new file mode 100644
-index 0000000..71d2403
+index 0000000..513619b
 --- /dev/null
 +++ b/rootshell/examples/runtime_check.rs
-@@ -0,0 +1,280 @@
+@@ -0,0 +1,290 @@
 +//! Offline portability test, executed by the real rootshell Worker in CI.
 +#![allow(dead_code)]
 +#[path = "../../minis/src/fail.rs"]
@@ -9823,6 +9855,16 @@ index 0000000..71d2403
 +        "Extensions/Widget.appex/.config",
 +    ] {
 +        assert!(files.contains_key(name), "missing {name}");
++    }
++    if Path::new("/large-directory.fixture").exists() {
++        for index in 0..320 {
++            let name = format!("ManyFiles/resource-{index:04}.dat");
++            assert!(
++                files.contains_key(&name),
++                "directory pagination lost {name}"
++            );
++        }
++        println!("LARGE_DIRECTORY_SEALED");
 +    }
 +    assert_eq!(
 +        files["Resources/link.dylib"].as_dictionary().unwrap()["symlink"].as_string(),
@@ -9968,10 +10010,10 @@ index 0000000..71d2403
 +    println!("BLOCKING_TIMEOUT_CLASSIFIED");
 +}
 diff --git a/rootshell/src/main.rs b/rootshell/src/main.rs
-index c5c010c..9643a21 100644
+index c5c010c..bdb1e2f 100644
 --- a/rootshell/src/main.rs
 +++ b/rootshell/src/main.rs
-@@ -1,561 +1,659 @@
+@@ -1,561 +1,681 @@
 -//! `siboot-pair`: siboot's pairing step, for rootshell's WASM runtime.
 -//!
 -//! Pairs this iPhone with itself from an App Store app. iOS 27 lists a host
@@ -10694,8 +10736,9 @@ index c5c010c..9643a21 100644
 +        _ => return Err(Fail::by_user("Pairing cancelled.")),
      }
 -    unreachable!("the loop returns on its last attempt")
--}
--
++    tunnel::verify(args.device, path).await
+ }
+ 
 -/// The code, in large digits and posted as a notification: Ghostty,
 -/// rootshell's terminal, turns OSC 777 into one, also with rootshell in the
 -/// background.
@@ -10725,9 +10768,8 @@ index c5c010c..9643a21 100644
 -        .and_then(|h| hex::decode(h.trim()).ok())
 -        .and_then(|b| b.try_into().ok());
 -    (file, alt_irk)
-+    tunnel::verify(args.device, path).await
- }
- 
+-}
+-
 -/// `generate` derives the identifier from the name, the same for every
 -/// siboot; a random one keeps this host's records apart.
 -fn fresh_identity() -> RpPairingFile {
@@ -10833,24 +10875,38 @@ index c5c010c..9643a21 100644
 -
 -    fn addr(port: u16) -> std::net::SocketAddr {
 -        std::net::SocketAddr::from(([127, 0, 0, 1], port))
--    }
--
--    /// The fake iPhone's typing: the next code the host shows.
--    async fn next_code(shown: std::sync::Arc<std::sync::Mutex<std::sync::mpsc::Receiver<String>>>) -> String {
--        tokio::task::spawn_blocking(move || shown.lock().unwrap().recv().unwrap()).await.unwrap()
 +    let args = &selected;
-+    rootshell_runtime::perf::event(if args.command == Command::Renew { "workflow.renew" } else { "workflow.install_or_connect" }, &[]);
++    rootshell_runtime::perf::event(
++        if args.command == Command::Renew {
++            "workflow.renew"
++        } else {
++            "workflow.install_or_connect"
++        },
++        &[],
++    );
 +    // Validate a selected IPA before opening Apple Account storage or contacting Apple.
 +    let ipa = if matches!(args.command, Command::All | Command::Renew) {
 +        Some(sign::local_ipa(args)?)
 +    } else {
 +        None
 +    };
++    let receive_timeouts = rootshell_runtime::receive_timeout_supported();
++    rootshell_runtime::perf::event(
++        "runtime.capabilities",
++        &[("receive_timeouts", u64::from(receive_timeouts))],
++    );
++    if args.command != Command::Check {
++        rootshell_runtime::require_receive_timeout()
++            .map_err(|error| Fail::known(error.to_string()))?;
+     }
+-
+-    /// The fake iPhone's typing: the next code the host shows.
+-    async fn next_code(shown: std::sync::Arc<std::sync::Mutex<std::sync::mpsc::Receiver<String>>>) -> String {
+-        tokio::task::spawn_blocking(move || shown.lock().unwrap().recv().unwrap()).await.unwrap()
 +    retry::step(1, "Checking LocalDevVPN and this iPhone", async || {
-+        let _socket = rootshell_runtime::Socket::connect(
++        rootshell_runtime::Socket::probe_connection(
 +            &args.device.ip().to_string(),
 +            args.device.port(),
-+            false,
 +        )
 +        .map_err(|e| {
 +            Fail::new(
@@ -10862,9 +10918,16 @@ index c5c010c..9643a21 100644
 +    })
 +    .await?;
 +    if args.command == Command::Check {
++        if !receive_timeouts {
++            ui::warn(rootshell_runtime::RECEIVE_TIMEOUT_REQUIRED);
++        }
 +        ui::finish(
 +            "Ready",
-+            &["The iPhone answers. Run siboot.wasm --ipa App.ipa to install."],
++            &[if receive_timeouts {
++                "The iPhone answers. Run siboot.wasm --ipa App.ipa to install."
++            } else {
++                "The iPhone answers. This check confirms TCP reachability only."
++            }],
 +        );
 +        return Ok(());
      }

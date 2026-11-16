@@ -10,14 +10,14 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/Jay-Void-BA/SideInstaller/releases/tag/siboot-v0.21.1"><img src="https://img.shields.io/badge/release-0.21.1-2563eb?style=flat-square" alt="siboot 0.21.1"></a>
+  <a href="https://github.com/Jay-Void-BA/SideInstaller/releases/tag/siboot-v0.21.2"><img src="https://img.shields.io/badge/release-0.21.2-2563eb?style=flat-square" alt="siboot 0.21.2"></a>
   <a href="https://github.com/Jay-Void-BA/SideInstaller/actions/workflows/checks.yml"><img src="https://github.com/Jay-Void-BA/SideInstaller/actions/workflows/checks.yml/badge.svg?branch=main" alt="CI 检查状态"></a>
   <a href="#requirements"><img src="https://img.shields.io/badge/platform-rootshell%20%7C%20iOS%2027%2B-64748b?style=flat-square" alt="rootshell · iOS／iPadOS 27+"></a>
   <a href="https://github.com/Jay-Void-BA/SideInstaller/blob/main/LICENSE.md"><img src="https://img.shields.io/badge/license-Custom-64748b?style=flat-square" alt="SideInstaller 自定义许可证"></a>
 </p>
 
 <p align="center">
-  <a href="https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.21.1/siboot.wasm">下载 siboot.wasm</a> ·
+  <a href="https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.21.2/siboot.wasm">下载 siboot.wasm</a> ·
   <a href="#quick-start">快速开始</a> ·
   <a href="#usage">常用命令</a> ·
   <a href="#performance">性能诊断</a> ·
@@ -60,6 +60,19 @@
 
 Apple 登录、anisette 和签名配置需要联网。rootshell 是应用名称，不代表获得 iOS root 权限。
 
+<a id="compatibility"></a>
+
+## rootshell 兼容性
+
+| 运行时能力 | 可用功能 |
+| --- | --- |
+| 缺少接收超时接口的旧 Worker，包括 1.0.15／build 175 的接口版本 | 启动、帮助、菜单、配对，以及 `check` 的 TCP 连通性检查 |
+| 提供 socket 接收超时接口的 Worker | 完整安装、续签及设备隧道流程 |
+
+接收超时函数改为可选加载。缺少接口时，安装、续签、`connect` 和开发者模式操作会在 Apple 登录前明确提示原因。旧版的 `check` 成功仅表示 TCP 可以连接。
+
+完整安装需要更新到包含 `rootshell_socket_set_recv_timeout` 的 rootshell（已验证上游 build 178 Worker）。保留 build 175 的开发者也可应用[宿主回移补丁](https://github.com/Jay-Void-BA/SideInstaller/blob/main/patches/rootshell/README.md)并自行编译 rootshell；补丁同时修复大目录枚举，避免漏掉签名资源。单独更新 WASM 无法补齐宿主缺少的接口。
+
 <a id="quick-start"></a>
 
 ## rootshell 版配置
@@ -91,18 +104,18 @@ pwd
 保持终端位于刚才的目录，逐条执行：
 
 ```sh
-curl -fL -C - -o siboot-v0.21.1.wasm.part https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.21.1/siboot.wasm
-sha256sum siboot-v0.21.1.wasm.part
+curl -fL -C - -o siboot-v0.21.2.wasm.part https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.21.2/siboot.wasm
+sha256sum siboot-v0.21.2.wasm.part
 ```
 
-与 [Release](https://github.com/Jay-Void-BA/SideInstaller/releases/tag/siboot-v0.21.1) 附件 [SHA256SUMS](https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.21.1/SHA256SUMS) 核对一致后，再运行：
+与 [Release](https://github.com/Jay-Void-BA/SideInstaller/releases/tag/siboot-v0.21.2) 附件 [SHA256SUMS](https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.21.2/SHA256SUMS) 核对一致后，再运行：
 
 ```sh
-mv siboot-v0.21.1.wasm.part siboot.wasm
+mv siboot-v0.21.2.wasm.part siboot.wasm
 ./siboot.wasm --version
 ```
 
-版本输出应包含 `siboot 0.21.1 (rootshell)`。也可以通过 Safari 下载 `siboot.wasm`，复制到 `rootshell/siboot` 后校验。
+版本输出应包含 `siboot 0.21.2 (rootshell)`。也可以通过 Safari 下载 `siboot.wasm`，复制到 `rootshell/siboot` 后校验。
 
 > [!TIP]
 > 下载时保持 rootshell 在前台。中断后用同一条 `curl` 命令续传，并再次核对哈希。使用带版本号的 `.part` 文件，避免把旧版本内容续传进新版本；校验一致后再改名运行。
@@ -298,7 +311,7 @@ bash scripts/check-rootshell-runtime.sh /tmp/siboot-source/rootshell/target/wasm
 
 </details>
 
-CI 检查共享 Rust 测试、rootshell 测试、WASI 编译，以及固定版本 **rootshell 原版 Worker** 中的加密保存、CSR、完整 CMS 签名、符号链接、续签、密码切换、HTTP／WebSocket 和软件 TCP 传输。通过全部检查后，发布流程为尚未发布的版本生成 `siboot.wasm` 与 SHA-256，并标记 Latest。
+CI 检查共享 Rust、rootshell、WASI 编译，以及固定版本 Worker 矩阵：未修改的旧宿主、未修改的新宿主和应用已公开回移补丁的 build 175。旧宿主验证启动与能力不足提示；具备接口的宿主额外验证大目录完整签名、HTTP／WebSocket、协作 TCP、加密保存及续签。全部检查通过后，为尚未发布的版本生成 `siboot.wasm`、可选宿主补丁及 SHA-256，并标记 Latest。
 
 **尚未完成真实 Apple 账号到 iPhone 安装的端到端验证。**
 

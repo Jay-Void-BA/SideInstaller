@@ -10,14 +10,14 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/Jay-Void-BA/SideInstaller/releases/tag/siboot-v0.21.1"><img src="https://img.shields.io/badge/release-0.21.1-2563eb?style=flat-square" alt="siboot 0.21.1"></a>
+  <a href="https://github.com/Jay-Void-BA/SideInstaller/releases/tag/siboot-v0.21.2"><img src="https://img.shields.io/badge/release-0.21.2-2563eb?style=flat-square" alt="siboot 0.21.2"></a>
   <a href="https://github.com/Jay-Void-BA/SideInstaller/actions/workflows/checks.yml"><img src="https://github.com/Jay-Void-BA/SideInstaller/actions/workflows/checks.yml/badge.svg?branch=main" alt="CI status"></a>
   <a href="#requirements"><img src="https://img.shields.io/badge/platform-rootshell%20%7C%20iOS%2027%2B-64748b?style=flat-square" alt="rootshell · iOS / iPadOS 27+"></a>
   <a href="https://github.com/Jay-Void-BA/SideInstaller/blob/main/LICENSE.md"><img src="https://img.shields.io/badge/license-Custom-64748b?style=flat-square" alt="SideInstaller custom license"></a>
 </p>
 
 <p align="center">
-  <a href="https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.21.1/siboot.wasm">Download</a> ·
+  <a href="https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.21.2/siboot.wasm">Download</a> ·
   <a href="#quick-start">Quick start</a> ·
   <a href="#usage">Usage</a> ·
   <a href="#performance">Diagnostics</a> ·
@@ -60,6 +60,19 @@ The installation workflow runs entirely in rootshell and `siboot.wasm`. Device c
 
 Apple authentication, anisette, and provisioning require internet access. The name rootshell does not imply iOS root access.
 
+<a id="compatibility"></a>
+
+## rootshell compatibility
+
+| Runtime capability | Available functionality |
+| --- | --- |
+| Older Workers, including the 1.0.15 / build-175 ABI, without receive timeouts | Startup, help, the menu, pairing, and TCP reachability checks with `check` |
+| Workers with the socket receive-timeout API | The complete installation, renewal, and device tunnel workflow |
+
+The receive-timeout function is optional at load time. If it is missing, installation, renewal, `connect`, and Developer Mode operations stop with an explanation before Apple sign-in. A successful `check` on an older host confirms TCP reachability only.
+
+For complete installation, update rootshell to a build with `rootshell_socket_set_recv_timeout` (verified with the upstream build-178 Worker). Developers retaining build 175 can apply the [host backport](https://github.com/Jay-Void-BA/SideInstaller/blob/main/patches/rootshell/README.md) and rebuild rootshell. The patch also fixes directory pagination so large bundles are enumerated completely. Updating the WASM file alone cannot add a missing host API.
+
 <a id="quick-start"></a>
 <a id="rootshell-版配置"></a>
 
@@ -92,18 +105,18 @@ Copy your `App.ipa` into **Files › Browse › On My iPhone / iPad › rootshel
 Run these commands from the working directory:
 
 ```sh
-curl -fL -C - -o siboot-v0.21.1.wasm.part https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.21.1/siboot.wasm
-sha256sum siboot-v0.21.1.wasm.part
+curl -fL -C - -o siboot-v0.21.2.wasm.part https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.21.2/siboot.wasm
+sha256sum siboot-v0.21.2.wasm.part
 ```
 
-Compare the hash with [SHA256SUMS](https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.21.1/SHA256SUMS) attached to the [release](https://github.com/Jay-Void-BA/SideInstaller/releases/tag/siboot-v0.21.1). When it matches, run:
+Compare the hash with [SHA256SUMS](https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.21.2/SHA256SUMS) attached to the [release](https://github.com/Jay-Void-BA/SideInstaller/releases/tag/siboot-v0.21.2). When it matches, run:
 
 ```sh
-mv siboot-v0.21.1.wasm.part siboot.wasm
+mv siboot-v0.21.2.wasm.part siboot.wasm
 ./siboot.wasm --version
 ```
 
-The output should include `siboot 0.21.1 (rootshell)`. You can also download `siboot.wasm` in Safari, copy it into `rootshell/siboot`, and verify it there.
+The output should include `siboot 0.21.2 (rootshell)`. You can also download `siboot.wasm` in Safari, copy it into `rootshell/siboot`, and verify it there.
 
 > [!TIP]
 > Keep rootshell in the foreground while downloading. If the transfer is interrupted, resume with the same `curl` command and check the hash again. Use a versioned `.part` filename to keep downloads from different releases separate. Rename and run the file only after verification succeeds.
@@ -299,7 +312,7 @@ The script name is retained for compatibility with existing development workflow
 
 </details>
 
-CI covers shared Rust tests, rootshell tests, WASI builds, and execution in a pinned, unmodified **rootshell Worker**. Runtime checks exercise encrypted storage, CSR generation, complete CMS signatures, symbolic links, renewal, password visibility, HTTP / WebSocket, and software TCP transport. Once checks pass, the release workflow builds `siboot.wasm` and its SHA-256 manifest for an unpublished version and marks that release as Latest.
+CI covers shared Rust tests, rootshell tests, WASI builds, and a pinned Worker matrix: an unmodified older host, an unmodified newer host, and the build-175 host with the published backport. Checks exercise startup and capability errors on the older host; capable hosts also verify complete signing of large directories, HTTP / WebSocket, cooperative TCP, encrypted storage, and renewal. Once checks pass, the release workflow publishes `siboot.wasm`, the optional host backport, and their SHA-256 manifest, then marks the release as Latest.
 
 **End-to-end installation with a real Apple Account and iPhone has not yet been verified.**
 

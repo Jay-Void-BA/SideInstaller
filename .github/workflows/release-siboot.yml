@@ -120,9 +120,10 @@ jobs:
         run: |
           mkdir -p "$RUNNER_TEMP/rootshell-release"
           cp "$RUNNER_TEMP/siboot/rootshell/target/wasm32-wasip1/release/siboot.wasm" "$RUNNER_TEMP/rootshell-release/siboot.wasm"
+          cp patches/rootshell/recv-timeout-175.patch "$RUNNER_TEMP/rootshell-release/rootshell-175-backport.patch"
           cd "$RUNNER_TEMP/rootshell-release"
-          sha256sum siboot.wasm > SHA256SUMS
-          echo "sha256=$(cut -d ' ' -f 1 SHA256SUMS)" >> "$GITHUB_OUTPUT"
+          sha256sum siboot.wasm rootshell-175-backport.patch > SHA256SUMS
+          echo "sha256=$(sha256sum siboot.wasm | cut -d ' ' -f 1)" >> "$GITHUB_OUTPUT"
 
       - uses: actions/upload-artifact@v4
         with:
@@ -177,4 +178,4 @@ jobs:
               output.write('\nSHA-256 (`siboot.wasm`): `' + os.environ['EXPECTED_SHA256'] + '`\n')
               output.write('\nSource commit: `' + os.environ['SOURCE_SHA'] + '`\n')
           PYNOTES
-          gh release create "$TAG" siboot.wasm SHA256SUMS --target "$SOURCE_SHA" --title "siboot $VERSION · rootshell" --notes-file "$RUNNER_TEMP/rootshell-notes.md" --latest
+          gh release create "$TAG" siboot.wasm rootshell-175-backport.patch SHA256SUMS --target "$SOURCE_SHA" --title "siboot $VERSION · rootshell" --notes-file "$RUNNER_TEMP/rootshell-notes.md" --latest
