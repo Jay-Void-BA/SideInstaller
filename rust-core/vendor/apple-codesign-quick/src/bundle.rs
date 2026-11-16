@@ -105,6 +105,8 @@ impl Bundle {
         settings: &BundleSigningSettings<'_>,
         is_root: bool,
     ) -> Result<CodeResourcesMaps> {
+        #[cfg(target_os = "wasi")]
+        let performance = rootshell_runtime::perf::span("sign.bundle", &[("root", u64::from(is_root))]);
         remove_fairplay_dir(&self.path)?;
 
         let bundle_id = self.bundle_identifier()?.to_string();
@@ -187,6 +189,8 @@ impl Bundle {
         config.code_resources = Some(&code_resources);
         sign_macho_file(&self.path.join(&executable), &config)?;
 
+        #[cfg(target_os = "wasi")]
+        performance.finish(rootshell_runtime::perf::Outcome::Ok, &[("resources", maps.files2.len() as u64)]);
         Ok(maps)
     }
 
@@ -198,6 +202,8 @@ impl Bundle {
     }
 
     fn sub_bundles(&self) -> Result<Vec<PathBuf>> {
+        #[cfg(target_os = "wasi")]
+        let performance = rootshell_runtime::perf::span("sign.discover_bundles", &[]);
         let mut bundles = Vec::new();
         let mut pending = vec![self.path.clone()];
         while let Some(dir) = pending.pop() {
@@ -226,6 +232,8 @@ impl Bundle {
             }
         }
         bundles.sort();
+        #[cfg(target_os = "wasi")]
+        performance.finish(rootshell_runtime::perf::Outcome::Ok, &[("bundles", bundles.len() as u64)]);
         Ok(bundles)
     }
 }
@@ -374,6 +382,8 @@ fn collect_own_bundle_files(
     executable: &str,
     sub_bundles: &[PathBuf],
 ) -> Result<BundleFiles> {
+    #[cfg(target_os = "wasi")]
+    let performance = rootshell_runtime::perf::span("sign.scan", &[]);
     let mut resource_files = Vec::new();
     let mut libraries = Vec::new();
     let main_image = fs::canonicalize(bundle_path.join(executable)).ok();
@@ -402,6 +412,8 @@ fn collect_own_bundle_files(
     resource_files.sort();
     libraries.sort();
 
+    #[cfg(target_os = "wasi")]
+    performance.finish(rootshell_runtime::perf::Outcome::Ok, &[("resources", resource_files.len() as u64), ("libraries", libraries.len() as u64)]);
     Ok(BundleFiles {
         resource_files,
         libraries,
@@ -492,13 +504,19 @@ fn looks_like_macho(path: &Path) -> Result<bool> {
 }
 
 fn hash_bundle_file(bundle_path: &Path, path: &Path) -> Result<FileHash> {
+    #[cfg(target_os = "wasi")]
+    let performance = rootshell_runtime::perf::span("sign.resource", &[]);
     let relative_path = relative_path_string(bundle_path, path)?;
     if fs::symlink_metadata(path).map_err(|source| CodeSignError::io(path, source))?.file_type().is_symlink() {
         let target = fs::read_link(path).map_err(|source| CodeSignError::io(path, source))?;
+        #[cfg(target_os = "wasi")]
+        performance.finish(rootshell_runtime::perf::Outcome::Ok, &[("symlink", 1)]);
         return Ok(FileHash { relative_path, sha1: [0; 20], sha256: [0; 32], optional: false, symlink: Some(path_to_forward_slashes(&target)?) });
     }
     let data = read_file_bytes(path)?;
     let (sha1, sha256) = hash_file_data(data.as_slice());
+    #[cfg(target_os = "wasi")]
+    performance.finish(rootshell_runtime::perf::Outcome::Ok, &[("bytes", data.as_slice().len() as u64)]);
     Ok(FileHash {
         optional: relative_path.contains(".lproj"),
         relative_path,
@@ -511,6 +529,8 @@ fn hash_bundle_file(bundle_path: &Path, path: &Path) -> Result<FileHash> {
 /// Audit the final tree, after every nested image and resource has been signed.
 /// This catches omitted .config files and stale hashes before installation.
 pub fn verify_bundle_resources(path: &Path) -> Result<()> {
+    #[cfg(target_os = "wasi")]
+    let performance = rootshell_runtime::perf::span("sign.verify_seals", &[]);
     let bundle = Bundle::open(path)?;
     let executable = bundle.executable_name()?;
     let main = fs::canonicalize(path.join(executable)).map_err(|source| CodeSignError::io(path, source))?;
@@ -530,10 +550,20 @@ pub fn verify_bundle_resources(path: &Path) -> Result<()> {
             };
             if !matches { return Err(CodeSignError::macho(file, "resource seal does not match its final contents")); }
             Ok(())
-        })
+        })?;
+    #[cfg(target_os = "wasi")]
+    performance.finish(rootshell_runtime::perf::Outcome::Ok, &[]);
+    Ok(())
 }
 
 fn hash_file_data(data: &[u8]) -> ([u8; 20], [u8; 32]) {
+    #[cfg(target_os = "wasi")]
+    return rootshell_runtime::perf::work("sign.resource.hash", data.len() as u64, || hash_file_data_inner(data));
+    #[cfg(not(target_os = "wasi"))]
+    hash_file_data_inner(data)
+}
+
+fn hash_file_data_inner(data: &[u8]) -> ([u8; 20], [u8; 32]) {
     if data.len() >= 1024 * 1024 {
         crate::parallel::join(
             || sha1::Sha1::digest(data).into(),

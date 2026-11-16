@@ -16,11 +16,11 @@ import assert from 'node:assert/strict';
 export const HOST_REV = 'f5adabe57ddb2959922e135e622fb9776641735f';
 const ERRNO = { ENOENT: 44, EEXIST: 20, EACCES: 2, EPERM: 2, ENOTDIR: 54, EISDIR: 31, ENOTEMPTY: 55, ECONNREFUSED: 14, ETIMEDOUT: 73 };
 
-export async function runWasm(workerSource, wasm, argv, { root, input = '', env = {}, timeout = 60000 } = {}) {
+export async function runWasm(workerSource, wasm, argv, { root, input = '', env = {}, timeout = 60000, failLogWritesAfter = Infinity } = {}) {
   root ??= fs.mkdtempSync(path.join(os.tmpdir(), 'siboot-rootshell-'));
   const handles = new Map([[3, { path: root, preopen: '.' }], [4, { path: root, preopen: '/' }]]);
   const sockets = new Map();
-  let next = 5, nextSocket = 10, raw = false, stdout = '', stderr = '', calls = 0;
+  let next = 5, nextSocket = 10, raw = false, stdout = '', stderr = '', calls = 0, logWrites = 0;
   let inputBytes = Buffer.from(input), inputOffset = 0;
   const rawModes = [];
   const resolve = (p, fd = 3) => {
@@ -58,6 +58,7 @@ export async function runWasm(workerSource, wasm, argv, { root, input = '', env 
       }
       case 'fd_write': case 'fd_pwrite': {
         if (!h || h.native == null) return { errno: 8 };
+        if (h.path.endsWith('.jsonl') && logWrites++ >= failLogWritesAfter) return { errno: 29 };
         const buffer = Buffer.from(p.data, 'base64');
         const count = fs.writeSync(h.native, buffer, 0, buffer.length, p.op === 'fd_pwrite' ? p.offset : h.offset);
         if (p.op === 'fd_write') h.offset += count;
@@ -155,6 +156,27 @@ export async function runWasm(workerSource, wasm, argv, { root, input = '', env 
   });
 }
 
+function performanceLog(result, directory = result.root) {
+  const logs = fs.readdirSync(directory).filter(name => /^siboot-perf-.*\.jsonl$/.test(name));
+  assert.equal(logs.length, 1, `expected one performance log in ${directory}`);
+  const text = fs.readFileSync(path.join(directory, logs[0]), 'utf8');
+  const records = text.trim().split('\n').map(line => JSON.parse(line));
+  assert.equal(records[0].event, 'run_start');
+  assert.equal(records[0].clock_resolution_us, 1000);
+  assert.equal(records.at(-1).event, 'summary');
+  for (let index = 0; index < records.length; index++) {
+    assert.equal(records[index].schema, 1);
+    assert(Number.isInteger(records[index].elapsed_us));
+    if (index) assert(records[index].seq > records[index - 1].seq);
+    if (records[index].linear_memory_bytes != null) assert(records[index].linear_memory_bytes >= 65536);
+  }
+  for (const secret of ['test-only-password', 'different local passphrase', 'wrong local passphrase', 'offline@example.invalid', ' 空 格pass ', 'never-log-this-secret', 'query-secret-never-record', 'header-secret-never-record', 'body-secret-never-record', 'identifier-secret-never-record', 'missing-secret.ipa', 'private-account@example.invalid']) {
+    assert(!text.includes(secret), `sensitive test input appeared in log: ${secret}`);
+  }
+  assert(!text.includes(result.root), 'log must not contain the sandbox path');
+  return { records, text, summary: records.at(-1) };
+}
+
 if (process.argv[1] === new URL(import.meta.url).pathname) {
   const [workerPath, wasm, probe] = process.argv.slice(2);
   assert(workerPath && wasm, 'usage: node rootshell-host-test.mjs WASM_WORKER_JS SIBOOT_WASM');
@@ -185,30 +207,51 @@ if (process.argv[1] === new URL(import.meta.url).pathname) {
     const bare = await runWasm(source, wasm, ['siboot.wasm', '--ipa', '/missing.ipa'], { root });
     assert.equal(bare.code, 1, bare.stdout + bare.stderr);
     assert(!fs.existsSync(path.join(root, '.siboot')), 'bare module names must use rootshell HOME/bin lookup');
+    assert(!fs.readdirSync(path.join(root, 'bin')).some(name => name.endsWith('.jsonl')), 'logging must default to off');
+    const logged = await runWasm(source, wasm, ['./bin/siboot.wasm', '--perf-log', '--home', '/other-state', '--apple-id', 'private-account@example.invalid', '--ipa', '/missing-secret.ipa'], { root });
+    assert.equal(logged.code, 1, logged.stdout + logged.stderr);
+    const log = performanceLog(logged, path.join(root, 'bin'));
+    assert.equal(log.summary.outcome, 'error');
+    assert(!fs.readdirSync(root).some(name => name.endsWith('.jsonl')), 'log must stay beside the module even with --home');
+    await runWasm(source, wasm, ['./bin/siboot.wasm', '--perf-log', '--ipa', '/missing.ipa'], { root });
+    assert.equal(fs.readdirSync(path.join(root, 'bin')).filter(name => name.endsWith('.jsonl')).length, 2);
     console.log('PASS rootshell Worker storage beside the executable and invalid IPA rejection before login');
   }
   const english = await runWasm(source, wasm, ['./siboot.wasm', '--lang', 'en', '--help']);
   assert.equal(english.code, 0, english.stderr);
   assert(english.stdout.includes('Passwords are hidden. Ctrl-V toggles viewing while typing.'));
+  const cancelRun = await runWasm(source, wasm, ['./siboot.wasm', '--perf-log']);
+  assert.equal(cancelRun.code, 1);
+  assert.equal(performanceLog(cancelRun).summary.outcome, 'cancelled');
+  const cannotLog = await runWasm(source, wasm, ['./siboot.wasm', '--perf-log', '--lang', 'en'], { failLogWritesAfter: 0 });
+  assert.equal(cannotLog.code, 1);
+  assert(cannotLog.stderr.includes("Couldn't create the performance log."));
+  console.log('PASS rootshell Worker opt-in performance logs, unique filenames, failure/cancellation summaries and storage errors');
   if (probe) {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'siboot-offline-'));
     const fixture = spawnSync('python3', [new URL('./make_rootshell_fixture.py', import.meta.url).pathname, root], { encoding: 'utf8' });
     assert.equal(fixture.status, 0, fixture.stderr);
-    const offline = await runWasm(source, probe, ['./runtime_check.wasm'], { root, timeout: 180000 });
+    const offline = await runWasm(source, probe, ['./runtime_check.wasm', '--perf-log'], { root, timeout: 180000 });
     assert.equal(offline.code, 0, offline.stdout + offline.stderr);
     for (const marker of ['VAULT_OK', 'CSR_OK', 'COMPLETE_SIGNING_OK', 'INVALID_LINKS_REJECTED', 'RENEW_PAIRING_OK']) assert(offline.stdout.includes(marker), offline.stdout);
+    const offlineLog = performanceLog(offline);
+    for (const operation of ['vault.scrypt', 'sign.csr', 'ipa.extract', 'sign.macho', 'sign.macho.encode', 'sign.resource', 'sign.resource.hash', 'sign.verify_seals']) {
+      assert(offlineLog.records.some(record => record.operation === operation || record.metrics?.[operation]), `missing performance measurement: ${operation}`);
+    }
     console.log('PASS rootshell Worker encrypted vault, PKCS#10, complete CMS signing, symlinks, renewal and pairing storage');
-    const password = await runWasm(source, probe, ['./runtime_check.wasm', 'password'], { input: ' 空 格中\x7fpass \x16\x16\r' });
+    const password = await runWasm(source, probe, ['./runtime_check.wasm', 'password', '--perf-log'], { input: ' 空 格中\x7fpass \x16\x16\r' });
     assert.equal(password.code, 0, password.stdout + password.stderr);
     assert(password.stdout.includes('PASSWORD_OK'));
     assert.deepEqual(password.rawModes, [true, false]);
     assert.equal(password.raw, false);
+    assert(performanceLog(password).records.some(record => record.operation === 'ui.wait'));
     console.log('PASS rootshell Worker password reveal/hide and Unicode/whitespace preservation');
-    const cancelled = await runWasm(source, probe, ['./runtime_check.wasm', 'password-cancel'], { input: 'never-log-this-secret\x03' });
+    const cancelled = await runWasm(source, probe, ['./runtime_check.wasm', 'password-cancel', '--perf-log'], { input: 'never-log-this-secret\x03' });
     assert.equal(cancelled.code, 0, cancelled.stderr);
     assert(cancelled.stdout.includes('PASSWORD_CANCEL_OK'));
     assert(!cancelled.stdout.includes('never-log-this-secret'));
     assert.deepEqual(cancelled.rawModes, [true, false]);
+    assert(performanceLog(cancelled).records.some(record => record.operation === 'ui.wait' && record.outcome === 'cancelled'));
     const untrusted = tls.createServer({ key: fs.readFileSync(path.join(root, 'test-key.pem')), cert: fs.readFileSync(path.join(root, 'test-cert.pem')) });
     untrusted.on('tlsClientError', () => {});
     await new Promise(resolve => untrusted.listen(0, '127.0.0.1', resolve));
@@ -255,8 +298,8 @@ if (process.argv[1] === new URL(import.meta.url).pathname) {
         if (!upgraded) {
           const end = pending.indexOf('\r\n\r\n'); if (end < 0) return;
           const head = pending.subarray(0, end).toString(); pending = pending.subarray(end + 4);
-          if (head.startsWith('GET /bag ')) {
-            const body = gzipSync(Buffer.from('{"ok":true}'));
+          if (head.startsWith('GET /bag?')) {
+            const body = gzipSync(Buffer.from('{"ok":true,"token":"body-secret-never-record"}'));
             connection.write('HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\nContent-Encoding: gzip\r\n\r\n');
             connection.write(body.length.toString(16) + '\r\n'); connection.write(body); connection.end('\r\n0\r\n\r\n'); return;
           }
@@ -272,17 +315,26 @@ if (process.argv[1] === new URL(import.meta.url).pathname) {
           if (pending.length < 6 + length) return;
           const mask = pending.subarray(2, 6);
           const body = pending.subarray(6, 6 + length).map((b, i) => b ^ mask[i % 4]);
-          assert.equal(body.toString(), 'identifier'); pending = pending.subarray(6 + length);
+          assert.equal(body.toString(), 'identifier-secret-never-record'); pending = pending.subarray(6 + length);
           connection.write(Buffer.concat([Buffer.from([0x81, 11]), Buffer.from('provisioned')]));
         }
       });
     });
     await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
     try {
-      const network = await runWasm(source, probe, ['./runtime_check.wasm', 'network', String(server.address().port)]);
+      const network = await runWasm(source, probe, ['./runtime_check.wasm', 'network', String(server.address().port), '--perf-log']);
       assert.equal(network.code, 0, network.stdout + network.stderr);
       assert(network.stdout.includes('HTTP_WEBSOCKET_COOPERATIVE_TCP_OK'), network.stdout);
       assert(network.stdout.includes('SOFTWARE_TCP_STACK_OK'), network.stdout);
+      const networkLog = performanceLog(network);
+      const receive = networkLog.summary.metrics['socket.recv'];
+      assert(receive.bytes >= 65536 && receive.calls > 0);
+      assert(receive.idle_timeouts > 0 && receive.errors > 0, 'cooperative idle polls and blocking timeouts must be distinct');
+      assert(networkLog.records.some(record => record.operation === 'http.request' && record.data?.status === 200));
+      assert(networkLog.records.some(record => record.operation === 'websocket.connect'));
+      const logFailure = await runWasm(source, wasm, ['./siboot.wasm', 'check', '--device-ip', '127.0.0.1', '--port', String(server.address().port), '--perf-log', '--lang', 'en'], { failLogWritesAfter: 1 });
+      assert.equal(logFailure.code, 0, logFailure.stdout + logFailure.stderr);
+      assert(logFailure.stderr.includes('The performance log could not be completely saved.'));
       console.log('PASS rootshell Worker HTTP, anisette WebSocket, short writes, concurrent TCP/timers and 64 KiB software TCP transfer');
     } finally { server.close(); }
   }

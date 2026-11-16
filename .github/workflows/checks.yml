@@ -269,6 +269,7 @@ jobs:
         run: |
           cargo test --locked --manifest-path "$RUNNER_TEMP/siboot/rootshell/Cargo.toml" --bin siboot
           cargo test --locked --manifest-path rust-core/vendor/rootshell-http/Cargo.toml
+          cargo test --locked --manifest-path rust-core/vendor/rootshell-runtime/Cargo.toml
 
       - name: Clippy on native and WASI targets
         run: |

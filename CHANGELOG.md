@@ -1,5 +1,12 @@
 # Changelog
 
+## siboot 0.21.1 — rootshell 性能日志
+
+- 增加 `--perf-log`，在 WASM 同目录生成独立的 JSONL 诊断日志。
+- 记录阶段／重试、用户等待、HTTP／TLS、解压、完整签名、哈希、上传与 iOS 安装耗时，附带网络计数及统计摘要。
+- 日志字段过滤输入、账号、密钥和协议正文，默认关闭，限制详细事件大小；补充落盘及脱敏验证。
+
+
 ## siboot 0.21.0 — rootshell
 
 - Jay-Void-BA 移植完整配对、Apple 登录、签名、安装和续签流程至 rootshell WASI；保留 FrizzleM 原作署名。

@@ -131,7 +131,11 @@ pub fn read_link(path: impl AsRef<Path>) -> io::Result<PathBuf> {
         .ok_or_else(invalid)
 }
 pub fn canonicalize(path: impl AsRef<Path>) -> io::Result<PathBuf> {
-    fs::canonicalize(resolve(path.as_ref())?)
+    super::perf::io_result(
+        "file.canonicalize",
+        |_| 0,
+        || fs::canonicalize(resolve(path.as_ref())?),
+    )
 }
 pub fn exists(path: impl AsRef<Path>) -> io::Result<bool> {
     Ok(resolve(path.as_ref())?.exists())
@@ -140,10 +144,19 @@ pub fn is_file(path: impl AsRef<Path>) -> bool {
     resolve(path.as_ref()).is_ok_and(|p| p.is_file())
 }
 pub fn read(path: impl AsRef<Path>) -> io::Result<Vec<u8>> {
-    fs::read(resolve(path.as_ref())?)
+    super::perf::io_result::<Vec<u8>>(
+        "file.read",
+        |bytes| bytes.len() as u64,
+        || fs::read(resolve(path.as_ref())?),
+    )
 }
 pub fn write(path: impl AsRef<Path>, bytes: impl AsRef<[u8]>) -> io::Result<()> {
-    fs::write(resolve(path.as_ref())?, bytes)
+    let bytes = bytes.as_ref();
+    super::perf::io_result(
+        "file.write",
+        |()| bytes.len() as u64,
+        || fs::write(resolve(path.as_ref())?, bytes),
+    )
 }
 pub fn create_dir_all(path: impl AsRef<Path>) -> io::Result<()> {
     fs::create_dir_all(resolve(path.as_ref())?)
@@ -200,12 +213,18 @@ impl FileType {
     }
 }
 pub fn symlink_metadata(path: impl AsRef<Path>) -> io::Result<Metadata> {
-    let path = absolute(path.as_ref())?;
-    let link = links().lock().map_err(|_| invalid())?.contains_key(&path);
-    Ok(Metadata {
-        inner: fs::symlink_metadata(path)?,
-        link,
-    })
+    super::perf::io_result(
+        "file.metadata",
+        |_| 0,
+        || {
+            let path = absolute(path.as_ref())?;
+            let link = links().lock().map_err(|_| invalid())?.contains_key(&path);
+            Ok(Metadata {
+                inner: fs::symlink_metadata(path)?,
+                link,
+            })
+        },
+    )
 }
 pub fn metadata(path: impl AsRef<Path>) -> io::Result<Metadata> {
     Ok(Metadata {
@@ -233,23 +252,31 @@ impl Iterator for ReadDir {
     }
 }
 pub fn read_dir(path: impl AsRef<Path>) -> io::Result<ReadDir> {
-    Ok(ReadDir(fs::read_dir(resolve(path.as_ref())?)?))
+    super::perf::io_result(
+        "file.read_dir",
+        |_| 0,
+        || Ok(ReadDir(fs::read_dir(resolve(path.as_ref())?)?)),
+    )
 }
 
 pub struct File(fs::File);
 impl File {
     pub fn open(path: impl AsRef<Path>) -> io::Result<Self> {
-        Ok(Self(fs::File::open(resolve(path.as_ref())?)?))
+        super::perf::io_result(
+            "file.open",
+            |_| 0,
+            || Ok(Self(fs::File::open(resolve(path.as_ref())?)?)),
+        )
     }
 }
 impl Read for File {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        self.0.read(buf)
+        super::perf::io_bytes("file.read_chunk", || self.0.read(buf))
     }
 }
 impl Write for File {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        self.0.write(buf)
+        super::perf::io_bytes("file.write_chunk", || self.0.write(buf))
     }
     fn flush(&mut self) -> io::Result<()> {
         self.0.flush()
@@ -257,6 +284,6 @@ impl Write for File {
 }
 impl Seek for File {
     fn seek(&mut self, pos: SeekFrom) -> io::Result<u64> {
-        self.0.seek(pos)
+        super::perf::io_result("file.seek", |_| 0, || self.0.seek(pos))
     }
 }

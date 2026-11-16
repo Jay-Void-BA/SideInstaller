@@ -7,5 +7,6 @@ description = "WASI Preview 1 sockets and file adapters for rootshell"
 
 [dependencies]
 tokio = { version = "1", default-features = false, features = ["io-util", "rt", "time", "sync", "macros"] }
+serde_json = "1"
 
 [workspace]

@@ -1,10 +1,10 @@
-# siboot for rootshell · 0.21.0
+# siboot for rootshell · 0.21.1
 
 在 iPhone／iPad 的 **rootshell** 中，使用自己的 Apple 账户签名、安装本地 IPA，并快速续签上次安装的应用。
 
 维护与移植：**[Jay-Void-BA](https://github.com/Jay-Void-BA)**。原作者：**[FrizzleM](https://github.com/FrizzleM)**，基于 [siboot](https://github.com/FrizzleM/siboot) 与 [SideInstaller](https://github.com/FrizzleM/SideInstaller)。两位作者的署名均保留在运行界面中。
 
-[下载 siboot.wasm](https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.21.0/siboot.wasm) · [Release 与 SHA-256](https://github.com/Jay-Void-BA/SideInstaller/releases/tag/siboot-v0.21.0) · [CI](https://github.com/Jay-Void-BA/SideInstaller/actions)
+[下载 siboot.wasm](https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.21.1/siboot.wasm) · [Release 与 SHA-256](https://github.com/Jay-Void-BA/SideInstaller/releases/tag/siboot-v0.21.1) · [CI](https://github.com/Jay-Void-BA/SideInstaller/actions)
 
 ## 运行条件
 
@@ -22,14 +22,14 @@
 在 rootshell 本地终端选择固定目录。以下命令请逐条执行：
 
 ```sh
-curl -fL -C - -o siboot-v0.21.0.wasm.part https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.21.0/siboot.wasm
-sha256sum siboot-v0.21.0.wasm.part
+curl -fL -C - -o siboot-v0.21.1.wasm.part https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.21.1/siboot.wasm
+sha256sum siboot-v0.21.1.wasm.part
 ```
 
-将哈希与 [Release](https://github.com/Jay-Void-BA/SideInstaller/releases/tag/siboot-v0.21.0) 或附件 [SHA256SUMS](https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.21.0/SHA256SUMS) 核对。一致后再执行：
+将哈希与 [Release](https://github.com/Jay-Void-BA/SideInstaller/releases/tag/siboot-v0.21.1) 或附件 [SHA256SUMS](https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.21.1/SHA256SUMS) 核对。一致后再执行：
 
 ```sh
-mv siboot-v0.21.0.wasm.part siboot.wasm
+mv siboot-v0.21.1.wasm.part siboot.wasm
 ./siboot.wasm --version
 ./siboot.wasm
 ```
@@ -107,12 +107,38 @@ rm .siboot/apple-login.active
 
 程序分别显示上传、文件核对和 iOS 安装耗时。耗时来自解压、哈希／签名、Apple／anisette 请求、加密隧道、许多小文件的往返及系统 `installd`。rootshell 使用 WASM，不保证比 Minis 更快；iOS 的系统安装时间仍由系统决定。
 
+## 性能诊断日志
+
+复现安装或续签缓慢时，增加 `--perf-log`：
+
+```sh
+./siboot.wasm --perf-log --ipa App.ipa
+./siboot.wasm renew --perf-log
+```
+
+每次运行会在 **`siboot.wasm` 同目录** 新建 `siboot-perf-时间戳-序号.jsonl`，启动与结束时显示具体位置。`--home` 不改变日志位置，旧日志保留；默认关闭。
+
+日志为逐行 JSON，包含版本、时间戳、阶段与重试序号，以及：
+
+- 用户输入等待；scrypt 解锁、RSA 密钥生成、CSR、解压、Mach-O 签名、资源哈希与封印复核耗时。
+- HTTP 请求与 WebSocket 握手／接收耗时、状态码和字节数；宿主连接调用合计 DNS、TCP 与 TLS 时间。
+- 网络收发次数、字节数、累计及最长耗时、采样延迟分桶估计的 P50／P95 上界；协作轮询的短暂超时与实际读写错误分别统计。
+- 上传条目编号、大小、打开／分块写入／关闭耗时，上传核对及 iOS 系统安装进度，续签缓存耗时。
+- WASM 线性内存容量；这不是系统进程的实际 RAM 占用。
+
+最后一行 `summary` 汇总结果、各操作统计和 `log_write_us`（已统计的序列化／写入耗时）。文件按编号关联，不写入文件名、账户、密码、验证码、令牌、密钥、URL 或请求／响应正文。可以把日志文件用于后续性能分析。
+
+关键阶段立即刷新，持续 I/O 约每秒刷新统计。详细事件达到 16 MiB 后停止新增，仍保留最终统计和 `dropped_events` 数量。正常退出会写入摘要；强制终止时，最后的缓冲数据及摘要可能缺失。
+
+这些是**墙钟耗时**，嵌套／并发操作会重叠，不能简单相加；WASI 时钟通常约 1 ms 精度。日志从程序启动诊断后开始，不包括 rootshell 加载 WASM 的时间。开启日志会增加采集和写入开销，建议与关闭日志的运行结果对照。`--verbose` 仍用于在终端显示错误详情，可以与本参数一起使用。
+
 ## 常用命令
 
 | 命令 | 功能 |
 | --- | --- |
 | `./siboot.wasm --ipa App.ipa` | 签名安装本地 IPA |
 | `./siboot.wasm renew` | 续签上次安装的应用 |
+| `./siboot.wasm --perf-log --ipa App.ipa` | 安装并在同目录输出详细性能日志 |
 | `./siboot.wasm pair` | 在 rootshell 创建配对 |
 | `./siboot.wasm check` | 检查设备连接 |
 | `./siboot.wasm connect` | 验证配对及完整隧道 |

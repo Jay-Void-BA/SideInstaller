@@ -148,6 +148,8 @@ impl Sideloader {
         let mut group_session = self.dev_session.clone();
 
         let registration = async {
+            #[cfg(target_os = "wasi")]
+            let _performance = rootshell_runtime::perf::span("sign.device_registration", &[]);
             if let Some((name, udid)) = register_device
                 && let Err(e) = device_session
                     .ensure_device_registered(&team, name, udid, None)
@@ -155,12 +157,15 @@ impl Sideloader {
             {
                 bail!("device registration failed for UDID {udid}: {e}");
             }
+            #[cfg(target_os = "wasi")]
+            _performance.finish(rootshell_runtime::perf::Outcome::Ok, &[]);
             Ok::<(), Report>(())
         };
 
         let certificate = async {
-            Ok::<_, Report>(
-                CertificateIdentity::retrieve(
+            #[cfg(target_os = "wasi")]
+            let _performance = rootshell_runtime::perf::span("sign.certificate_identity", &[]);
+            let identity = CertificateIdentity::retrieve(
                     &self.machine_name,
                     &self.apple_email,
                     &mut cert_session,
@@ -169,8 +174,10 @@ impl Sideloader {
                     &self.max_certs_behavior,
                 )
                 .await
-                .context("Failed to retrieve certificate identity")?,
-            )
+                .context("Failed to retrieve certificate identity")?;
+            #[cfg(target_os = "wasi")]
+            _performance.finish(rootshell_runtime::perf::Outcome::Ok, &[]);
+            Ok::<_, Report>(identity)
         };
 
         // Extracting the archive is blocking work, so it runs off this task and
@@ -205,6 +212,8 @@ impl Sideloader {
                 }
             );
 
+            #[cfg(target_os = "wasi")]
+            let performance = rootshell_runtime::perf::span("sign.app_ids", &[]);
             let (mut app_ids, app_group) = try_join(
                 app.register_app_ids(&mut app_id_session, &team),
                 async {
@@ -258,6 +267,8 @@ impl Sideloader {
             }))
             .await?;
 
+            #[cfg(target_os = "wasi")]
+            performance.finish(rootshell_runtime::perf::Outcome::Ok, &[]);
             info!("App IDs configured");
             Ok::<_, Report>((app, special, group_identifier, main_app_id))
         };
@@ -282,9 +293,13 @@ impl Sideloader {
                 Ok::<(), Report>(())
             },
             async {
+                #[cfg(target_os = "wasi")]
+                let performance = rootshell_runtime::perf::span("sign.provisioning_profile", &[]);
                 let profile = dev_session
                     .download_team_provisioning_profile(&team, &main_app_id, None)
                     .await?;
+                #[cfg(target_os = "wasi")]
+                performance.finish(rootshell_runtime::perf::Outcome::Ok, &[]);
                 info!("Acquired provisioning profile");
                 Ok::<_, Report>(profile)
             },

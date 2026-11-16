@@ -51,6 +51,28 @@ pub struct Socket {
 
 impl Socket {
     pub fn connect(host: &str, port: u16, tls: bool) -> io::Result<Self> {
+        let span = perf::span(
+            if tls {
+                "socket.tls_connect"
+            } else {
+                "socket.connect"
+            },
+            &[],
+        );
+        perf::checkpoint();
+        let result = Self::connect_inner(host, port, tls);
+        span.finish(
+            if result.is_ok() {
+                perf::Outcome::Ok
+            } else {
+                perf::Outcome::Error
+            },
+            &[],
+        );
+        result
+    }
+
+    fn connect_inner(host: &str, port: u16, tls: bool) -> io::Result<Self> {
         #[cfg(target_os = "wasi")]
         {
             let mut fd = -1;
@@ -132,51 +154,55 @@ impl Drop for Socket {
 
 impl Read for Socket {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        if buf.is_empty() {
-            return Ok(0);
-        }
-        #[cfg(target_os = "wasi")]
-        {
-            let mut count = 0;
-            unsafe {
-                errno(rootshell_socket_recv(
-                    self.fd,
-                    buf.as_mut_ptr(),
-                    buf.len().min(i32::MAX as usize) as i32,
-                    &mut count,
-                ))?;
+        perf::io_bytes_with_idle("socket.recv", self.cooperative, || {
+            if buf.is_empty() {
+                return Ok(0);
             }
-            Ok(count as usize)
-        }
-        #[cfg(not(target_os = "wasi"))]
-        {
-            self.stream.read(buf)
-        }
+            #[cfg(target_os = "wasi")]
+            {
+                let mut count = 0;
+                unsafe {
+                    errno(rootshell_socket_recv(
+                        self.fd,
+                        buf.as_mut_ptr(),
+                        buf.len().min(i32::MAX as usize) as i32,
+                        &mut count,
+                    ))?;
+                }
+                Ok(count as usize)
+            }
+            #[cfg(not(target_os = "wasi"))]
+            {
+                self.stream.read(buf)
+            }
+        })
     }
 }
 
 impl Write for Socket {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        if buf.is_empty() {
-            return Ok(0);
-        }
-        #[cfg(target_os = "wasi")]
-        {
-            let mut count = 0;
-            unsafe {
-                errno(rootshell_socket_send(
-                    self.fd,
-                    buf.as_ptr(),
-                    buf.len().min(i32::MAX as usize) as i32,
-                    &mut count,
-                ))?;
+        perf::io_bytes("socket.send", || {
+            if buf.is_empty() {
+                return Ok(0);
             }
-            Ok(count as usize)
-        }
-        #[cfg(not(target_os = "wasi"))]
-        {
-            self.stream.write(buf)
-        }
+            #[cfg(target_os = "wasi")]
+            {
+                let mut count = 0;
+                unsafe {
+                    errno(rootshell_socket_send(
+                        self.fd,
+                        buf.as_ptr(),
+                        buf.len().min(i32::MAX as usize) as i32,
+                        &mut count,
+                    ))?;
+                }
+                Ok(count as usize)
+            }
+            #[cfg(not(target_os = "wasi"))]
+            {
+                self.stream.write(buf)
+            }
+        })
     }
     fn flush(&mut self) -> io::Result<()> {
         Ok(())
@@ -250,3 +276,5 @@ pub mod fs {
 }
 
 pub mod vfs;
+
+pub mod perf;

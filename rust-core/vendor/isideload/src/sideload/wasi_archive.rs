@@ -10,6 +10,8 @@ pub(super) fn extract<R: Read + io::Seek>(
     archive: &mut zip::ZipArchive<R>,
     root: &Path,
 ) -> io::Result<()> {
+    let performance = rootshell_runtime::perf::span("ipa.extract", &[("entries", archive.len() as u64)]);
+    rootshell_runtime::perf::checkpoint();
     let invalid = || {
         io::Error::new(
             io::ErrorKind::InvalidData,
@@ -69,5 +71,7 @@ pub(super) fn extract<R: Read + io::Seek>(
         std::io::Write::write_all(&mut placeholder, b"")?;
         vfs::register_link(root, path, target)?;
     }
-    vfs::validate_links(root)
+    vfs::validate_links(root)?;
+    performance.finish(rootshell_runtime::perf::Outcome::Ok, &[("expanded_bytes", expanded), ("links", links.len() as u64)]);
+    Ok(())
 }

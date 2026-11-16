@@ -20,13 +20,17 @@ bash scripts/check-rootshell-runtime.sh /tmp/siboot-source/rootshell/target/wasm
 
 ## 当前行为
 
-rootshell 0.21.0 内完成本地 IPA 选择、设备配对、Apple 登录、完整签名、上传核对、安装和快速续签。运行时不需要 Minis。使用 rootshell 原生的 socket/TLS、文件和终端 ABI，不执行 Linux ELF，不转发安装任务。
+rootshell 0.21.1 内完成本地 IPA 选择、设备配对、Apple 登录、完整签名、上传核对、安装和快速续签。运行时不需要 Minis。使用 rootshell 原生的 socket/TLS、文件和终端 ABI，不执行 Linux ELF，不转发安装任务。
 
 两端保留中文／英文、Jay-Void-BA 与 FrizzleM 署名、密码查看／隐藏、独立口令加密登录及签名缓存、失败步骤重试、原始 IPA 续签缓存、配对文件验证后保存到程序同目录。只接受本地 IPA，移除 SideInstaller IPA 下载入口。
 
 签名核心递归处理主程序、扩展、Framework、dylib 和其他 Mach-O，并封存 `.config` 等资源。rootshell 缺少原生符号链接，WASI 文件层保留链接元数据，签名器按链接封印，AFC 安装时重建。原生平台继续使用操作系统链接、Rayon 和 mmap。
 
 Minis／iSH 与 rootshell 不能直接访问对方的沙盒。已有文件先通过“文件”复制进目标应用，再选择导入。设备连接仍需要 LocalDevVPN。
+
+## 性能诊断
+
+rootshell 新增 `--perf-log`，在 WASM 同目录生成独立的 JSONL 性能日志，记录操作耗时、重试、输入等待、签名与哈希、逐条目上传、安装进度及网络统计。接口仅接受代码定义的操作名和数字，不接收输入、路径、URL 或协议正文。详细事件限制为 16 MiB，正常退出仍保留摘要。组件测试和原版 Worker 检查验证日志落盘与敏感字段过滤。详见主 README。
 
 ## CI 与发布
 

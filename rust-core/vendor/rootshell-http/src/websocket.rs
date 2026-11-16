@@ -11,6 +11,8 @@ use tungstenite::{Message, WebSocket};
 
 pub struct Connection(WebSocket<Socket>);
 pub async fn connect_async(url: &str) -> Result<(Connection, ()), super::Error> {
+    let performance = rootshell_runtime::perf::span("websocket.connect", &[]);
+    rootshell_runtime::perf::checkpoint();
     let parsed = url::Url::parse(url).map_err(|_| super::invalid("invalid WebSocket URL"))?;
     let tls = match parsed.scheme() {
         "wss" => true,
@@ -39,12 +41,23 @@ pub async fn connect_async(url: &str) -> Result<(Connection, ()), super::Error> 
         .max_frame_size(Some(super::MAX_BODY));
     let (ws, _) = tungstenite::client::client_with_config(url, socket, Some(config))
         .map_err(|_| super::invalid("WebSocket handshake failed"))?;
+    performance.finish(rootshell_runtime::perf::Outcome::Ok, &[]);
     Ok((Connection(ws), ()))
 }
 impl Stream for Connection {
     type Item = Result<Message, tungstenite::Error>;
     fn poll_next(self: Pin<&mut Self>, _: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        Poll::Ready(match self.get_mut().0.read() {
+        let performance = rootshell_runtime::perf::span("websocket.receive", &[]);
+        rootshell_runtime::perf::checkpoint();
+        let result = self.get_mut().0.read();
+        match &result {
+            Ok(message) => performance.finish(
+                rootshell_runtime::perf::Outcome::Ok,
+                &[("bytes", message.len() as u64)],
+            ),
+            Err(_) => performance.finish(rootshell_runtime::perf::Outcome::Error, &[]),
+        }
+        Poll::Ready(match result {
             Ok(message) => Some(Ok(message)),
             Err(tungstenite::Error::ConnectionClosed) => None,
             Err(e) => Some(Err(e)),

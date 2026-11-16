@@ -165,7 +165,29 @@ impl RequestBuilder {
         self
     }
     pub async fn send(self) -> Result<Response, Error> {
-        self.send_blocking()
+        let span = rootshell_runtime::perf::span(
+            "http.request",
+            &[("request_bytes", self.body.len() as u64)],
+        );
+        rootshell_runtime::perf::checkpoint();
+        let response = self.send_blocking();
+        match &response {
+            Ok(response) => span.finish(
+                rootshell_runtime::perf::Outcome::Ok,
+                &[
+                    ("status", response.status.as_u16() as u64),
+                    ("response_bytes", response.body.len() as u64),
+                ],
+            ),
+            Err(error) => span.finish(
+                rootshell_runtime::perf::Outcome::Error,
+                &[
+                    ("timeout", u64::from(error.is_timeout())),
+                    ("connect_error", u64::from(error.is_connect())),
+                ],
+            ),
+        }
+        response
     }
 
     fn send_blocking(self) -> Result<Response, Error> {

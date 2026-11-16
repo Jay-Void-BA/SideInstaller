@@ -2771,6 +2771,7 @@ dependencies = [
 name = "rootshell-runtime"
 version = "0.21.0"
 dependencies = [
+ "serde_json",
  "tokio",
 ]
 

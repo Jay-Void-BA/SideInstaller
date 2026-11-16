@@ -27,6 +27,8 @@ pub struct Application {
 
 impl Application {
     pub fn new(path: PathBuf) -> Result<Self, Report> {
+        #[cfg(target_os = "wasi")]
+        let performance = rootshell_runtime::perf::span("ipa.open", &[]);
         if !path.exists() {
             bail!(SideloadError::InvalidBundle(
                 "Application path does not exist".to_string(),
@@ -89,6 +91,8 @@ impl Application {
         }
         let bundle = Bundle::new(bundle_path)?;
 
+        #[cfg(target_os = "wasi")]
+        performance.finish(rootshell_runtime::perf::Outcome::Ok, &[]);
         Ok(Application {
             bundle, /*temp_path*/
         })
