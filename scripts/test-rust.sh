@@ -1,5 +1,5 @@
 #!/bin/bash
-# Runs the Rust tests on this Mac: rust-core's own (2FA bridge, saved sessions,
+# Runs the shared Rust tests on this machine: rust-core's own (2FA bridge, saved sessions,
 # .p12, pairing host, …), then those of the crates vendored under
 # rust-core/vendor/, whose local changes have tests of their own (idevice's
 # OPACK back-references and AFC logging, isideload's 2FA, anisette and

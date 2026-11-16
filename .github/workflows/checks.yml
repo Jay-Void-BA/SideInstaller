@@ -14,9 +14,9 @@ name: checks
 #                 by this change fails, as do a duplicate key (it stops the app)
 #                 and a translation whose %@ / %d differ from the English
 #
-# Each script runs the same on a Mac, so a failure can be reproduced locally;
-# scripts/check-ios.sh wants a clean clone or worktree, since it generates the
-# Xcode project.
+# Portable Rust checks use Linux; the iOS job retains the macOS build and Swift
+# tests. scripts/check-ios.sh wants a clean clone or worktree on a Mac, since
+# it generates the Xcode project.
 #
 # Pushes to main run it too: a direct push is checked like a pull request, and
 # the caches it saves are the ones pull requests start from (GitHub doesn't let
@@ -47,7 +47,7 @@ env:
 jobs:
   rust:
     name: Rust tests and clippy
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
     timeout-minutes: 45
     env:
       # No debug info or incremental files: the tests don't need them, and they
