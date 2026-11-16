@@ -32,8 +32,9 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: checks-${{ github.ref }}
-  # A newer push to a pull request replaces its run; main's runs all finish.
+  # Main commits run independently so a waiting runner cannot block later
+  # commits. A newer push to a pull request still replaces that PR's run.
+  group: checks-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
