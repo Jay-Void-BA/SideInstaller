@@ -1,6 +1,7 @@
 //! Streaming IPA extraction with virtual symlinks for rootshell's WASI host.
 use rootshell_runtime::vfs;
 use std::{
+    collections::BTreeSet,
     fs,
     io::{self, Read, Write},
     path::{Path, PathBuf},
@@ -25,6 +26,20 @@ pub(super) fn extract<R: Read + io::Seek>(
     }
     let mut links = Vec::<(PathBuf, PathBuf)>::new();
     let mut expanded = 0u64;
+    // This extraction owns its fresh temporary tree. Reuse parents already
+    // checked here instead of one WebKit metadata round trip for every file.
+    // Never cache failures; create_new still rejects file/link conflicts.
+    let mut directories = BTreeSet::new();
+    let mut directory_checks_saved = 0u64;
+    let mut ensure_directory = |directory: &Path| -> io::Result<()> {
+        if directories.contains(directory) {
+            directory_checks_saved += 1;
+            return Ok(());
+        }
+        vfs::create_dir_all(directory)?;
+        directories.insert(directory.to_path_buf());
+        Ok(())
+    };
     for index in 0..archive.len() {
         let mut file = archive.by_index(index).map_err(io::Error::other)?;
         let relative = file.enclosed_name().ok_or_else(invalid)?;
@@ -42,11 +57,11 @@ pub(super) fn extract<R: Read + io::Seek>(
             return Err(invalid());
         }
         if file.is_dir() {
-            vfs::create_dir_all(output)?;
+            ensure_directory(&output)?;
             continue;
         }
         if let Some(parent) = output.parent() {
-            vfs::create_dir_all(parent)?;
+            ensure_directory(parent)?;
         }
         if file.is_symlink() {
             if file.size() == 0 || file.size() > 4096 {
@@ -84,7 +99,12 @@ pub(super) fn extract<R: Read + io::Seek>(
     vfs::validate_links(root)?;
     performance.finish(
         rootshell_runtime::perf::Outcome::Ok,
-        &[("expanded_bytes", expanded), ("links", links.len() as u64)],
+        &[
+            ("expanded_bytes", expanded),
+            ("links", links.len() as u64),
+            ("directories", directories.len() as u64),
+            ("directory_checks_saved", directory_checks_saved),
+        ],
     );
     Ok(())
 }

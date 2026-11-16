@@ -10,14 +10,14 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/Jay-Void-BA/SideInstaller/releases/tag/siboot-v0.21.3"><img src="https://img.shields.io/badge/release-0.21.3-2563eb?style=flat-square" alt="siboot 0.21.3"></a>
+  <a href="https://github.com/Jay-Void-BA/SideInstaller/releases/tag/siboot-v0.21.4"><img src="https://img.shields.io/badge/release-0.21.4-2563eb?style=flat-square" alt="siboot 0.21.4"></a>
   <a href="https://github.com/Jay-Void-BA/SideInstaller/actions/workflows/checks.yml"><img src="https://github.com/Jay-Void-BA/SideInstaller/actions/workflows/checks.yml/badge.svg?branch=main" alt="CI 检查状态"></a>
   <a href="#requirements"><img src="https://img.shields.io/badge/platform-rootshell%20%7C%20iOS%2027%2B-64748b?style=flat-square" alt="rootshell · iOS／iPadOS 27+"></a>
   <a href="https://github.com/Jay-Void-BA/SideInstaller/blob/main/LICENSE.md"><img src="https://img.shields.io/badge/license-Custom-64748b?style=flat-square" alt="SideInstaller 自定义许可证"></a>
 </p>
 
 <p align="center">
-  <a href="https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.21.3/siboot.wasm">下载 siboot.wasm</a> ·
+  <a href="https://github.com/Jay-Void-BA/SideInstaller/releases/tag/siboot-v0.21.4">下载</a> ·
   <a href="#quick-start">快速开始</a> ·
   <a href="#usage">常用命令</a> ·
   <a href="#performance">性能诊断</a> ·
@@ -54,7 +54,7 @@
 | 项目 | 要求 |
 | --- | --- |
 | 系统 | iOS／iPadOS **27+**，已开启开发者模式 |
-| 终端 | 最新版 [rootshell](https://github.com/kitknox/rootshell)，支持 WASI Preview 1、socket/TLS 和终端 raw 模式 |
+| 终端 | [rootshell](https://github.com/kitknox/rootshell) **1.0.16（178）** |
 | 设备连接 | [LocalDevVPN](https://apps.apple.com/app/id6755608044) 已连接，Wi-Fi 开启 |
 | 签名材料 | 自己的 Apple 账户、可用网络和本地 IPA |
 
@@ -64,14 +64,9 @@ Apple 登录、anisette 和签名配置需要联网。rootshell 是应用名称�
 
 ## rootshell 兼容性
 
-| 运行时能力 | 可用功能 |
-| --- | --- |
-| 缺少接收超时接口的旧 Worker，包括 1.0.15／build 175 的接口版本 | 启动、帮助、菜单、配对，以及 `check` 的 TCP 连通性检查 |
-| 提供 socket 接收超时接口的 Worker | 完整安装、续签及设备隧道流程 |
+**仅支持 rootshell 1.0.16（178）**，使用其原版 socket／TLS、接收超时、终端和文件系统接口，无需修改宿主。早期版本及 build 175 回移方案不再受支持，也不再随 Release 提供。
 
-接收超时函数改为可选加载。缺少接口时，安装、续签、`connect` 和开发者模式操作会在 Apple 登录前明确提示原因。旧版的 `check` 成功仅表示 TCP 可以连接。
-
-完整安装需要更新到包含 `rootshell_socket_set_recv_timeout` 的 rootshell（已验证上游 build 178 Worker）。保留 build 175 的开发者也可应用[宿主回移补丁](https://github.com/Jay-Void-BA/SideInstaller/blob/main/patches/rootshell/README.md)并自行编译 rootshell；补丁同时修复大目录枚举，避免漏掉签名资源。单独更新 WASM 无法补齐宿主缺少的接口。
+CI 固定使用未经修改的 [1.0.16-178 源码](https://github.com/kitknox/rootshell/tree/192eab95001aef3f2ea4b282c0d3f38a3539fb3f)，校验 Worker 与 broker 的哈希，并模拟其单个根目录预打开项和 64 KiB 回包缓冲区。请先在 rootshell 设置中确认版本。
 
 <a id="quick-start"></a>
 
@@ -79,7 +74,7 @@ Apple 登录、anisette 和签名配置需要联网。rootshell 是应用名称�
 
 ### 1. 安装应用与配置权限
 
-安装最新版 rootshell（[App Store](https://apps.apple.com/app/rootshell-local-terminal-ssh/id6755794662)／[中国区 App Store](https://apps.apple.com/app/rootshell-%E6%9C%AC%E5%9C%B0%E7%BB%88%E7%AB%AF-ssh/id6763402687)）和 [LocalDevVPN](https://apps.apple.com/app/id6755608044)。
+安装 rootshell **1.0.16（178）**（[App Store](https://apps.apple.com/app/rootshell-local-terminal-ssh/id6755794662)／[中国区 App Store](https://apps.apple.com/app/rootshell-%E6%9C%AC%E5%9C%B0%E7%BB%88%E7%AB%AF-ssh/id6763402687)）和 [LocalDevVPN](https://apps.apple.com/app/id6755608044)。
 
 1. 在系统“设置 › 隐私与安全性 › 开发者模式”中开启开发者模式，按提示重启并确认。
 2. 打开 Wi-Fi，在 LocalDevVPN 中添加系统 VPN 配置并连接，确认状态为 **Connected**。安装和续签期间保持 LocalDevVPN 为当前连接的 VPN。
@@ -97,30 +92,33 @@ cd siboot
 pwd
 ```
 
-在“文件 › 浏览 › 我的 iPhone／iPad › rootshell › siboot”中放入自己的 `App.ipa`。iCloud Drive、下载目录或其他应用中的文件，需要先拷贝到 rootshell 可访问的应用目录。新建标签页后先进入 `siboot` 目录。
+在“文件 › 浏览 › 我的 iPhone／iPad › rootshell › siboot”中放入自己的 `App.ipa`。iCloud Drive、下载目录或其他应用中的文件，需要先拷贝到 rootshell 可访问的应用目录。新建标签页后先进入 `siboot` 目录。178 传给 WASM 的 argv 只含文件名，因此应先进入程序所在目录再启动。
 
 仅首次配置时创建 `siboot`。目录已存在时，直接 `cd siboot` 进入即可。“文件”中的 `rootshell` 文件夹由应用自动提供。
 
 ### 3. 下载并校验
 
-保持终端位于刚才的目录，逐条执行：
+在工作目录下载固定版本的安装脚本，下载成功后才执行：
 
 ```sh
-curl -fL -C - -o siboot-v0.21.3.wasm.part https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.21.3/siboot.wasm
-sha256sum siboot-v0.21.3.wasm.part
+curl -fL --retry 3 -o install-rootshell.sh.part https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.21.4/install-rootshell.sh &&
+mv install-rootshell.sh.part install-rootshell.sh &&
+sh install-rootshell.sh
 ```
 
-与 [Release](https://github.com/Jay-Void-BA/SideInstaller/releases/tag/siboot-v0.21.3) 附件 [SHA256SUMS](https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.21.3/SHA256SUMS) 核对一致后，再运行：
+脚本会续传当前版本的 `.wasm.part`，核对**精确字节数和 SHA-256**，通过后才替换 `siboot.wasm`。下载中断或校验失败时保留原程序，以及配对、登录与续签数据。重复执行时，已完整且通过校验的程序不会重复下载。
 
 ```sh
-mv siboot-v0.21.3.wasm.part siboot.wasm
+sh install-rootshell.sh --verify
 ./siboot.wasm --version
 ```
 
-版本输出应包含 `siboot 0.21.3 (rootshell)`。也可以通过 Safari 下载 `siboot.wasm`，复制到 `rootshell/siboot` 后校验。
+版本输出应包含 `siboot 0.21.4 (rootshell 1.0.16 / 178)`。部分文件损坏或服务器拒绝续传时，运行 `sh install-rootshell.sh --restart` 重新下载当前版本；验证完成前仅改写部分下载文件。强制结束可能留下 `.siboot-download.lock`，先结束所有下载脚本，再用 `rmdir .siboot-download.lock` 删除这个空目录。
+
+也可在 Safari 下载 `siboot.wasm` 和 `install-rootshell.sh`，拷贝到 `rootshell/siboot` 后运行 `sh install-rootshell.sh --verify`。所有发布附件的哈希见 [SHA256SUMS](https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.21.4/SHA256SUMS)。
 
 > [!TIP]
-> 下载时保持 rootshell 在前台。中断后用同一条 `curl` 命令续传，并再次核对哈希。使用带版本号的 `.part` 文件，避免把旧版本内容续传进新版本；校验一致后再改名运行。
+> 下载时保持 rootshell 在前台。安装脚本或 `--verify` 成功后才运行 WASM。“数据段超出模块大小”发生在 siboot 启动前，因此校验由模块外的下载脚本完成。
 
 <a id="first-install"></a>
 <a id="首次配对与安装"></a>
@@ -172,7 +170,7 @@ siboot/
   siboot-perf-*.jsonl         启用 --perf-log 后的性能日志
 ```
 
-默认数据目录为程序旁的 `.siboot/`。保留配对文件与数据目录，下次即可复用配对、解锁登录并快速续签。程序升级时，将新版 `siboot.wasm` 放回同一目录。
+默认数据目录为程序旁的 `.siboot/`。保留配对文件与数据目录，下次即可复用配对、解锁登录并快速续签。程序升级时，将新版 `siboot.wasm` 放回同一目录。旧版从子目录启动时，可能错误地把数据放在沙盒根目录；这些文件仍保留，可传入 `--home /.siboot` 继续使用旧存储，必要时用 `--pairing-file /rp_pairing_file.plist` 导入旧配对。迁移存储前，后续运行也应保留显式的 `--home`。
 
 </details>
 
@@ -274,11 +272,15 @@ iSH／Minis 旧版已弃用，不再更新功能或发布新的 `siboot-aarch64`
 
 ## 常见问题
 
+### WASM 数据段超出模块大小
+
+该错误发生在 rootshell 解析模块时，siboot 尚未启动：加载到的字节少于模块声明的长度。先运行 `sh install-rootshell.sh --verify`，失败则运行 `sh install-rootshell.sh --restart`。不要执行或改名未通过校验的部分下载文件。若校验成功，但在 1.0.16（178）仍出现同样错误，请提供文件大小、SHA-256 和完整报错，以便单独调查宿主加载路径。
+
 ### 安装耗时较长
 
 程序分别显示上传、文件核对和 iOS 安装耗时。解压、哈希／签名、Apple／anisette 请求、加密隧道、许多小文件的往返及系统 `installd` 都可能占用时间。rootshell 使用 WASM，不保证比 Minis 更快；系统安装时间由 iOS 决定。使用[性能诊断日志](#performance)判断具体耗时阶段。
 
-本地 I/O 限制单次读取大小，并缓冲 ZIP 解压写入；文件选择缓存条目类型并合并终端输出，快速续签只验证一次缓存快照。这些改动减少宿主调用，保留完整签名与上传核对；真机速度变化仍需通过 `--perf-log` 测量。
+本地 I/O 限制单次读取大小，并缓冲 ZIP 解压写入、复用已验证的父目录；解压日志记录 `directory_checks_saved`（省下的目录检查次数）；文件选择缓存条目类型并合并终端输出，快速续签只验证一次缓存快照。这些改动减少宿主调用，保留完整签名与上传核对；真机速度变化仍需通过 `--perf-log` 测量。
 
 ### 配对入口没有出现
 
@@ -306,6 +308,7 @@ rootshell 是当前面向用户维护和发布的目标。仓库保留上游 iOS
 
 ```sh
 bash scripts/prepare-minis.sh /tmp/siboot-source
+# Worker 与 JavaScriptCore 检查需要 Node 24 和 Bun 1.3.2。
 rustup target add wasm32-wasip1
 cargo build --manifest-path /tmp/siboot-source/rootshell/Cargo.toml --release --locked --target wasm32-wasip1 --bins --examples
 bash scripts/check-rootshell-runtime.sh /tmp/siboot-source/rootshell/target/wasm32-wasip1/release/siboot.wasm /tmp/siboot-source/rootshell/target/wasm32-wasip1/release/examples/runtime_check.wasm
@@ -315,7 +318,7 @@ bash scripts/check-rootshell-runtime.sh /tmp/siboot-source/rootshell/target/wasm
 
 </details>
 
-CI 检查共享 Rust、rootshell、WASI 编译，以及固定版本 Worker 矩阵：未修改的旧宿主、未修改的新宿主和应用已公开回移补丁的 build 175。旧宿主验证启动与能力不足提示；具备接口的宿主额外验证大目录完整签名、HTTP／WebSocket、协作 TCP、加密保存及续签。全部检查通过后，为尚未发布的版本生成 `siboot.wasm`、可选宿主补丁及 SHA-256，并标记 Latest。
+CI 检查共享 Rust、rootshell、WASI 编译及通过 Bun 运行的 JavaScriptCore 解析，以及未经修改的 **1.0.16（178）** Worker，覆盖单根目录预打开的子目录启动、真实回包上限、大目录完整签名、HTTP／WebSocket、协作 TCP、加密存储、续签及中断／损坏下载。全部检查通过后生成 `siboot.wasm`、`install-rootshell.sh` 和 `SHA256SUMS`，并标记 Latest。
 
 **尚未完成真实 Apple 账号到 iPhone 安装的端到端验证。**
 

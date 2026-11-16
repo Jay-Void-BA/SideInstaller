@@ -1,35 +1,11 @@
-# rootshell build-175 host backport
+# rootshell runtime target
 
-[English usage guide](../../README.md#compatibility) · [简体中文使用说明](../../README.zh-CN.md#compatibility)
+siboot supports the unmodified **rootshell 1.0.16 (178)** host. No host patch is required. Build 175 and its former backport are no longer supported; older release assets remain in release history.
 
-This optional patch adds the host capabilities needed for the complete siboot workflow while retaining the build-175 source base. It is for developers compiling rootshell from source. It cannot patch an installed App Store app.
+The pinned upstream commit is [`192eab95001aef3f2ea4b282c0d3f38a3539fb3f`](https://github.com/kitknox/rootshell/tree/192eab95001aef3f2ea4b282c0d3f38a3539fb3f), tagged `1.0.16-178`.
 
-The unmodified older host can run siboot's startup, pairing, and TCP checks. Complete installation and renewal need cooperative receive timeouts; treating the older host's placeholder as success would block its single WASM thread indefinitely.
+[`scripts/check-rootshell-runtime.sh`](../../scripts/check-rootshell-runtime.sh) verifies SHA-256 for the original Worker, host page, runtime, socket broker, filesystem broker, and process model. It runs the actual Worker with a local broker that models the single root preopen, mkdir errors, short writes, directory pagination, and 64 KiB JSON/Base64 reply mailbox.
 
-## Apply
+The checks use Node 24 and Bun 1.3.2 to validate both V8 and JavaScriptCore parsing, including truncated modules. They cover first-launch guidance, repeated directory reuse, subdirectory launches, encrypted storage, PKCS#10, recursive CMS signing, links and large resources, renewal, password EOF, HTTP/WebSocket, and cooperative TCP. Download packaging also rejects section overflows and exercises interrupted transfers, corruption, resume, and verification before replacement.
 
-Base: [kitknox/rootshell](https://github.com/kitknox/rootshell) at `2428f29990ab1e1e18dd8bf06c40f9f8a5b11273`, tagged upstream as `1.0.16-175`. The older `1.0.15-172` release has the same Worker ABI. Runtime capability detection handles the version label reported by the installed app.
-
-Download [recv-timeout-175.patch](recv-timeout-175.patch), or the equivalent `rootshell-175-backport.patch` release asset. In a clean rootshell checkout, run:
-
-```sh
-git checkout 2428f29990ab1e1e18dd8bf06c40f9f8a5b11273
-git apply --check /path/to/rootshell-175-backport.patch
-git apply /path/to/rootshell-175-backport.patch
-```
-
-Replace the patch path with its actual location. Build and sign rootshell using its own contributor instructions, then run the new siboot WASM inside that app.
-
-## Changes
-
-- Expose `rootshell_socket_set_recv_timeout` through both documented import namespaces.
-- Store each socket's receive deadline and return `EAGAIN` only for that pending receive. Match the process and call ID so stale deadlines cannot consume a later request.
-- Backport WASI directory cookies and stable, bounded filesystem pages from newer rootshell sources. This prevents older Workers from silently ending a large directory listing after the first buffer.
-
-The original kitknox/rootshell source and its MIT license remain applicable to these host changes. Directory pagination follows upstream commit `3ad9c828d78a2f769ddd8cf77ade0a76cbdfc4ce`; the timeout ABI follows the newer pinned host, with cancellation handling.
-
-## Verification
-
-`scripts/check-rootshell-runtime.sh` checks hashes of the pinned original host files, verifies and applies this patch, and runs the resulting Worker alongside unmodified legacy and newer Workers. The capable-host suite covers complete signing of 320 resources in one directory, TLS rejection, HTTP / WebSocket, short writes, timers, and software TCP.
-
-Worker tests use a local filesystem and socket broker matching the host protocol. They do not compile the complete Swift app or replace an end-to-end installation test on an iPhone.
+These checks do not execute Network.framework or WKWebView on a real iPhone. A successful Worker test does not constitute an Apple Account-to-device end-to-end installation test. Configuration and integrity-checked downloads are documented in the [English README](../../README.md#quick-start) and [中文说明](../../README.zh-CN.md#quick-start).

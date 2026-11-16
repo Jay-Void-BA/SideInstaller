@@ -251,6 +251,11 @@ jobs:
         with:
           node-version: '24'
 
+      - name: JavaScriptCore parser
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.3.2'
+
       - name: Prepare both installer targets
         run: bash scripts/prepare-minis.sh "$RUNNER_TEMP/siboot"
 

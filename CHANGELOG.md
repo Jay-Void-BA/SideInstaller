@@ -1,5 +1,14 @@
 # Changelog
 
+## siboot 0.21.4 — rootshell 1.0.16 (178) and verified downloads
+
+- Target only the original 1.0.16 (178) host; remove the build-175 backport from current source and release assets.
+- Generate a resumable downloader with exact byte-count/SHA-256 checks and verified replacement; preserve the existing program on interruption or corruption.
+- Reject truncated sections during packaging and test interrupted transfers, range resume, corruption, links, and download locking.
+- Cache validated extraction parents to avoid repeated host metadata calls, with savings reported in performance logs.
+- Resolve relative paths using virtual PWD and validate module parsing in JavaScriptCore as well as V8.
+- Match the actual single root preopen, cover subdirectory startup, recheck signing/storage/network behavior, and update bilingual setup/recovery instructions.
+
 ## siboot 0.21.3 — first launch and reliable rootshell I/O
 
 - Guide the first interactive IPA import through Files, with Chinese/English text and acknowledgement saved only after confirmation.

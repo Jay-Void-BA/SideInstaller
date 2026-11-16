@@ -18,23 +18,15 @@ unsafe extern "C" {
     fn rootshell_socket_send(fd: i32, buf: *const u8, len: i32, sent: *mut u32) -> i32;
     fn rootshell_socket_recv(fd: i32, buf: *mut u8, len: i32, received: *mut u32) -> i32;
     fn rootshell_socket_close(fd: i32) -> i32;
-}
-
-// Older rootshell Workers stub unknown `env` functions, but reject missing
-// functions in `rootshell_socket` before `_start`, even for --version/--help.
-// Probe the optional function with an invalid fd: the real host returns EBADF;
-// an old Worker's zero-returning stub must never count as timeout support.
-#[cfg(target_os = "wasi")]
-#[link(wasm_import_module = "env")]
-unsafe extern "C" {
+    // Required by the supported rootshell 1.0.16 (178) host ABI.
     fn rootshell_socket_set_recv_timeout(fd: i32, timeout_ms: u32) -> i32;
 }
 
-pub const RECEIVE_TIMEOUT_REQUIRED: &str = "This rootshell build lacks socket receive-timeout support. Pairing and connection checks are available; full installation and renewal require a newer rootshell build or the receive-timeout backport.";
+pub const RECEIVE_TIMEOUT_REQUIRED: &str = "This installer requires rootshell 1.0.16 (178) with working socket receive timeouts. Other builds are unsupported.";
 
 #[cfg(any(target_os = "wasi", test))]
 fn is_timeout_api(code: i32) -> bool {
-    code == 8 // EBADF from the real broker, not success from an env stub.
+    code == 8 // A working broker reports EBADF for our invalid descriptor.
 }
 
 pub fn receive_timeout_supported() -> bool {
@@ -116,8 +108,7 @@ impl Socket {
         result
     }
 
-    /// Check TCP reachability without exposing an unbounded reader to callers.
-    /// This remains usable on old hosts that have no receive-timeout API.
+    /// Check TCP reachability without reading or starting a device tunnel.
     pub fn probe_connection(host: &str, port: u16) -> io::Result<()> {
         let span = perf::span("socket.probe_connect", &[]);
         perf::checkpoint();
@@ -350,7 +341,7 @@ impl AsyncWrite for Socket {
 pub mod fs {
     use std::{io, path::Path};
     pub async fn write(path: impl AsRef<Path>, contents: impl AsRef<[u8]>) -> io::Result<()> {
-        std::fs::write(path, contents)
+        super::vfs::write(path, contents)
     }
     pub async fn read(path: impl AsRef<Path>) -> io::Result<Vec<u8>> {
         super::vfs::read(path)

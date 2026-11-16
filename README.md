@@ -10,14 +10,14 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/Jay-Void-BA/SideInstaller/releases/tag/siboot-v0.21.3"><img src="https://img.shields.io/badge/release-0.21.3-2563eb?style=flat-square" alt="siboot 0.21.3"></a>
+  <a href="https://github.com/Jay-Void-BA/SideInstaller/releases/tag/siboot-v0.21.4"><img src="https://img.shields.io/badge/release-0.21.4-2563eb?style=flat-square" alt="siboot 0.21.4"></a>
   <a href="https://github.com/Jay-Void-BA/SideInstaller/actions/workflows/checks.yml"><img src="https://github.com/Jay-Void-BA/SideInstaller/actions/workflows/checks.yml/badge.svg?branch=main" alt="CI status"></a>
   <a href="#requirements"><img src="https://img.shields.io/badge/platform-rootshell%20%7C%20iOS%2027%2B-64748b?style=flat-square" alt="rootshell · iOS / iPadOS 27+"></a>
   <a href="https://github.com/Jay-Void-BA/SideInstaller/blob/main/LICENSE.md"><img src="https://img.shields.io/badge/license-Custom-64748b?style=flat-square" alt="SideInstaller custom license"></a>
 </p>
 
 <p align="center">
-  <a href="https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.21.3/siboot.wasm">Download</a> ·
+  <a href="https://github.com/Jay-Void-BA/SideInstaller/releases/tag/siboot-v0.21.4">Download</a> ·
   <a href="#quick-start">Quick start</a> ·
   <a href="#usage">Usage</a> ·
   <a href="#performance">Diagnostics</a> ·
@@ -54,7 +54,7 @@ The installation workflow runs entirely in rootshell and `siboot.wasm`. Device c
 | Component | Requirement |
 | --- | --- |
 | System | iOS / iPadOS **27+**, with Developer Mode enabled |
-| Terminal | The latest [rootshell](https://github.com/kitknox/rootshell), with WASI Preview 1, socket/TLS, and raw terminal support |
+| Terminal | [rootshell](https://github.com/kitknox/rootshell) **1.0.16 (178)** |
 | Device connection | [LocalDevVPN](https://apps.apple.com/app/id6755608044) connected, with Wi-Fi enabled |
 | Signing | Your own Apple Account, an internet connection, and a local IPA |
 
@@ -64,14 +64,9 @@ Apple authentication, anisette, and provisioning require internet access. The na
 
 ## rootshell compatibility
 
-| Runtime capability | Available functionality |
-| --- | --- |
-| Older Workers, including the 1.0.15 / build-175 ABI, without receive timeouts | Startup, help, the menu, pairing, and TCP reachability checks with `check` |
-| Workers with the socket receive-timeout API | The complete installation, renewal, and device tunnel workflow |
+**rootshell 1.0.16 (178) is the only supported target.** The installer uses its original socket/TLS, receive-timeout, terminal, and filesystem APIs. It does not require a host patch. Earlier builds and the old build-175 backport are no longer supported or included in releases.
 
-The receive-timeout function is optional at load time. If it is missing, installation, renewal, `connect`, and Developer Mode operations stop with an explanation before Apple sign-in. A successful `check` on an older host confirms TCP reachability only.
-
-For complete installation, update rootshell to a build with `rootshell_socket_set_recv_timeout` (verified with the upstream build-178 Worker). Developers retaining build 175 can apply the [host backport](https://github.com/Jay-Void-BA/SideInstaller/blob/main/patches/rootshell/README.md) and rebuild rootshell. The patch also fixes directory pagination so large bundles are enumerated completely. Updating the WASM file alone cannot add a missing host API.
+CI pins the unmodified [1.0.16-178 source](https://github.com/kitknox/rootshell/tree/192eab95001aef3f2ea4b282c0d3f38a3539fb3f), verifies the Worker and broker hashes, and models its single root preopen and 64 KiB reply mailbox. Check the installed version in rootshell Settings before continuing.
 
 <a id="quick-start"></a>
 <a id="rootshell-版配置"></a>
@@ -80,7 +75,7 @@ For complete installation, update rootshell to a build with `rootshell_socket_se
 
 ### 1. Install the apps and configure permissions
 
-Install the latest rootshell from the [App Store](https://apps.apple.com/app/rootshell-local-terminal-ssh/id6755794662) or [China App Store](https://apps.apple.com/app/rootshell-%E6%9C%AC%E5%9C%B0%E7%BB%88%E7%AB%AF-ssh/id6763402687), and install [LocalDevVPN](https://apps.apple.com/app/id6755608044).
+Install rootshell **1.0.16 (178)** from the [App Store](https://apps.apple.com/app/rootshell-local-terminal-ssh/id6755794662) or [China App Store](https://apps.apple.com/app/rootshell-%E6%9C%AC%E5%9C%B0%E7%BB%88%E7%AB%AF-ssh/id6763402687), and install [LocalDevVPN](https://apps.apple.com/app/id6755608044).
 
 1. Enable **Settings › Privacy & Security › Developer Mode**, then restart and confirm when prompted.
 2. Enable Wi-Fi. Add the VPN configuration in LocalDevVPN and connect. Confirm that it shows **Connected**, and keep LocalDevVPN as the active VPN during installation and renewal.
@@ -98,30 +93,33 @@ cd siboot
 pwd
 ```
 
-Copy your `App.ipa` into **Files › Browse › On My iPhone / iPad › rootshell › siboot**. Files in iCloud Drive, Downloads, or another app need to be copied into rootshell's accessible app directory first. Return to the `siboot` directory when opening a new terminal tab.
+Copy your `App.ipa` into **Files › Browse › On My iPhone / iPad › rootshell › siboot**. Files in iCloud Drive, Downloads, or another app need to be copied into rootshell's accessible app directory first. Return to the `siboot` directory when opening a new terminal tab. Build 178 passes only the module filename in argv, so enter the program directory before launching it.
 
 Create `siboot` only for the first setup. If the folder already exists, enter it with `cd siboot`. The `rootshell` folder in Files is created by the app.
 
 ### 3. Download and verify
 
-Run these commands from the working directory:
+From the working directory, download the version-pinned installer, then run it only if the download succeeded:
 
 ```sh
-curl -fL -C - -o siboot-v0.21.3.wasm.part https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.21.3/siboot.wasm
-sha256sum siboot-v0.21.3.wasm.part
+curl -fL --retry 3 -o install-rootshell.sh.part https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.21.4/install-rootshell.sh &&
+mv install-rootshell.sh.part install-rootshell.sh &&
+sh install-rootshell.sh
 ```
 
-Compare the hash with [SHA256SUMS](https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.21.3/SHA256SUMS) attached to the [release](https://github.com/Jay-Void-BA/SideInstaller/releases/tag/siboot-v0.21.3). When it matches, run:
+The script resumes this version's `.wasm.part` file, checks its **exact size and SHA-256**, and only then replaces `siboot.wasm`. Failed or corrupt downloads preserve the installed program and your pairing, login, and renewal data. Re-running the script skips a binary that already passes verification.
 
 ```sh
-mv siboot-v0.21.3.wasm.part siboot.wasm
+sh install-rootshell.sh --verify
 ./siboot.wasm --version
 ```
 
-The output should include `siboot 0.21.3 (rootshell)`. You can also download `siboot.wasm` in Safari, copy it into `rootshell/siboot`, and verify it there.
+The output should include `siboot 0.21.4 (rootshell 1.0.16 / 178)`. If a partial file is corrupt or the server refuses resuming, run `sh install-rootshell.sh --restart` to fetch that version again. It replaces only the partial file until verification succeeds. A forced termination may leave `.siboot-download.lock`; stop all download scripts before removing that empty directory with `rmdir .siboot-download.lock`.
+
+You can also download `siboot.wasm` and `install-rootshell.sh` in Safari and copy them into `rootshell/siboot`, then run `sh install-rootshell.sh --verify`. All release assets have hashes in [SHA256SUMS](https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.21.4/SHA256SUMS).
 
 > [!TIP]
-> Keep rootshell in the foreground while downloading. If the transfer is interrupted, resume with the same `curl` command and check the hash again. Use a versioned `.part` filename to keep downloads from different releases separate. Rename and run the file only after verification succeeds.
+> Keep rootshell in the foreground while downloading. Run the verified WASM only after the installer or `--verify` succeeds. A WebAssembly data-section overflow happens before siboot can run; the downloader checks integrity outside the module.
 
 <a id="first-install"></a>
 <a id="首次配对与安装"></a>
@@ -173,7 +171,7 @@ siboot/
   siboot-perf-*.jsonl         Performance logs, when --perf-log is enabled
 ```
 
-The default data directory is `.siboot/` beside the program. Keep it and the pairing record to reuse pairing, unlock saved credentials, and renew the last app. When upgrading, put the new `siboot.wasm` back in the same directory.
+The default data directory is `.siboot/` beside the program. Keep it and the pairing record to reuse pairing, unlock saved credentials, and renew the last app. When upgrading, put the new `siboot.wasm` back in the same directory. Earlier versions could incorrectly put state at the sandbox root when launched from a subdirectory. Those files are preserved: use `--home /.siboot` to reuse that storage and, if needed, `--pairing-file /rp_pairing_file.plist` to import the old pairing. Keep the explicit `--home` on later runs until you move the storage.
 
 </details>
 
@@ -275,7 +273,11 @@ Imports are verified against the device before a copy is saved as **`rp_pairing_
 
 ## Troubleshooting
 
-Local I/O uses reads of at most 32 KiB, buffered ZIP extraction, and combined 1 MiB upload packets. File selection caches entry types and batches terminal output; quick renewal validates one cache snapshot. These reduce host calls while preserving complete signature and upload verification. Device speed and iOS installation time still need measurement with `--perf-log`.
+Local I/O uses reads of at most 32 KiB, buffered ZIP extraction with reused parent directories, and combined 1 MiB upload packets. The extraction log records `directory_checks_saved`. File selection caches entry types and batches terminal output; quick renewal validates one cache snapshot. These reduce host calls while preserving complete signature and upload verification. Device speed and iOS installation time still need measurement with `--perf-log`.
+
+### WASM data section would overflow the module
+
+This error occurs while rootshell parses the module, before siboot starts. The loaded bytes are shorter than a section declares. Run `sh install-rootshell.sh --verify`; if it fails, use `sh install-rootshell.sh --restart`. Do not execute or rename an unverified partial download. If verification succeeds but the parser still fails on 1.0.16 (178), report the file size, SHA-256, and complete message so host loading can be investigated separately.
 
 ### Installation takes a long time
 
@@ -307,6 +309,7 @@ From the SideInstaller repository root:
 
 ```sh
 bash scripts/prepare-minis.sh /tmp/siboot-source
+# Install Node 24 and Bun 1.3.2 for the Worker and JavaScriptCore checks.
 rustup target add wasm32-wasip1
 cargo build --manifest-path /tmp/siboot-source/rootshell/Cargo.toml --release --locked --target wasm32-wasip1 --bins --examples
 bash scripts/check-rootshell-runtime.sh /tmp/siboot-source/rootshell/target/wasm32-wasip1/release/siboot.wasm /tmp/siboot-source/rootshell/target/wasm32-wasip1/release/examples/runtime_check.wasm
@@ -316,7 +319,7 @@ The script name is retained for compatibility with existing development workflow
 
 </details>
 
-CI covers shared Rust tests, rootshell tests, WASI builds, and a pinned Worker matrix: an unmodified older host, an unmodified newer host, and the build-175 host with the published backport. Checks exercise startup and capability errors on the older host; capable hosts also verify complete signing of large directories, HTTP / WebSocket, cooperative TCP, encrypted storage, and renewal. Once checks pass, the release workflow publishes `siboot.wasm`, the optional host backport, and their SHA-256 manifest, then marks the release as Latest.
+CI covers shared Rust tests, rootshell tests, WASI builds, JavaScriptCore parsing via Bun, and the unmodified **1.0.16 (178)** Worker. It checks single-preopen subdirectory launches, the real mailbox limit, complete signing of large directories, HTTP / WebSocket, cooperative TCP, encrypted storage, renewal, and interrupted/corrupt downloads. Once checks pass, the release workflow publishes `siboot.wasm`, `install-rootshell.sh`, and `SHA256SUMS`, then marks the release as Latest.
 
 **End-to-end installation with a real Apple Account and iPhone has not yet been verified.**
 

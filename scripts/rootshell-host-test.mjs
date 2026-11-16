@@ -15,15 +15,16 @@ import assert from 'node:assert/strict';
 
 const ERRNO = { ENOENT: 44, EEXIST: 20, EACCES: 2, EPERM: 2, ENOTDIR: 54, EISDIR: 31, ENOTEMPTY: 55, ECONNREFUSED: 14, ETIMEDOUT: 73 };
 
-export async function runWasm(workerSource, wasm, argv, { root, input = '', env = {}, timeout = 60000, failLogWritesAfter = Infinity } = {}) {
+export async function runWasm(workerSource, wasm, argv, { root, cwd = '/', input = '', env = {}, timeout = 60000, failLogWritesAfter = Infinity } = {}) {
   root ??= fs.mkdtempSync(path.join(os.tmpdir(), 'siboot-rootshell-'));
-  const handles = new Map([[3, { path: root, preopen: '.' }], [4, { path: root, preopen: '/' }]]);
+  // Build 178 exposes only the sandbox root; relative WASI paths use PWD.
+  const handles = new Map([[3, { path: root, preopen: '/' }]]);
   const sockets = new Map();
   const socketOperations = {};
   const fileOperations = {};
   let maxFileRead = 0, maxSocketRead = 0, replyOverflows = 0, stdoutWrites = 0;
   const receiveTimeouts = workerSource.includes('rootshell_socket_set_recv_timeout(fd,');
-  let next = 5, nextSocket = 10, raw = false, stdout = '', stderr = '', calls = 0, logWrites = 0;
+  let next = 4, nextSocket = 10, raw = false, stdout = '', stderr = '', calls = 0, logWrites = 0;
   let inputBytes = Buffer.from(input), inputOffset = 0;
   const rawModes = [];
   const resolve = (p, fd = 3) => {
@@ -87,9 +88,7 @@ export async function runWasm(workerSource, wasm, argv, { root, input = '', env 
       case 'fd_readdir': {
         if (!h) return { errno: 8 };
         if (!p.cookie || !h.entries) h.entries = fs.readdirSync(h.path, { withFileTypes: true }).map(e => ({ name: e.name, isDir: e.isDirectory() }));
-        // The old broker returns the whole listing. Modern/backported brokers
-        // page by the WASI dirent budget, with an 8 KiB upper bound.
-        if (p.cookie == null) return { entries: h.entries };
+        // Build 178 pages by the WASI dirent budget, with an 8 KiB limit.
         const budget = Math.min(p.bufLen || 0, 8192), entries = [];
         let used = 0;
         for (let index = p.cookie; index < h.entries.length && (used < budget || !entries.length); index++) {
@@ -118,7 +117,7 @@ export async function runWasm(workerSource, wasm, argv, { root, input = '', env 
         return {};
       }
       case 'set_recv_timeout': {
-        assert(receiveTimeouts, 'the legacy Swift broker has no timeout operation');
+        assert(receiveTimeouts, 'the pinned 178 Worker must expose receive timeouts');
         if (!s) return { errno: 8 };
         s.timeout = p.timeoutMs || null;
         return {};
@@ -187,7 +186,7 @@ export async function runWasm(workerSource, wasm, argv, { root, input = '', env 
         else await finish(error);
       }
     });
-    worker.postMessage({ kind: 'start', processID: 'siboot-test', sab, wasm: fs.readFileSync(wasm).toString('base64'), argv, env: { HOME: '/', PWD: '/', USER: 'mobile', TERM: 'dumb', ...env }, cwd: '/', sandboxRoot: '/' });
+    worker.postMessage({ kind: 'start', processID: 'siboot-test', sab, wasm: fs.readFileSync(wasm).toString('base64'), argv, env: { HOME: '/', PWD: cwd, USER: 'mobile', TERM: 'dumb', ...env }, cwd, sandboxRoot: '/' });
   });
 }
 
@@ -213,22 +212,24 @@ function performanceLog(result, directory = result.root) {
 }
 
 if (process.argv[1] === new URL(import.meta.url).pathname) {
-  const [workerPath, wasm, probe, profile = 'modern'] = process.argv.slice(2);
-  assert(['modern', 'legacy', 'backport'].includes(profile), `unknown host profile ${profile}`);
-  const legacy = profile === 'legacy';
+  const [workerPath, wasm, probe, profile = 'rootshell-178'] = process.argv.slice(2);
+  assert.equal(profile, 'rootshell-178', 'only rootshell 1.0.16 (178) is supported');
   console.log(`Checking rootshell Worker profile: ${profile}`);
   assert(workerPath && wasm, 'usage: node rootshell-host-test.mjs WASM_WORKER_JS SIBOOT_WASM');
   const source = fs.readFileSync(workerPath, 'utf8');
   const module = new WebAssembly.Module(fs.readFileSync(wasm));
+  // A truncated data section fails before _start, so no Rust-side handler can
+  // repair it. The external downloader must reject these bytes first.
+  const truncatedRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'siboot-truncated-'));
+  const truncated = path.join(truncatedRoot, 'siboot.wasm');
+  fs.writeFileSync(truncated, fs.readFileSync(wasm).subarray(0, -1));
+  await assert.rejects(runWasm(source, truncated, ['./siboot.wasm', '--version']), /section|buffer|size|bytes|length/i);
+  console.log('PASS truncated module is rejected before startup; downloads require external integrity checks');
   for (const imp of WebAssembly.Module.imports(module)) {
-    if (imp.module === 'env') {
-      assert.equal(imp.name, 'rootshell_socket_set_recv_timeout', `unexpected optional import ${imp.name}`);
-      continue;
-    }
     assert(['wasi_snapshot_preview1', 'rootshell_socket', 'rootshell_terminal'].includes(imp.module), `unexpected import ${imp.module}.${imp.name}`);
-    assert.notEqual(imp.name, 'rootshell_socket_set_recv_timeout', 'optional timeout ABI must not prevent legacy module startup');
     assert(!/thread|pthread|sock_/.test(imp.name), `unported import ${imp.name}`);
   }
+  assert(WebAssembly.Module.imports(module).some(imp => imp.module === 'rootshell_socket' && imp.name === 'rootshell_socket_set_recv_timeout'), '178 receive-timeout API must use its documented namespace');
   for (const arg of ['--version', '--help']) {
     const result = await runWasm(source, wasm, ['./siboot.wasm', arg]);
     assert.equal(result.code, 0, result.stderr);
@@ -241,23 +242,30 @@ if (process.argv[1] === new URL(import.meta.url).pathname) {
   }
   {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'siboot-location-'));
+    fs.mkdirSync(path.join(root, 'work'));
+    fs.copyFileSync(wasm, path.join(root, 'work/siboot.wasm'));
     fs.mkdirSync(path.join(root, 'bin'));
     fs.copyFileSync(wasm, path.join(root, 'bin/siboot.wasm'));
-    const result = await runWasm(source, wasm, ['./bin/siboot.wasm', '--ipa', '/missing.ipa'], { root });
+    const result = await runWasm(source, wasm, ['siboot.wasm', '--ipa', '/missing.ipa'], { root, cwd: '/work' });
     assert.equal(result.code, 1, result.stdout + result.stderr);
-    assert(fs.existsSync(path.join(root, 'bin/.siboot/tmp')), 'storage must be beside the WASM, even in a subdirectory');
+    assert(fs.existsSync(path.join(root, 'work/.siboot/tmp')), 'storage must be beside the WASM, even in a subdirectory');
     assert(!fs.existsSync(path.join(root, '.siboot')));
     const bare = await runWasm(source, wasm, ['siboot.wasm', '--ipa', '/missing.ipa'], { root });
     assert.equal(bare.code, 1, bare.stdout + bare.stderr);
     assert(!fs.existsSync(path.join(root, '.siboot')), 'bare module names must use rootshell HOME/bin lookup');
-    assert(!fs.readdirSync(path.join(root, 'bin')).some(name => name.endsWith('.jsonl')), 'logging must default to off');
-    const logged = await runWasm(source, wasm, ['./bin/siboot.wasm', '--perf-log', '--home', '/other-state', '--apple-id', 'private-account@example.invalid', '--ipa', '/missing-secret.ipa'], { root });
+    const nested = await runWasm(source, wasm, ['./siboot.wasm', '--ipa', 'missing.ipa'], { root, cwd: '/work' });
+    assert.equal(nested.code, 1, nested.stdout + nested.stderr);
+    assert(!nested.stdout.includes("Couldn't create the siboot storage directory."), nested.stdout);
+    assert(!fs.existsSync(path.join(root, '.siboot')), 'one root preopen must still support launches from a subfolder');
+    assert(!fs.readdirSync(path.join(root, 'work')).some(name => name.endsWith('.jsonl')), 'logging must default to off');
+    const logged = await runWasm(source, wasm, ['siboot.wasm', '--perf-log', '--home', 'other-state', '--apple-id', 'private-account@example.invalid', '--ipa', '/missing-secret.ipa'], { root, cwd: '/work' });
     assert.equal(logged.code, 1, logged.stdout + logged.stderr);
-    const log = performanceLog(logged, path.join(root, 'bin'));
+    const log = performanceLog(logged, path.join(root, 'work'));
     assert.equal(log.summary.outcome, 'error');
     assert(!fs.readdirSync(root).some(name => name.endsWith('.jsonl')), 'log must stay beside the module even with --home');
-    await runWasm(source, wasm, ['./bin/siboot.wasm', '--perf-log', '--ipa', '/missing.ipa'], { root });
-    assert.equal(fs.readdirSync(path.join(root, 'bin')).filter(name => name.endsWith('.jsonl')).length, 2);
+    assert(fs.existsSync(path.join(root, 'work/other-state/tmp')), 'relative --home must resolve through virtual PWD');
+    await runWasm(source, wasm, ['siboot.wasm', '--perf-log', '--ipa', '/missing.ipa'], { root, cwd: '/work' });
+    assert.equal(fs.readdirSync(path.join(root, 'work')).filter(name => name.endsWith('.jsonl')).length, 2);
     console.log('PASS rootshell Worker storage beside the executable and invalid IPA rejection before login');
   }
   const english = await runWasm(source, wasm, ['./siboot.wasm', '--lang', 'en', '--help']);
@@ -293,53 +301,32 @@ if (process.argv[1] === new URL(import.meta.url).pathname) {
   assert.equal(cannotLog.code, 1);
   assert(cannotLog.stderr.includes("Couldn't create the performance log."));
   console.log('PASS rootshell Worker opt-in performance logs, unique filenames, failure/cancellation summaries and storage errors');
-  if (legacy) {
-    assert(!source.includes('rootshell_socket_set_recv_timeout(fd,'), 'legacy tests must use the unmodified old Worker');
-    const renamed = await runWasm(source, wasm, ['/j.wasm', '--version']);
-    assert.equal(renamed.code, 0, renamed.stdout + renamed.stderr);
-    assert(!renamed.stderr.includes('must be callable'));
-    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'siboot-legacy-'));
-    const fixture = spawnSync('python3', [new URL('./make_rootshell_fixture.py', import.meta.url).pathname, root], { encoding: 'utf8' });
-    assert.equal(fixture.status, 0, fixture.stderr);
-    fs.copyFileSync(path.join(root, 'Fixture.ipa'), path.join(root, 'App.ipa'));
-    const blocked = await runWasm(source, wasm, ['./siboot.wasm', '--ipa', '/App.ipa', '--perf-log', '--lang', 'en'], { root });
-    assert.equal(blocked.code, 1, blocked.stdout + blocked.stderr);
-    assert(blocked.stdout.includes('lacks socket receive-timeout support'), blocked.stdout);
-    assert.deepEqual(blocked.socketOperations, {}, 'unsupported installation must fail before network or Apple login');
-    assert.equal(performanceLog(blocked).summary.outcome, 'error');
-    assert(performanceLog(blocked).records.some(r => r.event === 'runtime.capabilities' && r.data.receive_timeouts === 0));
-    for (const command of ['connect', 'developer-mode']) {
-      const result = await runWasm(source, wasm, ['./siboot.wasm', command, '--lang', 'en']);
-      assert.equal(result.code, 1, result.stdout + result.stderr);
-      assert(result.stdout.includes('lacks socket receive-timeout support'));
-      assert.deepEqual(result.socketOperations, {});
-    }
-    const chinese = await runWasm(source, wasm, ['./siboot.wasm', 'connect']);
-    assert.equal(chinese.code, 1);
-    assert(chinese.stdout.includes('缺少 socket 接收超时接口'), chinese.stdout);
-    const listener = net.createServer(connection => connection.on('error', () => {}));
-    await new Promise(resolve => listener.listen(0, '127.0.0.1', resolve));
-    try {
-      const result = await runWasm(source, wasm, ['./siboot.wasm', 'check', '--device-ip', '127.0.0.1', '--port', String(listener.address().port), '--lang', 'en']);
-      assert.equal(result.code, 0, result.stdout + result.stderr);
-      assert(result.stdout.includes('TCP reachability only'));
-      assert.equal(result.socketOperations.connect, 1);
-      assert.equal(result.socketOperations.recv, undefined, 'legacy reachability must never enter an unbounded read');
-      assert.equal(result.socketOperations.set_recv_timeout, undefined);
-    } finally { listener.close(); }
-    console.log('PASS unmodified legacy Worker starts, reports unavailable capabilities before login, and checks TCP without unbounded receives');
-  }
   if (probe) {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'siboot-offline-'));
-    const fixture = spawnSync('python3', [new URL('./make_rootshell_fixture.py', import.meta.url).pathname, root, ...(!legacy ? ['--large-directory'] : [])], { encoding: 'utf8' });
+    const fixture = spawnSync('python3', [new URL('./make_rootshell_fixture.py', import.meta.url).pathname, root, '--large-directory'], { encoding: 'utf8' });
     assert.equal(fixture.status, 0, fixture.stderr);
+    fs.mkdirSync(path.join(root, 'siboot'));
+    fs.copyFileSync(wasm, path.join(root, 'siboot/siboot.wasm'));
+    fs.copyFileSync(path.join(root, 'Fixture.ipa'), path.join(root, 'siboot/App.ipa'));
+    const listener = net.createServer(connection => connection.destroy());
+    await new Promise(resolve => listener.listen(0, '127.0.0.1', resolve));
+    try {
+      const nested = await runWasm(source, wasm, ['siboot.wasm', '--verbose', '--ipa', 'App.ipa', '--device-ip', '127.0.0.1', '--port', String(listener.address().port), '--lang', 'en'], { root, cwd: '/siboot' });
+      assert.equal(nested.code, 1, nested.stdout + nested.stderr); // Cancel pairing before any account prompt.
+      assert(nested.stdout.includes('using /siboot/App.ipa'), nested.stdout);
+      assert.equal(nested.socketOperations.connect, 1, 'relative IPA validation must finish before the device check');
+      assert(fs.existsSync(path.join(root, 'siboot/.siboot/tmp')));
+      assert(!fs.existsSync(path.join(root, '.siboot')), 'subdirectory startup must not place state at the sandbox root');
+      console.log('PASS relative local IPA and state paths use build-178 virtual PWD');
+    } finally { listener.close(); }
     const offline = await runWasm(source, probe, ['./runtime_check.wasm', '--perf-log'], { root, timeout: 180000 });
     assert.equal(offline.code, 0, offline.stdout + offline.stderr);
     for (const marker of ['DIRECTORY_REUSE_OK', 'VAULT_OK', 'CSR_OK', 'COMPLETE_SIGNING_OK', 'INVALID_LINKS_REJECTED', 'RENEW_PAIRING_OK', 'BOUNDED_READS_LARGE_UPLOAD_PACKETS_OK']) assert(offline.stdout.includes(marker), offline.stdout);
     assert.equal(offline.replyOverflows, 0, 'file reads must fit the real 64 KiB reply buffer');
     assert(offline.maxFileRead <= 32768, `oversized file read: ${offline.maxFileRead}`);
-    if (!legacy) assert(offline.stdout.includes('LARGE_DIRECTORY_SEALED'), offline.stdout);
+    assert(offline.stdout.includes('LARGE_DIRECTORY_SEALED'), offline.stdout);
     const offlineLog = performanceLog(offline);
+    assert(offlineLog.records.some(record => record.operation === 'ipa.extract' && record.data?.directory_checks_saved >= 300), 'large-directory extraction must avoid repeated host metadata calls');
     for (const operation of ['vault.scrypt', 'sign.csr', 'ipa.extract', 'sign.macho', 'sign.macho.encode', 'sign.resource', 'sign.resource.hash', 'sign.verify_seals']) {
       assert(offlineLog.records.some(record => record.operation === operation || record.metrics?.[operation]), `missing performance measurement: ${operation}`);
     }
@@ -372,7 +359,6 @@ if (process.argv[1] === new URL(import.meta.url).pathname) {
     assert(!cancelled.stdout.includes('never-log-this-secret'));
     assert.deepEqual(cancelled.rawModes, [true, false]);
     assert(performanceLog(cancelled).records.some(record => record.operation === 'ui.wait' && record.outcome === 'cancelled'));
-    if (!legacy) {
     const untrusted = tls.createServer({ key: fs.readFileSync(path.join(root, 'test-key.pem')), cert: fs.readFileSync(path.join(root, 'test-cert.pem')) });
     untrusted.on('tlsClientError', () => {});
     await new Promise(resolve => untrusted.listen(0, '127.0.0.1', resolve));
@@ -460,7 +446,6 @@ if (process.argv[1] === new URL(import.meta.url).pathname) {
       assert(logFailure.stderr.includes('The performance log could not be completely saved.'));
       console.log('PASS rootshell Worker HTTP, anisette WebSocket, short writes, concurrent TCP/timers and 64 KiB software TCP transfer');
     } finally { server.close(); }
-    }
   }
   console.log(`WASM SHA-256 ${createHash('sha256').update(fs.readFileSync(wasm)).digest('hex')}`);
 }

@@ -26,7 +26,7 @@ bash scripts/check-rootshell-runtime.sh /tmp/siboot-source/rootshell/target/wasm
 
 路径边界和递归深度有上限，AFC 使用每次运行独立的暂存父目录并在成功／失败后清理；密码输入结束时清屏恢复回显，文件名中的终端控制字符仅在显示时转义。
 
-rootshell 0.21.3 内完成本地 IPA 选择、设备配对、Apple 登录、完整签名、上传核对、安装和快速续签。运行时不需要 Minis。使用 rootshell 原生的 socket/TLS、文件和终端 ABI，不执行 Linux ELF，不转发安装任务。
+rootshell 0.21.4 内完成本地 IPA 选择、设备配对、Apple 登录、完整签名、上传核对、安装和快速续签。运行时不需要 Minis。使用 rootshell 原生的 socket/TLS、文件和终端 ABI，不执行 Linux ELF，不转发安装任务。
 
 两端保留中文／英文、Jay-Void-BA 与 FrizzleM 署名、密码查看／隐藏、独立口令加密登录及签名缓存、失败步骤重试、原始 IPA 续签缓存、配对文件验证后保存到程序同目录。只接受本地 IPA，移除 SideInstaller IPA 下载入口。
 
@@ -36,7 +36,7 @@ Minis／iSH 与 rootshell 不能直接访问对方的沙盒。已有文件先通
 
 ## 运行时兼容性
 
-可选超时接口通过 `env` 加载，并用无效描述符检测真实能力。未修改的旧 Worker 可以加载、配对与检查 TCP；完整安装需要新宿主或 [build-175 回移补丁](../rootshell/README.md)。缺少能力时在 Apple 登录前失败，避免无限阻塞。运行验证包含旧版原始 Worker、新版原始 Worker 与回移版本，不把旧版空函数视为支持。
+当前仅支持 rootshell **1.0.16（178）**。接收超时直接使用其 `rootshell_socket` 命名空间，不再维护旧版空函数兼容或 build 175 回移发布。运行检查固定上游 tag 对应的提交与六份宿主源码哈希，使用单个根目录预打开项和真实 64 KiB 回包。发布包含校验大小／哈希、可续传且验证后替换的下载脚本。
 
 ## 性能诊断
 

@@ -1,0 +1,83 @@
+#!/bin/sh
+# Generated for one release. Run in rootshell 1.0.16 (178) Local Shell.
+# No program or account data is replaced until the new WASM is verified.
+set -eu
+
+VERSION="@VERSION@"
+BASE="${SIBOOT_BASE:-@BASE@}"
+SHA256="@SHA256@"
+SIZE=@SIZE@
+BIN="siboot.wasm"
+PART="siboot-v${VERSION}.wasm.part"
+LOCK=".siboot-download.lock"
+MODE="${1:-install}"
+
+fail() {
+    printf '%s\n' "$1" >&2
+    exit 1
+}
+
+verify() {
+    [ -f "$1" ] && [ ! -L "$1" ] || return 1
+    actual_size=$(wc -c < "$1" | tr -d '[:space:]') || return 1
+    [ "$actual_size" = "$SIZE" ] || return 1
+    actual_sha=$(sha256sum "$1") || return 1
+    actual_sha=${actual_sha%% *}
+    [ "$actual_sha" = "$SHA256" ]
+}
+
+case "$MODE" in
+    install|--restart|--verify) ;;
+    *) fail 'Usage: sh install-rootshell.sh [--verify | --restart]' ;;
+esac
+[ "$#" -le 1 ] || fail 'Too many arguments.'
+
+if [ "$MODE" = '--verify' ]; then
+    if verify "$BIN"; then
+        printf 'Verified siboot %s (%s bytes).\n' "$VERSION" "$SIZE"
+        exit 0
+    fi
+    printf 'Verification failed: expected %s bytes and SHA-256 %s.\n' "$SIZE" "$SHA256" >&2
+    fail 'Do not run this WASM. Run: sh install-rootshell.sh --restart'
+fi
+
+if verify "$BIN"; then
+    printf 'siboot %s is already complete and verified.\n' "$VERSION"
+    exit 0
+fi
+
+# Refuse links/directories rather than allowing curl or mv to follow them.
+[ ! -L "$BIN" ] && [ ! -d "$BIN" ] || fail 'siboot.wasm must be a regular file.'
+if [ -e "$BIN" ] && [ ! -f "$BIN" ]; then
+    fail 'siboot.wasm is not a regular file.'
+fi
+[ ! -L "$PART" ] && [ ! -d "$PART" ] || fail 'The partial download must be a regular file.'
+if [ -e "$PART" ] && [ ! -f "$PART" ]; then
+    fail 'The partial download is not a regular file.'
+fi
+mkdir "$LOCK" || fail 'Another download is active. After stopping all installers, remove the empty .siboot-download.lock directory and retry.'
+trap 'rmdir "$LOCK"' 0
+# Build 178's shell implements EXIT and INT traps.
+trap 'exit 1' 2
+
+printf 'Downloading siboot %s for rootshell 1.0.16 (178). Keep rootshell in the foreground.\n' "$VERSION"
+if [ "$MODE" = '--restart' ]; then
+    # Restart only this release's partial file; the installed WASM stays intact.
+    if ! curl --fail --location --retry 3 --connect-timeout 20 --output "$PART" "$BASE/siboot.wasm"; then
+        fail 'Download interrupted. The installed program was preserved. Rerun this script to resume.'
+    fi
+else
+    if ! curl --fail --location --retry 3 --connect-timeout 20 --continue-at - --output "$PART" "$BASE/siboot.wasm"; then
+        fail 'Download interrupted. Rerun to resume, or use --restart if the server refuses resuming. The installed program was preserved.'
+    fi
+fi
+
+if ! verify "$PART"; then
+    printf 'Expected %s bytes and SHA-256 %s.\n' "$SIZE" "$SHA256" >&2
+    fail 'Downloaded WASM is incomplete or corrupt. The installed program was preserved. Retry with: sh install-rootshell.sh --restart'
+fi
+
+# Both files are in the same directory: promotion is a rename after validation.
+mv -f "$PART" "$BIN" || fail 'Could not replace siboot.wasm.'
+verify "$BIN" || fail 'The installed file changed after verification. Run --restart.'
+printf 'Verified siboot %s (%s bytes). Run: ./siboot.wasm\n' "$VERSION" "$SIZE"

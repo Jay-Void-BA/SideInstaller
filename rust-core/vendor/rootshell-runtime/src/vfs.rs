@@ -24,11 +24,29 @@ fn invalid() -> io::Error {
         "IPA symlink escapes its bundle, is cyclic, or has an invalid target",
     )
 }
+
+/// Rust's WASI current_dir() stays at `/`; build 178 supplies the real virtual
+/// working directory in PWD. Resolve against that sandbox path explicitly.
+pub fn working_directory() -> PathBuf {
+    #[cfg(target_os = "wasi")]
+    if let Some(path) = std::env::var_os("PWD")
+        .map(PathBuf::from)
+        .filter(|path| path.is_absolute())
+    {
+        return path;
+    }
+    std::env::current_dir().unwrap_or_else(|_| PathBuf::from("/"))
+}
+
 fn absolute(path: &Path) -> io::Result<PathBuf> {
     let path = if path.is_absolute() {
         path.to_path_buf()
     } else {
-        std::env::current_dir()?.join(path)
+        #[cfg(target_os = "wasi")]
+        let base = working_directory();
+        #[cfg(not(target_os = "wasi"))]
+        let base = std::env::current_dir()?;
+        base.join(path)
     };
     let mut result = PathBuf::new();
     for component in path.components() {

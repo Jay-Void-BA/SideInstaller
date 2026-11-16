@@ -1,8 +1,8 @@
 diff --git a/README.md b/README.md
-index 683de33..9a50ddb 100644
+index 683de33..643a507 100644
 --- a/README.md
 +++ b/README.md
-@@ -1,3 +1,338 @@
+@@ -1,3 +1,341 @@
 -To use it, follow the following instructions: https://sideinstaller.net/install.html
 +<h1 align="center">siboot</h1>
  
@@ -17,14 +17,14 @@ index 683de33..9a50ddb 100644
 +</p>
 +
 +<p align="center">
-+  <a href="https://github.com/Jay-Void-BA/SideInstaller/releases/tag/siboot-v0.21.3"><img src="https://img.shields.io/badge/release-0.21.3-2563eb?style=flat-square" alt="siboot 0.21.3"></a>
++  <a href="https://github.com/Jay-Void-BA/SideInstaller/releases/tag/siboot-v0.21.4"><img src="https://img.shields.io/badge/release-0.21.4-2563eb?style=flat-square" alt="siboot 0.21.4"></a>
 +  <a href="https://github.com/Jay-Void-BA/SideInstaller/actions/workflows/checks.yml"><img src="https://github.com/Jay-Void-BA/SideInstaller/actions/workflows/checks.yml/badge.svg?branch=main" alt="CI status"></a>
 +  <a href="#requirements"><img src="https://img.shields.io/badge/platform-rootshell%20%7C%20iOS%2027%2B-64748b?style=flat-square" alt="rootshell · iOS / iPadOS 27+"></a>
 +  <a href="https://github.com/Jay-Void-BA/SideInstaller/blob/main/LICENSE.md"><img src="https://img.shields.io/badge/license-Custom-64748b?style=flat-square" alt="SideInstaller custom license"></a>
 +</p>
 +
 +<p align="center">
-+  <a href="https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.21.3/siboot.wasm">Download</a> ·
++  <a href="https://github.com/Jay-Void-BA/SideInstaller/releases/tag/siboot-v0.21.4">Download</a> ·
 +  <a href="#quick-start">Quick start</a> ·
 +  <a href="#usage">Usage</a> ·
 +  <a href="#performance">Diagnostics</a> ·
@@ -61,7 +61,7 @@ index 683de33..9a50ddb 100644
 +| Component | Requirement |
 +| --- | --- |
 +| System | iOS / iPadOS **27+**, with Developer Mode enabled |
-+| Terminal | The latest [rootshell](https://github.com/kitknox/rootshell), with WASI Preview 1, socket/TLS, and raw terminal support |
++| Terminal | [rootshell](https://github.com/kitknox/rootshell) **1.0.16 (178)** |
 +| Device connection | [LocalDevVPN](https://apps.apple.com/app/id6755608044) connected, with Wi-Fi enabled |
 +| Signing | Your own Apple Account, an internet connection, and a local IPA |
 +
@@ -71,14 +71,9 @@ index 683de33..9a50ddb 100644
 +
 +## rootshell compatibility
 +
-+| Runtime capability | Available functionality |
-+| --- | --- |
-+| Older Workers, including the 1.0.15 / build-175 ABI, without receive timeouts | Startup, help, the menu, pairing, and TCP reachability checks with `check` |
-+| Workers with the socket receive-timeout API | The complete installation, renewal, and device tunnel workflow |
++**rootshell 1.0.16 (178) is the only supported target.** The installer uses its original socket/TLS, receive-timeout, terminal, and filesystem APIs. It does not require a host patch. Earlier builds and the old build-175 backport are no longer supported or included in releases.
 +
-+The receive-timeout function is optional at load time. If it is missing, installation, renewal, `connect`, and Developer Mode operations stop with an explanation before Apple sign-in. A successful `check` on an older host confirms TCP reachability only.
-+
-+For complete installation, update rootshell to a build with `rootshell_socket_set_recv_timeout` (verified with the upstream build-178 Worker). Developers retaining build 175 can apply the [host backport](https://github.com/Jay-Void-BA/SideInstaller/blob/main/patches/rootshell/README.md) and rebuild rootshell. The patch also fixes directory pagination so large bundles are enumerated completely. Updating the WASM file alone cannot add a missing host API.
++CI pins the unmodified [1.0.16-178 source](https://github.com/kitknox/rootshell/tree/192eab95001aef3f2ea4b282c0d3f38a3539fb3f), verifies the Worker and broker hashes, and models its single root preopen and 64 KiB reply mailbox. Check the installed version in rootshell Settings before continuing.
 +
 +<a id="quick-start"></a>
 +<a id="rootshell-版配置"></a>
@@ -87,7 +82,7 @@ index 683de33..9a50ddb 100644
 +
 +### 1. Install the apps and configure permissions
 +
-+Install the latest rootshell from the [App Store](https://apps.apple.com/app/rootshell-local-terminal-ssh/id6755794662) or [China App Store](https://apps.apple.com/app/rootshell-%E6%9C%AC%E5%9C%B0%E7%BB%88%E7%AB%AF-ssh/id6763402687), and install [LocalDevVPN](https://apps.apple.com/app/id6755608044).
++Install rootshell **1.0.16 (178)** from the [App Store](https://apps.apple.com/app/rootshell-local-terminal-ssh/id6755794662) or [China App Store](https://apps.apple.com/app/rootshell-%E6%9C%AC%E5%9C%B0%E7%BB%88%E7%AB%AF-ssh/id6763402687), and install [LocalDevVPN](https://apps.apple.com/app/id6755608044).
 +
 +1. Enable **Settings › Privacy & Security › Developer Mode**, then restart and confirm when prompted.
 +2. Enable Wi-Fi. Add the VPN configuration in LocalDevVPN and connect. Confirm that it shows **Connected**, and keep LocalDevVPN as the active VPN during installation and renewal.
@@ -105,30 +100,33 @@ index 683de33..9a50ddb 100644
 +pwd
 +```
 +
-+Copy your `App.ipa` into **Files › Browse › On My iPhone / iPad › rootshell › siboot**. Files in iCloud Drive, Downloads, or another app need to be copied into rootshell's accessible app directory first. Return to the `siboot` directory when opening a new terminal tab.
++Copy your `App.ipa` into **Files › Browse › On My iPhone / iPad › rootshell › siboot**. Files in iCloud Drive, Downloads, or another app need to be copied into rootshell's accessible app directory first. Return to the `siboot` directory when opening a new terminal tab. Build 178 passes only the module filename in argv, so enter the program directory before launching it.
 +
 +Create `siboot` only for the first setup. If the folder already exists, enter it with `cd siboot`. The `rootshell` folder in Files is created by the app.
 +
 +### 3. Download and verify
 +
-+Run these commands from the working directory:
++From the working directory, download the version-pinned installer, then run it only if the download succeeded:
 +
 +```sh
-+curl -fL -C - -o siboot-v0.21.3.wasm.part https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.21.3/siboot.wasm
-+sha256sum siboot-v0.21.3.wasm.part
++curl -fL --retry 3 -o install-rootshell.sh.part https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.21.4/install-rootshell.sh &&
++mv install-rootshell.sh.part install-rootshell.sh &&
++sh install-rootshell.sh
 +```
 +
-+Compare the hash with [SHA256SUMS](https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.21.3/SHA256SUMS) attached to the [release](https://github.com/Jay-Void-BA/SideInstaller/releases/tag/siboot-v0.21.3). When it matches, run:
++The script resumes this version's `.wasm.part` file, checks its **exact size and SHA-256**, and only then replaces `siboot.wasm`. Failed or corrupt downloads preserve the installed program and your pairing, login, and renewal data. Re-running the script skips a binary that already passes verification.
 +
 +```sh
-+mv siboot-v0.21.3.wasm.part siboot.wasm
++sh install-rootshell.sh --verify
 +./siboot.wasm --version
 +```
 +
-+The output should include `siboot 0.21.3 (rootshell)`. You can also download `siboot.wasm` in Safari, copy it into `rootshell/siboot`, and verify it there.
++The output should include `siboot 0.21.4 (rootshell 1.0.16 / 178)`. If a partial file is corrupt or the server refuses resuming, run `sh install-rootshell.sh --restart` to fetch that version again. It replaces only the partial file until verification succeeds. A forced termination may leave `.siboot-download.lock`; stop all download scripts before removing that empty directory with `rmdir .siboot-download.lock`.
++
++You can also download `siboot.wasm` and `install-rootshell.sh` in Safari and copy them into `rootshell/siboot`, then run `sh install-rootshell.sh --verify`. All release assets have hashes in [SHA256SUMS](https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.21.4/SHA256SUMS).
 +
 +> [!TIP]
-+> Keep rootshell in the foreground while downloading. If the transfer is interrupted, resume with the same `curl` command and check the hash again. Use a versioned `.part` filename to keep downloads from different releases separate. Rename and run the file only after verification succeeds.
++> Keep rootshell in the foreground while downloading. Run the verified WASM only after the installer or `--verify` succeeds. A WebAssembly data-section overflow happens before siboot can run; the downloader checks integrity outside the module.
 +
 +<a id="first-install"></a>
 +<a id="首次配对与安装"></a>
@@ -180,7 +178,7 @@ index 683de33..9a50ddb 100644
 +  siboot-perf-*.jsonl         Performance logs, when --perf-log is enabled
 +```
 +
-+The default data directory is `.siboot/` beside the program. Keep it and the pairing record to reuse pairing, unlock saved credentials, and renew the last app. When upgrading, put the new `siboot.wasm` back in the same directory.
++The default data directory is `.siboot/` beside the program. Keep it and the pairing record to reuse pairing, unlock saved credentials, and renew the last app. When upgrading, put the new `siboot.wasm` back in the same directory. Earlier versions could incorrectly put state at the sandbox root when launched from a subdirectory. Those files are preserved: use `--home /.siboot` to reuse that storage and, if needed, `--pairing-file /rp_pairing_file.plist` to import the old pairing. Keep the explicit `--home` on later runs until you move the storage.
 +
 +</details>
 +
@@ -282,7 +280,11 @@ index 683de33..9a50ddb 100644
 +
 +## Troubleshooting
 +
-+Local I/O uses reads of at most 32 KiB, buffered ZIP extraction, and combined 1 MiB upload packets. File selection caches entry types and batches terminal output; quick renewal validates one cache snapshot. These reduce host calls while preserving complete signature and upload verification. Device speed and iOS installation time still need measurement with `--perf-log`.
++Local I/O uses reads of at most 32 KiB, buffered ZIP extraction with reused parent directories, and combined 1 MiB upload packets. The extraction log records `directory_checks_saved`. File selection caches entry types and batches terminal output; quick renewal validates one cache snapshot. These reduce host calls while preserving complete signature and upload verification. Device speed and iOS installation time still need measurement with `--perf-log`.
++
++### WASM data section would overflow the module
++
++This error occurs while rootshell parses the module, before siboot starts. The loaded bytes are shorter than a section declares. Run `sh install-rootshell.sh --verify`; if it fails, use `sh install-rootshell.sh --restart`. Do not execute or rename an unverified partial download. If verification succeeds but the parser still fails on 1.0.16 (178), report the file size, SHA-256, and complete message so host loading can be investigated separately.
 +
 +### Installation takes a long time
 +
@@ -314,6 +316,7 @@ index 683de33..9a50ddb 100644
 +
 +```sh
 +bash scripts/prepare-minis.sh /tmp/siboot-source
++# Install Node 24 and Bun 1.3.2 for the Worker and JavaScriptCore checks.
 +rustup target add wasm32-wasip1
 +cargo build --manifest-path /tmp/siboot-source/rootshell/Cargo.toml --release --locked --target wasm32-wasip1 --bins --examples
 +bash scripts/check-rootshell-runtime.sh /tmp/siboot-source/rootshell/target/wasm32-wasip1/release/siboot.wasm /tmp/siboot-source/rootshell/target/wasm32-wasip1/release/examples/runtime_check.wasm
@@ -323,7 +326,7 @@ index 683de33..9a50ddb 100644
 +
 +</details>
 +
-+CI covers shared Rust tests, rootshell tests, WASI builds, and a pinned Worker matrix: an unmodified older host, an unmodified newer host, and the build-175 host with the published backport. Checks exercise startup and capability errors on the older host; capable hosts also verify complete signing of large directories, HTTP / WebSocket, cooperative TCP, encrypted storage, and renewal. Once checks pass, the release workflow publishes `siboot.wasm`, the optional host backport, and their SHA-256 manifest, then marks the release as Latest.
++CI covers shared Rust tests, rootshell tests, WASI builds, JavaScriptCore parsing via Bun, and the unmodified **1.0.16 (178)** Worker. It checks single-preopen subdirectory launches, the real mailbox limit, complete signing of large directories, HTTP / WebSocket, cooperative TCP, encrypted storage, renewal, and interrupted/corrupt downloads. Once checks pass, the release workflow publishes `siboot.wasm`, `install-rootshell.sh`, and `SHA256SUMS`, then marks the release as Latest.
 +
 +**End-to-end installation with a real Apple Account and iPhone has not yet been verified.**
 +
@@ -345,10 +348,10 @@ index 683de33..9a50ddb 100644
 +See the [SideInstaller license](https://github.com/Jay-Void-BA/SideInstaller/blob/main/LICENSE.md) for usage and distribution terms. Vendored dependencies retain their own copyright notices and licenses.
 diff --git a/README.zh-CN.md b/README.zh-CN.md
 new file mode 100644
-index 0000000..b4ba360
+index 0000000..2a5dda0
 --- /dev/null
 +++ b/README.zh-CN.md
-@@ -0,0 +1,337 @@
+@@ -0,0 +1,340 @@
 +<h1 align="center">siboot</h1>
 +
 +<p align="center">
@@ -361,14 +364,14 @@ index 0000000..b4ba360
 +</p>
 +
 +<p align="center">
-+  <a href="https://github.com/Jay-Void-BA/SideInstaller/releases/tag/siboot-v0.21.3"><img src="https://img.shields.io/badge/release-0.21.3-2563eb?style=flat-square" alt="siboot 0.21.3"></a>
++  <a href="https://github.com/Jay-Void-BA/SideInstaller/releases/tag/siboot-v0.21.4"><img src="https://img.shields.io/badge/release-0.21.4-2563eb?style=flat-square" alt="siboot 0.21.4"></a>
 +  <a href="https://github.com/Jay-Void-BA/SideInstaller/actions/workflows/checks.yml"><img src="https://github.com/Jay-Void-BA/SideInstaller/actions/workflows/checks.yml/badge.svg?branch=main" alt="CI 检查状态"></a>
 +  <a href="#requirements"><img src="https://img.shields.io/badge/platform-rootshell%20%7C%20iOS%2027%2B-64748b?style=flat-square" alt="rootshell · iOS／iPadOS 27+"></a>
 +  <a href="https://github.com/Jay-Void-BA/SideInstaller/blob/main/LICENSE.md"><img src="https://img.shields.io/badge/license-Custom-64748b?style=flat-square" alt="SideInstaller 自定义许可证"></a>
 +</p>
 +
 +<p align="center">
-+  <a href="https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.21.3/siboot.wasm">下载 siboot.wasm</a> ·
++  <a href="https://github.com/Jay-Void-BA/SideInstaller/releases/tag/siboot-v0.21.4">下载</a> ·
 +  <a href="#quick-start">快速开始</a> ·
 +  <a href="#usage">常用命令</a> ·
 +  <a href="#performance">性能诊断</a> ·
@@ -405,7 +408,7 @@ index 0000000..b4ba360
 +| 项目 | 要求 |
 +| --- | --- |
 +| 系统 | iOS／iPadOS **27+**，已开启开发者模式 |
-+| 终端 | 最新版 [rootshell](https://github.com/kitknox/rootshell)，支持 WASI Preview 1、socket/TLS 和终端 raw 模式 |
++| 终端 | [rootshell](https://github.com/kitknox/rootshell) **1.0.16（178）** |
 +| 设备连接 | [LocalDevVPN](https://apps.apple.com/app/id6755608044) 已连接，Wi-Fi 开启 |
 +| 签名材料 | 自己的 Apple 账户、可用网络和本地 IPA |
 +
@@ -415,14 +418,9 @@ index 0000000..b4ba360
 +
 +## rootshell 兼容性
 +
-+| 运行时能力 | 可用功能 |
-+| --- | --- |
-+| 缺少接收超时接口的旧 Worker，包括 1.0.15／build 175 的接口版本 | 启动、帮助、菜单、配对，以及 `check` 的 TCP 连通性检查 |
-+| 提供 socket 接收超时接口的 Worker | 完整安装、续签及设备隧道流程 |
++**仅支持 rootshell 1.0.16（178）**，使用其原版 socket／TLS、接收超时、终端和文件系统接口，无需修改宿主。早期版本及 build 175 回移方案不再受支持，也不再随 Release 提供。
 +
-+接收超时函数改为可选加载。缺少接口时，安装、续签、`connect` 和开发者模式操作会在 Apple 登录前明确提示原因。旧版的 `check` 成功仅表示 TCP 可以连接。
-+
-+完整安装需要更新到包含 `rootshell_socket_set_recv_timeout` 的 rootshell（已验证上游 build 178 Worker）。保留 build 175 的开发者也可应用[宿主回移补丁](https://github.com/Jay-Void-BA/SideInstaller/blob/main/patches/rootshell/README.md)并自行编译 rootshell；补丁同时修复大目录枚举，避免漏掉签名资源。单独更新 WASM 无法补齐宿主缺少的接口。
++CI 固定使用未经修改的 [1.0.16-178 源码](https://github.com/kitknox/rootshell/tree/192eab95001aef3f2ea4b282c0d3f38a3539fb3f)，校验 Worker 与 broker 的哈希，并模拟其单个根目录预打开项和 64 KiB 回包缓冲区。请先在 rootshell 设置中确认版本。
 +
 +<a id="quick-start"></a>
 +
@@ -430,7 +428,7 @@ index 0000000..b4ba360
 +
 +### 1. 安装应用与配置权限
 +
-+安装最新版 rootshell（[App Store](https://apps.apple.com/app/rootshell-local-terminal-ssh/id6755794662)／[中国区 App Store](https://apps.apple.com/app/rootshell-%E6%9C%AC%E5%9C%B0%E7%BB%88%E7%AB%AF-ssh/id6763402687)）和 [LocalDevVPN](https://apps.apple.com/app/id6755608044)。
++安装 rootshell **1.0.16（178）**（[App Store](https://apps.apple.com/app/rootshell-local-terminal-ssh/id6755794662)／[中国区 App Store](https://apps.apple.com/app/rootshell-%E6%9C%AC%E5%9C%B0%E7%BB%88%E7%AB%AF-ssh/id6763402687)）和 [LocalDevVPN](https://apps.apple.com/app/id6755608044)。
 +
 +1. 在系统“设置 › 隐私与安全性 › 开发者模式”中开启开发者模式，按提示重启并确认。
 +2. 打开 Wi-Fi，在 LocalDevVPN 中添加系统 VPN 配置并连接，确认状态为 **Connected**。安装和续签期间保持 LocalDevVPN 为当前连接的 VPN。
@@ -448,30 +446,33 @@ index 0000000..b4ba360
 +pwd
 +```
 +
-+在“文件 › 浏览 › 我的 iPhone／iPad › rootshell › siboot”中放入自己的 `App.ipa`。iCloud Drive、下载目录或其他应用中的文件，需要先拷贝到 rootshell 可访问的应用目录。新建标签页后先进入 `siboot` 目录。
++在“文件 › 浏览 › 我的 iPhone／iPad › rootshell › siboot”中放入自己的 `App.ipa`。iCloud Drive、下载目录或其他应用中的文件，需要先拷贝到 rootshell 可访问的应用目录。新建标签页后先进入 `siboot` 目录。178 传给 WASM 的 argv 只含文件名，因此应先进入程序所在目录再启动。
 +
 +仅首次配置时创建 `siboot`。目录已存在时，直接 `cd siboot` 进入即可。“文件”中的 `rootshell` 文件夹由应用自动提供。
 +
 +### 3. 下载并校验
 +
-+保持终端位于刚才的目录，逐条执行：
++在工作目录下载固定版本的安装脚本，下载成功后才执行：
 +
 +```sh
-+curl -fL -C - -o siboot-v0.21.3.wasm.part https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.21.3/siboot.wasm
-+sha256sum siboot-v0.21.3.wasm.part
++curl -fL --retry 3 -o install-rootshell.sh.part https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.21.4/install-rootshell.sh &&
++mv install-rootshell.sh.part install-rootshell.sh &&
++sh install-rootshell.sh
 +```
 +
-+与 [Release](https://github.com/Jay-Void-BA/SideInstaller/releases/tag/siboot-v0.21.3) 附件 [SHA256SUMS](https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.21.3/SHA256SUMS) 核对一致后，再运行：
++脚本会续传当前版本的 `.wasm.part`，核对**精确字节数和 SHA-256**，通过后才替换 `siboot.wasm`。下载中断或校验失败时保留原程序，以及配对、登录与续签数据。重复执行时，已完整且通过校验的程序不会重复下载。
 +
 +```sh
-+mv siboot-v0.21.3.wasm.part siboot.wasm
++sh install-rootshell.sh --verify
 +./siboot.wasm --version
 +```
 +
-+版本输出应包含 `siboot 0.21.3 (rootshell)`。也可以通过 Safari 下载 `siboot.wasm`，复制到 `rootshell/siboot` 后校验。
++版本输出应包含 `siboot 0.21.4 (rootshell 1.0.16 / 178)`。部分文件损坏或服务器拒绝续传时，运行 `sh install-rootshell.sh --restart` 重新下载当前版本；验证完成前仅改写部分下载文件。强制结束可能留下 `.siboot-download.lock`，先结束所有下载脚本，再用 `rmdir .siboot-download.lock` 删除这个空目录。
++
++也可在 Safari 下载 `siboot.wasm` 和 `install-rootshell.sh`，拷贝到 `rootshell/siboot` 后运行 `sh install-rootshell.sh --verify`。所有发布附件的哈希见 [SHA256SUMS](https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.21.4/SHA256SUMS)。
 +
 +> [!TIP]
-+> 下载时保持 rootshell 在前台。中断后用同一条 `curl` 命令续传，并再次核对哈希。使用带版本号的 `.part` 文件，避免把旧版本内容续传进新版本；校验一致后再改名运行。
++> 下载时保持 rootshell 在前台。安装脚本或 `--verify` 成功后才运行 WASM。“数据段超出模块大小”发生在 siboot 启动前，因此校验由模块外的下载脚本完成。
 +
 +<a id="first-install"></a>
 +<a id="首次配对与安装"></a>
@@ -523,7 +524,7 @@ index 0000000..b4ba360
 +  siboot-perf-*.jsonl         启用 --perf-log 后的性能日志
 +```
 +
-+默认数据目录为程序旁的 `.siboot/`。保留配对文件与数据目录，下次即可复用配对、解锁登录并快速续签。程序升级时，将新版 `siboot.wasm` 放回同一目录。
++默认数据目录为程序旁的 `.siboot/`。保留配对文件与数据目录，下次即可复用配对、解锁登录并快速续签。程序升级时，将新版 `siboot.wasm` 放回同一目录。旧版从子目录启动时，可能错误地把数据放在沙盒根目录；这些文件仍保留，可传入 `--home /.siboot` 继续使用旧存储，必要时用 `--pairing-file /rp_pairing_file.plist` 导入旧配对。迁移存储前，后续运行也应保留显式的 `--home`。
 +
 +</details>
 +
@@ -625,11 +626,15 @@ index 0000000..b4ba360
 +
 +## 常见问题
 +
++### WASM 数据段超出模块大小
++
++该错误发生在 rootshell 解析模块时，siboot 尚未启动：加载到的字节少于模块声明的长度。先运行 `sh install-rootshell.sh --verify`，失败则运行 `sh install-rootshell.sh --restart`。不要执行或改名未通过校验的部分下载文件。若校验成功，但在 1.0.16（178）仍出现同样错误，请提供文件大小、SHA-256 和完整报错，以便单独调查宿主加载路径。
++
 +### 安装耗时较长
 +
 +程序分别显示上传、文件核对和 iOS 安装耗时。解压、哈希／签名、Apple／anisette 请求、加密隧道、许多小文件的往返及系统 `installd` 都可能占用时间。rootshell 使用 WASM，不保证比 Minis 更快；系统安装时间由 iOS 决定。使用[性能诊断日志](#performance)判断具体耗时阶段。
 +
-+本地 I/O 限制单次读取大小，并缓冲 ZIP 解压写入；文件选择缓存条目类型并合并终端输出，快速续签只验证一次缓存快照。这些改动减少宿主调用，保留完整签名与上传核对；真机速度变化仍需通过 `--perf-log` 测量。
++本地 I/O 限制单次读取大小，并缓冲 ZIP 解压写入、复用已验证的父目录；解压日志记录 `directory_checks_saved`（省下的目录检查次数）；文件选择缓存条目类型并合并终端输出，快速续签只验证一次缓存快照。这些改动减少宿主调用，保留完整签名与上传核对；真机速度变化仍需通过 `--perf-log` 测量。
 +
 +### 配对入口没有出现
 +
@@ -657,6 +662,7 @@ index 0000000..b4ba360
 +
 +```sh
 +bash scripts/prepare-minis.sh /tmp/siboot-source
++# Worker 与 JavaScriptCore 检查需要 Node 24 和 Bun 1.3.2。
 +rustup target add wasm32-wasip1
 +cargo build --manifest-path /tmp/siboot-source/rootshell/Cargo.toml --release --locked --target wasm32-wasip1 --bins --examples
 +bash scripts/check-rootshell-runtime.sh /tmp/siboot-source/rootshell/target/wasm32-wasip1/release/siboot.wasm /tmp/siboot-source/rootshell/target/wasm32-wasip1/release/examples/runtime_check.wasm
@@ -666,7 +672,7 @@ index 0000000..b4ba360
 +
 +</details>
 +
-+CI 检查共享 Rust、rootshell、WASI 编译，以及固定版本 Worker 矩阵：未修改的旧宿主、未修改的新宿主和应用已公开回移补丁的 build 175。旧宿主验证启动与能力不足提示；具备接口的宿主额外验证大目录完整签名、HTTP／WebSocket、协作 TCP、加密保存及续签。全部检查通过后，为尚未发布的版本生成 `siboot.wasm`、可选宿主补丁及 SHA-256，并标记 Latest。
++CI 检查共享 Rust、rootshell、WASI 编译及通过 Bun 运行的 JavaScriptCore 解析，以及未经修改的 **1.0.16（178）** Worker，覆盖单根目录预打开的子目录启动、真实回包上限、大目录完整签名、HTTP／WebSocket、协作 TCP、加密存储、续签及中断／损坏下载。全部检查通过后生成 `siboot.wasm`、`install-rootshell.sh` 和 `SHA256SUMS`，并标记 Latest。
 +
 +**尚未完成真实 Apple 账号到 iPhone 安装的端到端验证。**
 +
@@ -1401,10 +1407,10 @@ index 160bcfa..5be024e 100644
              "reaching Apple's sign-in server",
 diff --git a/minis/locales/zh-CN.json b/minis/locales/zh-CN.json
 new file mode 100644
-index 0000000..e120a09
+index 0000000..699c9e8
 --- /dev/null
 +++ b/minis/locales/zh-CN.json
-@@ -0,0 +1,466 @@
+@@ -0,0 +1,468 @@
 +{
 +  "1. Open Files > Browse > On My iPhone / iPad > rootshell.": "1. 打开“文件”>“浏览”>“我的 iPhone／iPad”>“rootshell”。",
 +  "2. Copy your .ipa into the rootshell folder. A file in iCloud Drive or Downloads must be copied here first.": "2. 将 .ipa 复制到 rootshell 文件夹。位于 iCloud 云盘或“下载”中的文件也需要先复制到这里。",
@@ -1727,6 +1733,8 @@ index 0000000..e120a09
 +  "This iPhone didn't say its UDID, which signing needs.": "iPhone 未返回签名所需的 UDID。",
 +  "This iPhone doesn't accept the pairing file (it was removed in Settings, or the iPhone was reset). Pair again in rootshell (`./siboot-pair.wasm`), then run siboot again.": "iPhone 不接受此配对文件，可能已在设置中移除配对或设备已重置。请重新配对或导入有效文件后重试。",
 +  "This iPhone doesn't accept the saved pairing file, so siboot pairs again.": "iPhone 不接受已保存的配对文件，将重新配对。",
++  "This iPhone restarts now, and rootshell stops with it.": "iPhone 即将重启，rootshell 也会随之停止。",
++  "This installer requires rootshell 1.0.16 (178) with working socket receive timeouts. Other builds are unsupported.": "本安装器仅支持 rootshell 1.0.16（178），并需要正常工作的 socket 接收超时接口。其他版本不受支持。",
 +  "This isn't a complete IPA. Choose another file.": "IPA 文件不完整，请重新选择。",
 +  "This removes the saved login and encrypted local signing data. It does not revoke Apple's certificate.": "将删除已保存的登录及本地加密签名数据，不会撤销 Apple 证书。",
 +  "This rootshell build lacks socket receive-timeout support. Pairing and connection checks are available; full installation and renewal require a newer rootshell build or the receive-timeout backport.": "此 rootshell 版本缺少 socket 接收超时接口。可使用配对和连接检查；完整安装及续签需要更新 rootshell，或自行编译接收超时回移补丁。",
@@ -3777,10 +3785,10 @@ index 048e534..073c1bd 100644
          assert!(!path.exists());
 diff --git a/minis/src/pairing_files.rs b/minis/src/pairing_files.rs
 new file mode 100644
-index 0000000..0ec068b
+index 0000000..d9b534d
 --- /dev/null
 +++ b/minis/src/pairing_files.rs
-@@ -0,0 +1,339 @@
+@@ -0,0 +1,356 @@
 +//! Select an iSH pairing file and retain a verified private copy beside siboot.
 +
 +use std::io::{self, Read};
@@ -3810,7 +3818,7 @@ index 0000000..0ec068b
 +                .and_then(|p| p.canonicalize().ok())
 +        })
 +        .and_then(|p| p.parent().map(Path::to_path_buf))
-+        .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| ".".into()))
++        .unwrap_or_else(working_directory)
 +        .join("rp_pairing_file.plist")
 +}
 +
@@ -3820,7 +3828,7 @@ index 0000000..0ec068b
 +        .next()
 +        .map(PathBuf::from)
 +        .unwrap_or_else(|| "siboot.wasm".into());
-+    let cwd = std::env::current_dir().unwrap_or_else(|_| "/".into());
++    let cwd = working_directory();
 +    // rootshell resolves a bare module name in cwd, then HOME/bin. PATH is
 +    // the native shell's PATH and does not describe WASM module lookup.
 +    let candidates = if argument.is_absolute() || argument.components().count() > 1 {
@@ -3844,19 +3852,36 @@ index 0000000..0ec068b
 +        .join("rp_pairing_file.plist")
 +}
 +
++/// Keep native paths unchanged; rootshell's WASI cwd must come from PWD.
++pub fn working_directory() -> PathBuf {
++    #[cfg(target_os = "wasi")]
++    {
++        rootshell_runtime::vfs::working_directory()
++    }
++    #[cfg(not(target_os = "wasi"))]
++    {
++        std::env::current_dir().unwrap_or_else(|_| ".".into())
++    }
++}
++
 +pub fn expand_path(path: &Path) -> PathBuf {
 +    if path == Path::new("~") {
 +        return std::env::var_os("HOME")
 +            .map(PathBuf::from)
 +            .unwrap_or_else(|| path.into());
 +    }
-+    match path.strip_prefix("~/") {
++    let expanded = match path.strip_prefix("~/") {
 +        Ok(rest) => std::env::var_os("HOME")
 +            .map(PathBuf::from)
 +            .map(|home| home.join(rest))
 +            .unwrap_or_else(|| path.into()),
 +        Err(_) => path.into(),
++    };
++    #[cfg(target_os = "wasi")]
++    if expanded.is_relative() {
++        return working_directory().join(expanded);
 +    }
++    expanded
 +}
 +
 +fn invalid() -> io::Error {
@@ -6197,7 +6222,7 @@ index 9066841..b4b1891 100644
      fn an_empty_answer_asks_again_and_cancel_stops() {
          let server = leaked();
 diff --git a/rootshell/Cargo.lock b/rootshell/Cargo.lock
-index 86f81bc..eb89d78 100644
+index 86f81bc..6efffb8 100644
 --- a/rootshell/Cargo.lock
 +++ b/rootshell/Cargo.lock
 @@ -2,16 +2,32 @@
@@ -9096,7 +9121,7 @@ index 86f81bc..eb89d78 100644
 -name = "siboot-pair"
 -version = "0.4.0"
 +name = "siboot-rootshell"
-+version = "0.21.3"
++version = "0.21.4"
  dependencies = [
 + "apple-codesign-quick",
   "base64 0.22.1",
@@ -9925,7 +9950,7 @@ index 86f81bc..eb89d78 100644
 + "simd-adler32",
 +]
 diff --git a/rootshell/Cargo.toml b/rootshell/Cargo.toml
-index 128e6d7..9db91ee 100644
+index 128e6d7..2efeb7b 100644
 --- a/rootshell/Cargo.toml
 +++ b/rootshell/Cargo.toml
 @@ -1,52 +1,63 @@
@@ -9933,7 +9958,7 @@ index 128e6d7..9db91ee 100644
 -name = "siboot-pair"
 -version = "0.4.0"
 +name = "siboot-rootshell"
-+version = "0.21.3"
++version = "0.21.4"
  edition = "2021"
 -description = "siboot's pairing step for rootshell's WASM runtime: pairs the iPhone with itself from an App Store app"
 +description = "Full local IPA signing, installation and renewal in rootshell by Jay-Void-BA, based on FrizzleM/siboot"
@@ -10020,12 +10045,12 @@ index 128e6d7..9db91ee 100644
  panic = "abort"
  strip = true
 diff --git a/rootshell/README.md b/rootshell/README.md
-index 927169f..0fa6716 100644
+index 927169f..25564d9 100644
 --- a/rootshell/README.md
 +++ b/rootshell/README.md
-@@ -1,136 +1,85 @@
+@@ -1,136 +1,79 @@
 -# siboot-pair for rootshell
-+# siboot for rootshell · 0.21.3
++# siboot for rootshell · 0.21.4
  
 -siboot's pairing step, as a WASM program for
 -[rootshell](https://apps.apple.com/app/rootshell-local-terminal-ssh/id6755794662)
@@ -10055,36 +10080,30 @@ index 927169f..0fa6716 100644
 -ifconfig en0 > ifconfig.txt
 -./siboot-pair.wasm
 -```
-+旧版（包括 1.0.15／build 175 接口）可启动、配对和运行 `check`。完整安装、续签、隧道和开发者模式需要宿主接收超时接口；缺少时会在登录前提示。请更新 rootshell，或由开发者应用 [build-175 回移补丁](https://github.com/Jay-Void-BA/SideInstaller/blob/main/patches/rootshell/README.md)后自行编译。详细限制见主 README 的兼容性表。
++仅支持 rootshell **1.0.16（178）**，使用原版宿主，无需回移补丁。旧版／build 175 不再受支持；CI 固定并校验 178 的 Worker、主页面与 broker 源码，使用单个根目录预打开项和真实 64 KiB 回包。完整安装的真机端到端验证尚未完成。
 +
 +## 首次配置
 +
-+1. 安装最新版 [rootshell](https://github.com/kitknox/rootshell#readme) 和 [LocalDevVPN](https://apps.apple.com/app/id6755608044)，在 rootshell 中打开 **Local Shell（本地终端）**。
++1. 安装 1.0.16（178）版 [rootshell](https://github.com/kitknox/rootshell#readme) 和 [LocalDevVPN](https://apps.apple.com/app/id6755608044)，在 rootshell 中打开 **Local Shell（本地终端）**。
 +2. 在系统设置开启开发者模式，按提示重启并确认；打开 Wi-Fi，允许 rootshell 访问本地网络和发送通知；在 LocalDevVPN 中添加 VPN 配置并连接，确认 **Connected**。
 +3. 新配对前，在 rootshell 的 **Settings › Location Diary Mode** 中开启定位日记模式，选择 **Session Only** 并按提示授予定位权限，便于切换到系统设置时保活。配置完成后可关闭该模式。
 +4. 在本地终端默认起始目录逐条运行 `mkdir -p siboot`、`cd siboot`。将自己的 `App.ipa` 复制到“文件 › 我的 iPhone／iPad › rootshell › siboot”。
-+5. 在这个目录下载并核对程序：
++5. 在此目录下载并运行固定版本的校验安装器：
 +
 +   ```sh
-+   curl -fL -C - -o siboot-v0.21.3.wasm.part https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.21.3/siboot.wasm
-+   sha256sum siboot-v0.21.3.wasm.part
++   curl -fL --retry 3 -o install-rootshell.sh.part https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.21.4/install-rootshell.sh &&
++   mv install-rootshell.sh.part install-rootshell.sh &&
++   sh install-rootshell.sh
 +   ```
 +
-+   与 [Release 的 SHA256SUMS](https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.21.3/SHA256SUMS) 一致后，再逐条运行：
-+
-+   ```sh
-+   mv siboot-v0.21.3.wasm.part siboot.wasm
-+   ./siboot.wasm --version
-+   ifconfig en0 > ifconfig.txt
-+   ./siboot.wasm pair
-+   ```
++   脚本核对完整大小与 SHA-256 后才替换程序，中断后重跑可续传，损坏时使用 `--restart`。用 `sh install-rootshell.sh --verify` 检查本地文件；再逐条运行 `./siboot.wasm --version`、`ifconfig en0 > ifconfig.txt`、`./siboot.wasm pair`。
 +
 +6. 按提示到“设置 › 隐私与安全性 › 开发者模式”点击 **Pair with siboot**，输入设备密码和通知／终端中的六位配对码。若不能读取 Wi-Fi 地址，用 `./siboot.wasm pair --wifi-ip 192.168.1.10`，将示例地址换成本机 Wi-Fi IPv4。
 +7. 返回 rootshell，运行 `./siboot.wasm --ipa App.ipa` 并按提示登录。以后在相同目录运行 `./siboot.wasm renew` 快速续签，保持 LocalDevVPN 连接。文件名含空格时用引号。
 +
 +首次交互运行 `./siboot.wasm` 会显示“文件”导入 IPA 教程，确认后不再重复；取消不保存标记。显式 `--ipa` 跳过教程。已有 `siboot` 目录直接进入，无需再次创建。内部数据及临时目录可安全重复使用。
 +
-+下载时保持 rootshell 在前台；中断后使用相同版本的 `.part` 文件续传，核对哈希后再改名。配对文件 `rp_pairing_file.plist`、登录与续签缓存 `.siboot/` 及启用后的性能日志均保存在程序同目录；升级时将新版 `siboot.wasm` 放回这个目录。
++下载时保持 rootshell 在前台，使用安装脚本续传、校验并替换程序。配对文件 `rp_pairing_file.plist`、登录与续签缓存 `.siboot/` 及启用后的性能日志均保存在程序同目录；升级时将新版 `siboot.wasm` 放回这个目录。
 +
 +旧版用户先通过“文件”导出原始 IPA 与 RPPairing 文件，再在 rootshell 中运行 `./siboot.wasm --pairing-file from-ish.plist --ipa App.ipa`，将名称替换为实际文件名，验证配对后重新登录。没有可用配对文件时按上述步骤新建配对。
 +
@@ -10094,7 +10113,7 @@ index 927169f..0fa6716 100644
 -tap **Pair with siboot**, and enter your passcode and the 6-digit code
 -siboot-pair shows in large digits (it also arrives as a notification). Leave
 -rootshell running, and in Open Minis's terminal run:
-+在 SideInstaller 仓库根目录准备源码：
++开发检查需要 Node 24、Bun 1.3.2（JavaScriptCore）及 Rust WASI 目标。在 SideInstaller 仓库根目录准备源码：
  
  ```sh
 -wget -qO- https://raw.githubusercontent.com/FrizzleM/siboot/main/minis/install.sh | sh
@@ -10582,10 +10601,10 @@ index 0000000..69b4e5a
 +    println!("BLOCKING_TIMEOUT_CLASSIFIED");
 +}
 diff --git a/rootshell/src/main.rs b/rootshell/src/main.rs
-index c5c010c..fa20907 100644
+index c5c010c..762f1fa 100644
 --- a/rootshell/src/main.rs
 +++ b/rootshell/src/main.rs
-@@ -1,561 +1,707 @@
+@@ -1,561 +1,701 @@
 -//! `siboot-pair`: siboot's pairing step, for rootshell's WASM runtime.
 -//!
 -//! Pairs this iPhone with itself from an App Store app. iOS 27 lists a host
@@ -10850,6 +10869,7 @@ index c5c010c..fa20907 100644
 +    if args.command == Command::Renew && args.ipa.is_some() {
 +        return Err("renew uses the last original IPA; omit --ipa".into());
 +    }
++    args.home = pairing_files::expand_path(&args.home);
 +    Ok(Parsed::Run(args))
  }
  
@@ -10935,7 +10955,7 @@ index c5c010c..fa20907 100644
 -            eprintln!("siboot-pair: {problem}");
 -            eprintln!("try `./siboot-pair.wasm --help`");
 +        Ok(Parsed::Version) => {
-+            println!("siboot {VERSION} (rootshell) · Jay-Void-BA · based on FrizzleM/siboot");
++            println!("siboot {VERSION} (rootshell 1.0.16 / 178) · Jay-Void-BA · based on FrizzleM/siboot");
 +            return ExitCode::SUCCESS;
 +        }
 +        Err(e) => {
@@ -11103,12 +11123,36 @@ index c5c010c..fa20907 100644
          }
 -        let dots: String = (0..3).map(|n| if n <= i { '●' } else { '○' }).collect();
 -        ui::spin(&format!("Announcing \"Pair with {HOST_NAME}\" {dots}"), Duration::from_secs(1));
--    }
+     }
 -    if sent == 0 {
 -        return Err("rootshell couldn't send the Bonjour announcement. Allow it Local Network \
 -                    access (Settings › Privacy & Security › Local Network › rootshell) and run \
 -                    this again."
 -            .into());
++    None
++}
++fn create_pairing(args: &Args, path: &Path) -> Result<()> {
++    let ip = args.wifi_ip.or_else(|| std::fs::read_to_string(pairing_files::working_directory().join("ifconfig.txt")).ok().and_then(|text| wifi_address(&text)))
++        .ok_or_else(|| Fail::known("Before pairing, run ifconfig en0 > ifconfig.txt in rootshell, or supply --wifi-ip with this iPhone's Wi-Fi IPv4 address."))?;
++    pairing::create(ip, path).map_err(|e| {
++        Fail::new(
++            "Pairing failed. Check Local Network access and Location Diary Mode in rootshell.",
++            e,
++        )
++    })
++}
++async fn ensure_pairing(args: &Args, path: &Path) -> Result<()> {
++    if let Some(source) = &args.pairing_file {
++        let staged = pairing_files::Staged::from_file(source, path)
++            .map_err(|e| Fail::new("Couldn't read the selected pairing file.", e.to_string()))?;
++        tunnel::verify(args.device, &staged.path).await?;
++        staged.commit(path).map_err(|e| {
++            Fail::new(
++                "Couldn't save the verified pairing beside siboot.wasm.",
++                e.to_string(),
++            )
++        })?;
++        return Ok(());
      }
 -    let [a, b, c, d] = args.ip;
 -    ui::settle(ui::Mark::Good, &format!("Announced \"Pair with {HOST_NAME}\""));
@@ -11132,9 +11176,46 @@ index c5c010c..fa20907 100644
 -    ui::settle(ui::Mark::Good, &format!("Paired with {} ({})", peer.name, peer.model));
 -    ui::say(ui::Mark::Good, &format!("Pairing file saved: Files › rootshell › {PAIRING_FILE}"));
 -    hand_off(&file.to_bytes())
-+    None
++    if path.exists() {
++        match tunnel::verify(args.device, path).await {
++            Ok(()) => {
++                ui::ok("the saved pairing still works");
++                return Ok(());
++            }
++            Err(error) => ui::warn(&error.advice),
++        }
++    }
++    let choices = [
++        "Pair this iPhone here in rootshell",
++        "Select a pairing file",
++        "Cancel",
++    ]
++    .map(str::to_string);
++    match ui::choose("Pairing", &choices) {
++        Some(0) => create_pairing(args, path)?,
++        Some(1) => {
++            let source = ui::select_file(
++                "Select a pairing file",
++                &["plist", "json", "xml", "mobiledevicepairing", "pairing"],
++            )
++            .ok_or_else(|| Fail::by_user("Pairing file selection cancelled."))?;
++            let staged = pairing_files::Staged::from_file(&source, path).map_err(|e| {
++                Fail::new("Couldn't read the selected pairing file.", e.to_string())
++            })?;
++            tunnel::verify(args.device, &staged.path).await?;
++            staged.commit(path).map_err(|e| {
++                Fail::new(
++                    "Couldn't save the verified pairing beside siboot.wasm.",
++                    e.to_string(),
++                )
++            })?;
++            return Ok(());
++        }
++        _ => return Err(Fail::by_user("Pairing cancelled.")),
++    }
++    tunnel::verify(args.device, path).await
  }
--
+ 
 -/// Where siboot in Minis asks for the pairing file, on this iPhone's loopback.
 -/// Also in minis/src/pairing.rs.
 -const HANDOFF_PORT: u16 = 61207;
@@ -11147,15 +11228,13 @@ index c5c010c..fa20907 100644
 -        format!(
 -            "paired, but couldn't offer the file to Minis ({e}). Close any other rootshell tab \
 -             running siboot-pair, then run `./siboot-pair.wasm` again."
-+fn create_pairing(args: &Args, path: &Path) -> Result<()> {
-+    let ip = args.wifi_ip.or_else(|| std::fs::read_to_string("ifconfig.txt").ok().and_then(|text| wifi_address(&text)))
-+        .ok_or_else(|| Fail::known("Before pairing, run ifconfig en0 > ifconfig.txt in rootshell, or supply --wifi-ip with this iPhone's Wi-Fi IPv4 address."))?;
-+    pairing::create(ip, path).map_err(|e| {
++async fn pipeline(args: &Args) -> Result<()> {
++    vault::private_directory(&args.home).map_err(|e| {
 +        Fail::new(
-+            "Pairing failed. Check Local Network access and Location Diary Mode in rootshell.",
-+            e,
++            "Couldn't create the siboot storage directory.",
++            e.to_string(),
          )
--    })?;
+     })?;
 -    let code = transfer_code();
 -    ui::blank();
 -    ui::heading("Next, in Open Minis (App Store):");
@@ -11170,17 +11249,66 @@ index c5c010c..fa20907 100644
 -    ui::dim(
 -        "siboot only asks when it has no pairing file that works yet. If it goes ahead without \
 -         asking, close this tab once Minis is done. Ctrl-C stops the offer.",
--    );
++    // std::env::temp_dir() must resolve inside rootshell's preopened folder.
++    let temporary = args.home.join("tmp");
++    rootshell_runtime::directory::create_all(&temporary)
++        .map_err(|e| Fail::new("Couldn't create the temporary directory.", e.to_string()))?;
++    std::env::set_var("TMPDIR", temporary.canonicalize().unwrap_or(temporary));
++    if args.command == Command::Pair {
++        retry::step(1, "Pairing this iPhone with siboot", async || {
++            create_pairing(args, &args.pairing_path())
++        })
++        .await?;
++        ui::finish(
++            "Pairing saved",
++            &["The pairing file is beside siboot.wasm. Run siboot.wasm --ipa App.ipa to install."],
++        );
++        return Ok(());
++    }
++    let operation = prepare_operation(args)?;
++    let args = &operation.args;
++    rootshell_runtime::perf::event(
++        if args.command == Command::Renew {
++            "workflow.renew"
++        } else {
++            "workflow.install_or_connect"
++        },
++        &[],
++    );
++    let receive_timeouts = rootshell_runtime::receive_timeout_supported();
++    rootshell_runtime::perf::event(
++        "runtime.capabilities",
++        &[("receive_timeouts", u64::from(receive_timeouts))],
+     );
 -    ui::blank();
 -    ui::live("Offering the file to siboot…");
 -    if offer(&listener, &code, pairing) {
 -        ui::settle(ui::Mark::Good, "siboot has the pairing file. You can close rootshell's tab.");
--        Ok(())
++    rootshell_runtime::require_receive_timeout().map_err(|error| Fail::known(error.to_string()))?;
++    retry::step(1, "Checking LocalDevVPN and this iPhone", async || {
++        rootshell_runtime::Socket::probe_connection(
++            &args.device.ip().to_string(),
++            args.device.port(),
++        )
++        .map_err(|e| {
++            Fail::new(
++                "Couldn't reach this iPhone. Connect LocalDevVPN and keep Wi-Fi on.",
++                e.to_string(),
++            )
++        })?;
+         Ok(())
 -    } else {
 -        Err("the offer ended. Run `./siboot-pair.wasm` again for a new transfer code.".into())
--    }
 +    })
- }
++    .await?;
++    if args.command == Command::Check {
++        ui::finish(
++            "Ready",
++            &["The iPhone answers. Run siboot.wasm --ipa App.ipa to install."],
++        );
++        return Ok(());
+     }
+-}
 -
 -/// Answer siboot's requests on `listener` until one brings `code`, then send
 -/// the file. The code keeps any other app on the iPhone from taking it:
@@ -11209,263 +11337,7 @@ index c5c010c..fa20907 100644
 -            if left > 0 {
 -                ui::say(ui::Mark::Warn, &format!("A wrong transfer code ({wrong} of {HANDOFF_TRIES})."));
 -                ui::live(&format!("Offering the file: {left} {} left…", if left == 1 { "try" } else { "tries" }));
-+async fn ensure_pairing(args: &Args, path: &Path) -> Result<()> {
-+    if let Some(source) = &args.pairing_file {
-+        let staged = pairing_files::Staged::from_file(source, path)
-+            .map_err(|e| Fail::new("Couldn't read the selected pairing file.", e.to_string()))?;
-+        tunnel::verify(args.device, &staged.path).await?;
-+        staged.commit(path).map_err(|e| {
-+            Fail::new(
-+                "Couldn't save the verified pairing beside siboot.wasm.",
-+                e.to_string(),
-+            )
-+        })?;
-+        return Ok(());
-+    }
-+    if path.exists() {
-+        match tunnel::verify(args.device, path).await {
-+            Ok(()) => {
-+                ui::ok("the saved pairing still works");
-+                return Ok(());
-             }
-+            Err(error) => ui::warn(&error.advice),
-         }
-     }
--    false
--}
--
--/// Six digits, not starting with 0 so it reads as a number.
--fn transfer_code() -> String {
--    let b = uuid::Uuid::new_v4();
--    let n = u32::from_be_bytes(b.as_bytes()[..4].try_into().unwrap());
--    format!("{}", 100_000 + n % 900_000)
--}
--
--/// Pair over up to `MAX_ATTEMPTS` connections: a stray one, a mistyped code
--/// or a cancel in Settings leaves the entry up for another tap. Each code
--/// goes to `show`.
--fn pair(
--    listener: &rs::Socket,
--    info: &PairableHostInfo,
--    file: &mut RpPairingFile,
--    show: impl Fn(&str),
--) -> Result<PeerDevice, String> {
--    for attempt in 1..=MAX_ATTEMPTS {
--        let stream = listener.accept().map_err(|e| format!("couldn't accept the connection: {e}"))?;
--        ui::live("Settings connected, waiting…");
--        let mut host = PairableHost::new(RpPairingSocket::new_device(stream), info.clone());
--        let code_shown = Cell::new(false);
--        let outcome = futures::executor::block_on(host.accept(file, |pin: String| {
--            code_shown.set(true);
--            show(&pin);
--            async {}
--        }));
--        let error = match outcome {
--            Ok(peer) => return Ok(peer),
--            Err(e) => e.to_string(),
--        };
--        let wrong_code = error.to_ascii_lowercase().contains("srp");
--        if attempt == MAX_ATTEMPTS {
--            return Err(if wrong_code {
--                "the code didn't match. Run this again and type the new code exactly.".into()
--            } else {
--                format!("pairing didn't finish ({error}). Run this again.")
--            });
-+    let choices = [
-+        "Pair this iPhone here in rootshell",
-+        "Select a pairing file",
-+        "Cancel",
-+    ]
-+    .map(str::to_string);
-+    match ui::choose("Pairing", &choices) {
-+        Some(0) => create_pairing(args, path)?,
-+        Some(1) => {
-+            let source = ui::select_file(
-+                "Select a pairing file",
-+                &["plist", "json", "xml", "mobiledevicepairing", "pairing"],
-+            )
-+            .ok_or_else(|| Fail::by_user("Pairing file selection cancelled."))?;
-+            let staged = pairing_files::Staged::from_file(&source, path).map_err(|e| {
-+                Fail::new("Couldn't read the selected pairing file.", e.to_string())
-+            })?;
-+            tunnel::verify(args.device, &staged.path).await?;
-+            staged.commit(path).map_err(|e| {
-+                Fail::new(
-+                    "Couldn't save the verified pairing beside siboot.wasm.",
-+                    e.to_string(),
-+                )
-+            })?;
-+            return Ok(());
-         }
--        ui::settle(
--            ui::Mark::Warn,
--            match (code_shown.get(), wrong_code) {
--                (false, _) => "That connection closed before asking for a code.",
--                (true, true) => "That code didn't match. Tap the entry in Settings again for a new one.",
--                (true, false) => "Pairing stopped before it finished. Tap the entry in Settings again.",
--            },
--        );
--        ui::live("Still waiting for Settings…");
-+        _ => return Err(Fail::by_user("Pairing cancelled.")),
-     }
--    unreachable!("the loop returns on its last attempt")
--}
--
--/// The code, in large digits and posted as a notification: Ghostty,
--/// rootshell's terminal, turns OSC 777 into one, also with rootshell in the
--/// background.
--fn show_code(pin: &str) {
--    ui::settle(ui::Mark::Good, "Settings connected");
--    ui::blank();
--    ui::heading("Type this code into Settings:");
--    ui::big(pin);
--    ui::dim("It's in your notifications too.");
--    ui::blank();
--    ui::notify("siboot pairing code", &format!("{} — type it into Settings", ui::spaced(pin)));
--    ui::live("Waiting for Settings to check it…");
--}
--
--/// The host identity from an earlier run, so a new pairing doesn't invalidate
--/// copies of the file handed out before; else a new one.
--fn identity() -> (RpPairingFile, Option<[u8; 16]>) {
--    let file = match std::fs::read(PAIRING_FILE).ok().and_then(|b| RpPairingFile::from_bytes(&b).ok()) {
--        Some(mut existing) => {
--            existing.alt_irk = None;
--            existing
--        }
--        None => fresh_identity(),
--    };
--    let alt_irk = std::fs::read_to_string(ALT_IRK_FILE)
--        .ok()
--        .and_then(|h| hex::decode(h.trim()).ok())
--        .and_then(|b| b.try_into().ok());
--    (file, alt_irk)
--}
--
--/// `generate` derives the identifier from the name, the same for every
--/// siboot; a random one keeps this host's records apart.
--fn fresh_identity() -> RpPairingFile {
--    let mut fresh = RpPairingFile::generate(HOST_NAME);
--    fresh.identifier = uuid::Uuid::new_v4().to_string().to_uppercase();
--    fresh
--}
--
--fn random_port() -> u16 {
--    let b = uuid::Uuid::new_v4();
--    let n = u16::from_be_bytes([b.as_bytes()[0], b.as_bytes()[1]]);
--    50000 + n % 10000
-+    tunnel::verify(args.device, path).await
- }
- 
--#[cfg(test)]
--mod tests {
--    use super::*;
--
--    #[test]
--    fn the_wifi_address_comes_out_of_ifconfig() {
--        let ifconfig = "en0: flags=8863<UP,BROADCAST,RUNNING,SIMPLEX,MULTICAST> mtu 1500\n\
--             \tinet6 fe80::1c2b:3a4d:5e6f:7081%en0 prefixlen 64 secured scopeid 0x9\n\
--             \tinet 192.168.178.42 netmask 0xffffff00 broadcast 192.168.178.255\n";
--        assert_eq!(wifi_address(ifconfig), Some([192, 168, 178, 42]));
--        assert_eq!(wifi_address("lo0: inet 127.0.0.1 netmask 0xff000000"), None);
--        assert_eq!(wifi_address("  10.0.0.7\n"), None, "only ifconfig output, not a bare address");
--        assert_eq!(wifi_address("en0: flags=8822<BROADCAST,SMART,SIMPLEX,MULTICAST> mtu 1500"), None);
-+async fn pipeline(args: &Args) -> Result<()> {
-+    vault::private_directory(&args.home).map_err(|e| {
-+        Fail::new(
-+            "Couldn't create the siboot storage directory.",
-+            e.to_string(),
-+        )
-+    })?;
-+    // std::env::temp_dir() must resolve inside rootshell's preopened folder.
-+    let temporary = args.home.join("tmp");
-+    rootshell_runtime::directory::create_all(&temporary)
-+        .map_err(|e| Fail::new("Couldn't create the temporary directory.", e.to_string()))?;
-+    std::env::set_var("TMPDIR", temporary.canonicalize().unwrap_or(temporary));
-+    if args.command == Command::Pair {
-+        retry::step(1, "Pairing this iPhone with siboot", async || {
-+            create_pairing(args, &args.pairing_path())
-+        })
-+        .await?;
-+        ui::finish(
-+            "Pairing saved",
-+            &["The pairing file is beside siboot.wasm. Run siboot.wasm --ipa App.ipa to install."],
-+        );
-+        return Ok(());
-     }
--
--    #[test]
--    fn transfer_codes_have_six_digits() {
--        for _ in 0..100 {
--            let code = transfer_code();
--            assert_eq!(code.len(), 6);
--            assert!(code.chars().all(|c| c.is_ascii_digit()) && !code.starts_with('0'));
-+    let operation = prepare_operation(args)?;
-+    let args = &operation.args;
-+    rootshell_runtime::perf::event(
-+        if args.command == Command::Renew {
-+            "workflow.renew"
-+        } else {
-+            "workflow.install_or_connect"
-+        },
-+        &[],
-+    );
-+    let receive_timeouts = rootshell_runtime::receive_timeout_supported();
-+    rootshell_runtime::perf::event(
-+        "runtime.capabilities",
-+        &[("receive_timeouts", u64::from(receive_timeouts))],
-+    );
-+    if args.command != Command::Check {
-+        rootshell_runtime::require_receive_timeout()
-+            .map_err(|error| Fail::known(error.to_string()))?;
-+    }
-+    retry::step(1, "Checking LocalDevVPN and this iPhone", async || {
-+        rootshell_runtime::Socket::probe_connection(
-+            &args.device.ip().to_string(),
-+            args.device.port(),
-+        )
-+        .map_err(|e| {
-+            Fail::new(
-+                "Couldn't reach this iPhone. Connect LocalDevVPN and keep Wi-Fi on.",
-+                e.to_string(),
-+            )
-+        })?;
-+        Ok(())
-+    })
-+    .await?;
-+    if args.command == Command::Check {
-+        if !receive_timeouts {
-+            ui::warn(rootshell_runtime::RECEIVE_TIMEOUT_REQUIRED);
-         }
-+        ui::finish(
-+            "Ready",
-+            &[if receive_timeouts {
-+                "The iPhone answers. Run siboot.wasm --ipa App.ipa to install."
-+            } else {
-+                "The iPhone answers. This check confirms TCP reachability only."
-+            }],
-+        );
-+        return Ok(());
-     }
--
--    /// A host waiting on a loopback port, as Settings finds it, pairing in a
--    /// thread of its own (the real one blocks in accept). The codes it shows
--    /// come out of the receiver.
--    fn host() -> (
--        u16,
--        std::sync::mpsc::Receiver<String>,
--        std::thread::JoinHandle<(Result<PeerDevice, String>, RpPairingFile)>,
--    ) {
--        let listener = rs::Socket::listen(0).unwrap();
--        let port = listener.local_port();
--        let (codes, shown) = std::sync::mpsc::channel();
--        let thread = std::thread::spawn(move || {
--            let info = PairableHostInfo::generate(HOST_NAME, HOST_MODEL);
--            let mut file = fresh_identity();
--            let paired = pair(&listener, &info, &mut file, |pin| codes.send(pin.to_string()).unwrap());
--            (paired, file)
--        });
--        (port, shown, thread)
+-            }
 +    let pairing_path = args.pairing_path();
 +    retry::step(2, "Pairing this iPhone with siboot", async || {
 +        ensure_pairing(args, &pairing_path).await
@@ -11491,17 +11363,10 @@ index c5c010c..fa20907 100644
 +            &["This iPhone accepts the pairing file, and the tunnel opens with it."],
 +        );
 +        return Ok(());
-     }
--
--    fn addr(port: u16) -> std::net::SocketAddr {
--        std::net::SocketAddr::from(([127, 0, 0, 1], port))
++    }
 +    if args.command == Command::DeveloperMode {
 +        return developer_mode(args, &mut connection).await;
-     }
--
--    /// The fake iPhone's typing: the next code the host shows.
--    async fn next_code(shown: std::sync::Arc<std::sync::Mutex<std::sync::mpsc::Receiver<String>>>) -> String {
--        tokio::task::spawn_blocking(move || shown.lock().unwrap().recv().unwrap()).await.unwrap()
++    }
 +    drop(connection);
 +    let mut session = retry::step(4, "Signing in to your Apple Account", async || {
 +        account::sign_in(args).await
@@ -11516,25 +11381,9 @@ index c5c010c..fa20907 100644
 +    if let Some(original_bundle_id) = &operation.renewal_bundle_id {
 +        if &signed.bundle_id != original_bundle_id {
 +            return Err(Fail::known("Quick renew requires the same Apple developer team as the previous install. Use a normal local IPA install to change accounts."));
-+        }
+         }
      }
--
--    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
--    async fn a_device_pairs_and_the_file_holds_the_host_it_saw() {
--        let (port, shown, host) = host();
--        let shown = std::sync::Arc::new(std::sync::Mutex::new(shown));
--        let phone = fake_iphone::pair(addr(port), next_code(shown)).await.expect("phone paired");
--        let (paired, file) = host.join().unwrap();
--        let peer = paired.expect("host paired");
--        assert_eq!(peer.name, fake_iphone::NAME);
--        assert_eq!(peer.model, fake_iphone::MODEL);
--        // The identity the device was given in M6 is the one written out…
--        assert_eq!(file.identifier, phone.host_identifier);
--        assert_eq!(file.public_key_bytes(), phone.host_public_key);
--        // …with the device's altIRK from M5, and it reads back.
--        assert_eq!(file.alt_irk.as_deref(), Some(&fake_iphone::ALT_IRK[..]));
--        let reread = RpPairingFile::from_bytes(&file.to_bytes()).unwrap();
--        assert_eq!(reread.identifier, file.identifier);
+-    false
 +    ui::done(&format!("{} signed", signed.name));
 +    let uploaded = retry::step(6, "Installing it", async || {
 +        let mut connection = tunnel::open(args.device, &pairing_path).await?;
@@ -11557,46 +11406,56 @@ index c5c010c..fa20907 100644
 +    } else {
 +        renewal.finish(rootshell_runtime::perf::Outcome::Ok, &[]);
 +        ui::ok("Ready for quick renew: run siboot renew next time.");
-     }
--
--    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
--    async fn a_wrong_code_gets_another_try() {
--        let (port, shown, host) = host();
--        let shown = std::sync::Arc::new(std::sync::Mutex::new(shown));
--        // A typo, then the entry tapped again and the new code typed.
--        let first = fake_iphone::pair(addr(port), async { "000000".to_string() }).await;
--        assert!(first.is_err(), "a wrong code paired");
--        let _typo = next_code(shown.clone()).await;
--        fake_iphone::pair(addr(port), next_code(shown)).await.expect("the second try paired");
--        let (paired, _) = host.join().unwrap();
--        assert_eq!(paired.expect("host paired on the second try").name, fake_iphone::NAME);
++    }
 +    if signed.is_sideinstaller() {
 +        retry::step(7, "Handing SideInstaller the pairing", async || {
 +            let mut connection = tunnel::open(args.device, &pairing_path).await?;
 +            seed::hand_over(&mut connection, &signed.bundle_id, &pairing_path).await
 +        })
 +        .await?;
-     }
++    }
 +    ui::finish(&format!("{} is installed", signed.name), &[
 +        "Open it from your Home Screen. The first time, iOS asks you to trust your Apple Account: Settings › General › VPN & Device Management.",
 +        "Free accounts' apps last 7 days. Renew the app before it expires.",
 +    ]);
 +    Ok(())
-+}
+ }
+-
+-/// Six digits, not starting with 0 so it reads as a number.
+-fn transfer_code() -> String {
+-    let b = uuid::Uuid::new_v4();
+-    let n = u32::from_be_bytes(b.as_bytes()[..4].try_into().unwrap());
+-    format!("{}", 100_000 + n % 900_000)
 +/// Keep the chosen original and its renewal identity in one immutable snapshot.
 +/// Selection and validation happen before network access or account prompts.
 +struct Operation {
 +    args: Args,
 +    ipa: Option<PathBuf>,
 +    renewal_bundle_id: Option<String>,
-+}
+ }
  
--    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
--    async fn three_wrong_codes_end_the_run_and_say_why() {
--        let (port, _shown, host) = host();
--        for _ in 0..MAX_ATTEMPTS {
--            let paired = fake_iphone::pair(addr(port), async { "000000".to_string() }).await;
--            assert!(paired.is_err(), "a wrong code paired");
+-/// Pair over up to `MAX_ATTEMPTS` connections: a stray one, a mistyped code
+-/// or a cancel in Settings leaves the entry up for another tap. Each code
+-/// goes to `show`.
+-fn pair(
+-    listener: &rs::Socket,
+-    info: &PairableHostInfo,
+-    file: &mut RpPairingFile,
+-    show: impl Fn(&str),
+-) -> Result<PeerDevice, String> {
+-    for attempt in 1..=MAX_ATTEMPTS {
+-        let stream = listener.accept().map_err(|e| format!("couldn't accept the connection: {e}"))?;
+-        ui::live("Settings connected, waiting…");
+-        let mut host = PairableHost::new(RpPairingSocket::new_device(stream), info.clone());
+-        let code_shown = Cell::new(false);
+-        let outcome = futures::executor::block_on(host.accept(file, |pin: String| {
+-            code_shown.set(true);
+-            show(&pin);
+-            async {}
+-        }));
+-        let error = match outcome {
+-            Ok(peer) => return Ok(peer),
+-            Err(e) => e.to_string(),
 +fn prepare_operation(args: &Args) -> Result<Operation> {
 +    let mut selected = args.clone();
 +    if args.command == Command::Renew {
@@ -11611,11 +11470,52 @@ index c5c010c..fa20907 100644
 +                ui::detail(&error.to_string());
 +                None
 +            }
-+        };
+         };
+-        let wrong_code = error.to_ascii_lowercase().contains("srp");
+-        if attempt == MAX_ATTEMPTS {
+-            return Err(if wrong_code {
+-                "the code didn't match. Run this again and type the new code exactly.".into()
+-            } else {
+-                format!("pairing didn't finish ({error}). Run this again.")
+-            });
 +        let mut choices = vec!["Choose a local IPA to sign and install".to_string()];
 +        if let Some((app, _)) = &saved {
 +            choices.push(format!("Quick renew: {}", app.name));
-+        }
+         }
+-        ui::settle(
+-            ui::Mark::Warn,
+-            match (code_shown.get(), wrong_code) {
+-                (false, _) => "That connection closed before asking for a code.",
+-                (true, true) => "That code didn't match. Tap the entry in Settings again for a new one.",
+-                (true, false) => "Pairing stopped before it finished. Tap the entry in Settings again.",
+-            },
+-        );
+-        ui::live("Still waiting for Settings…");
+-    }
+-    unreachable!("the loop returns on its last attempt")
+-}
+-
+-/// The code, in large digits and posted as a notification: Ghostty,
+-/// rootshell's terminal, turns OSC 777 into one, also with rootshell in the
+-/// background.
+-fn show_code(pin: &str) {
+-    ui::settle(ui::Mark::Good, "Settings connected");
+-    ui::blank();
+-    ui::heading("Type this code into Settings:");
+-    ui::big(pin);
+-    ui::dim("It's in your notifications too.");
+-    ui::blank();
+-    ui::notify("siboot pairing code", &format!("{} — type it into Settings", ui::spaced(pin)));
+-    ui::live("Waiting for Settings to check it…");
+-}
+-
+-/// The host identity from an earlier run, so a new pairing doesn't invalidate
+-/// copies of the file handed out before; else a new one.
+-fn identity() -> (RpPairingFile, Option<[u8; 16]>) {
+-    let file = match std::fs::read(PAIRING_FILE).ok().and_then(|b| RpPairingFile::from_bytes(&b).ok()) {
+-        Some(mut existing) => {
+-            existing.alt_irk = None;
+-            existing
 +        match ui::choose("Local IPA", &choices) {
 +            Some(0) => {
 +                let path = ui::select_file("Choose a local IPA to sign and install", &["ipa"])
@@ -11634,52 +11534,44 @@ index c5c010c..fa20907 100644
 +            }
 +            _ => return Err(Fail::by_user("IPA selection cancelled.")),
          }
--        let (paired, _) = host.join().unwrap();
--        let problem = paired.err().expect("the host should give up");
--        assert!(problem.contains("code didn't match"), "{problem}");
-     }
+-        None => fresh_identity(),
++    }
 +    let ipa = if selected.command == Command::All {
 +        Some(sign::local_ipa(&selected)?)
 +    } else {
 +        None
-+    };
+     };
+-    let alt_irk = std::fs::read_to_string(ALT_IRK_FILE)
+-        .ok()
+-        .and_then(|h| hex::decode(h.trim()).ok())
+-        .and_then(|b| b.try_into().ok());
+-    (file, alt_irk)
 +    Ok(Operation {
 +        args: selected,
 +        ipa,
 +        renewal_bundle_id: None,
 +    })
-+}
+ }
  
--    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
--    async fn a_connection_that_drops_before_the_code_doesnt_end_pairing() {
--        let (port, shown, host) = host();
--        drop(std::net::TcpStream::connect(addr(port)).unwrap());
--        let shown = std::sync::Arc::new(std::sync::Mutex::new(shown));
--        fake_iphone::pair(addr(port), next_code(shown)).await.expect("phone paired");
--        let (paired, _) = host.join().unwrap();
--        assert_eq!(paired.expect("host paired after the stray connection").name, fake_iphone::NAME);
+-/// `generate` derives the identifier from the name, the same for every
+-/// siboot; a random one keeps this host's records apart.
+-fn fresh_identity() -> RpPairingFile {
+-    let mut fresh = RpPairingFile::generate(HOST_NAME);
+-    fresh.identifier = uuid::Uuid::new_v4().to_string().to_uppercase();
+-    fresh
 +fn renewal_operation(mut args: Args, (saved, path): (renew::SavedApp, PathBuf)) -> Operation {
 +    args.command = Command::Renew;
 +    Operation {
 +        args,
 +        ipa: Some(path),
 +        renewal_bundle_id: Some(saved.bundle_id),
-     }
-+}
++    }
+ }
  
--    /// siboot's side of the hand-off (minis/src/pairing.rs): one request per
--    /// connection, the answer's first line, then the file.
--    fn ask_for_file(port: u16, code: &str) -> (String, Vec<u8>) {
--        use std::io::{BufRead, Read, Write};
--        let mut conn = std::net::TcpStream::connect(addr(port)).unwrap();
--        conn.write_all(format!("SIBOOT1 {code}\n").as_bytes()).unwrap();
--        let mut reader = std::io::BufReader::new(conn);
--        let mut answer = String::new();
--        reader.read_line(&mut answer).unwrap();
--        let mut rest = Vec::new();
--        reader.read_to_end(&mut rest).unwrap();
--        (answer.trim().to_string(), rest)
--    }
+-fn random_port() -> u16 {
+-    let b = uuid::Uuid::new_v4();
+-    let n = u16::from_be_bytes([b.as_bytes()[0], b.as_bytes()[1]]);
+-    50000 + n % 10000
 +fn cached_original(args: &Args) -> Result<(renew::SavedApp, PathBuf)> {
 +    renew::load_original(&args.home)
 +        .map_err(|e| {
@@ -11689,18 +11581,29 @@ index c5c010c..fa20907 100644
 +            )
 +        })?
 +        .ok_or_else(|| Fail::known("No saved app for quick renew. Install a local IPA first."))
-+}
+ }
  
+-#[cfg(test)]
+-mod tests {
+-    use super::*;
+-
 -    #[test]
--    fn the_file_goes_to_whoever_has_the_code() {
--        let listener = rs::Socket::listen(0).unwrap();
--        let port = listener.local_port();
--        let offered = std::thread::spawn(move || offer(&listener, "481516", b"pairing file"));
--        assert_eq!(ask_for_file(port, "000000").0, "NO");
--        let (answer, file) = ask_for_file(port, "481516");
--        assert_eq!(answer, "OK 12");
--        assert_eq!(file, b"pairing file");
--        assert!(offered.join().unwrap(), "the offer ends once siboot has the file");
+-    fn the_wifi_address_comes_out_of_ifconfig() {
+-        let ifconfig = "en0: flags=8863<UP,BROADCAST,RUNNING,SIMPLEX,MULTICAST> mtu 1500\n\
+-             \tinet6 fe80::1c2b:3a4d:5e6f:7081%en0 prefixlen 64 secured scopeid 0x9\n\
+-             \tinet 192.168.178.42 netmask 0xffffff00 broadcast 192.168.178.255\n";
+-        assert_eq!(wifi_address(ifconfig), Some([192, 168, 178, 42]));
+-        assert_eq!(wifi_address("lo0: inet 127.0.0.1 netmask 0xff000000"), None);
+-        assert_eq!(wifi_address("  10.0.0.7\n"), None, "only ifconfig output, not a bare address");
+-        assert_eq!(wifi_address("en0: flags=8822<BROADCAST,SMART,SIMPLEX,MULTICAST> mtu 1500"), None);
+-    }
+-
+-    #[test]
+-    fn transfer_codes_have_six_digits() {
+-        for _ in 0..100 {
+-            let code = transfer_code();
+-            assert_eq!(code.len(), 6);
+-            assert!(code.chars().all(|c| c.is_ascii_digit()) && !code.starts_with('0'));
 +async fn developer_mode(args: &Args, connection: &mut tunnel::Connection) -> Result<()> {
 +    let request = if args.turn_on {
 +        devmode::Request::TurnOn
@@ -11714,7 +11617,75 @@ index c5c010c..fa20907 100644
 +        devmode::Outcome::AlreadyOn => {
 +            ui::done("already on");
 +            ui::finish("Developer Mode is already on", &["So nothing was sent."]);
-+        }
+         }
+-    }
+-
+-    /// A host waiting on a loopback port, as Settings finds it, pairing in a
+-    /// thread of its own (the real one blocks in accept). The codes it shows
+-    /// come out of the receiver.
+-    fn host() -> (
+-        u16,
+-        std::sync::mpsc::Receiver<String>,
+-        std::thread::JoinHandle<(Result<PeerDevice, String>, RpPairingFile)>,
+-    ) {
+-        let listener = rs::Socket::listen(0).unwrap();
+-        let port = listener.local_port();
+-        let (codes, shown) = std::sync::mpsc::channel();
+-        let thread = std::thread::spawn(move || {
+-            let info = PairableHostInfo::generate(HOST_NAME, HOST_MODEL);
+-            let mut file = fresh_identity();
+-            let paired = pair(&listener, &info, &mut file, |pin| codes.send(pin.to_string()).unwrap());
+-            (paired, file)
+-        });
+-        (port, shown, thread)
+-    }
+-
+-    fn addr(port: u16) -> std::net::SocketAddr {
+-        std::net::SocketAddr::from(([127, 0, 0, 1], port))
+-    }
+-
+-    /// The fake iPhone's typing: the next code the host shows.
+-    async fn next_code(shown: std::sync::Arc<std::sync::Mutex<std::sync::mpsc::Receiver<String>>>) -> String {
+-        tokio::task::spawn_blocking(move || shown.lock().unwrap().recv().unwrap()).await.unwrap()
+-    }
+-
+-    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+-    async fn a_device_pairs_and_the_file_holds_the_host_it_saw() {
+-        let (port, shown, host) = host();
+-        let shown = std::sync::Arc::new(std::sync::Mutex::new(shown));
+-        let phone = fake_iphone::pair(addr(port), next_code(shown)).await.expect("phone paired");
+-        let (paired, file) = host.join().unwrap();
+-        let peer = paired.expect("host paired");
+-        assert_eq!(peer.name, fake_iphone::NAME);
+-        assert_eq!(peer.model, fake_iphone::MODEL);
+-        // The identity the device was given in M6 is the one written out…
+-        assert_eq!(file.identifier, phone.host_identifier);
+-        assert_eq!(file.public_key_bytes(), phone.host_public_key);
+-        // …with the device's altIRK from M5, and it reads back.
+-        assert_eq!(file.alt_irk.as_deref(), Some(&fake_iphone::ALT_IRK[..]));
+-        let reread = RpPairingFile::from_bytes(&file.to_bytes()).unwrap();
+-        assert_eq!(reread.identifier, file.identifier);
+-    }
+-
+-    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+-    async fn a_wrong_code_gets_another_try() {
+-        let (port, shown, host) = host();
+-        let shown = std::sync::Arc::new(std::sync::Mutex::new(shown));
+-        // A typo, then the entry tapped again and the new code typed.
+-        let first = fake_iphone::pair(addr(port), async { "000000".to_string() }).await;
+-        assert!(first.is_err(), "a wrong code paired");
+-        let _typo = next_code(shown.clone()).await;
+-        fake_iphone::pair(addr(port), next_code(shown)).await.expect("the second try paired");
+-        let (paired, _) = host.join().unwrap();
+-        assert_eq!(paired.expect("host paired on the second try").name, fake_iphone::NAME);
+-    }
+-
+-    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+-    async fn three_wrong_codes_end_the_run_and_say_why() {
+-        let (port, _shown, host) = host();
+-        for _ in 0..MAX_ATTEMPTS {
+-            let paired = fake_iphone::pair(addr(port), async { "000000".to_string() }).await;
+-            assert!(paired.is_err(), "a wrong code paired");
 +        devmode::Outcome::Shown => {
 +            ui::done("the switch now shows in Settings");
 +            ui::finish(
@@ -11742,7 +11713,10 @@ index c5c010c..fa20907 100644
 +            ui::done("set to turn on");
 +            ui::finish(
 +                "Developer Mode is turning on",
-+                &["This iPhone restarts now, and Minis stops with it.", unlock],
++                &[
++                    "This iPhone restarts now, and rootshell stops with it.",
++                    unlock,
++                ],
 +            );
 +        }
 +        devmode::Outcome::HungUp => {
@@ -11756,7 +11730,46 @@ index c5c010c..fa20907 100644
 +                    "If it doesn't restart, run siboot developer-mode again.",
 +                ],
 +            );
-+        }
+         }
+-        let (paired, _) = host.join().unwrap();
+-        let problem = paired.err().expect("the host should give up");
+-        assert!(problem.contains("code didn't match"), "{problem}");
+-    }
+-
+-    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+-    async fn a_connection_that_drops_before_the_code_doesnt_end_pairing() {
+-        let (port, shown, host) = host();
+-        drop(std::net::TcpStream::connect(addr(port)).unwrap());
+-        let shown = std::sync::Arc::new(std::sync::Mutex::new(shown));
+-        fake_iphone::pair(addr(port), next_code(shown)).await.expect("phone paired");
+-        let (paired, _) = host.join().unwrap();
+-        assert_eq!(paired.expect("host paired after the stray connection").name, fake_iphone::NAME);
+-    }
+-
+-    /// siboot's side of the hand-off (minis/src/pairing.rs): one request per
+-    /// connection, the answer's first line, then the file.
+-    fn ask_for_file(port: u16, code: &str) -> (String, Vec<u8>) {
+-        use std::io::{BufRead, Read, Write};
+-        let mut conn = std::net::TcpStream::connect(addr(port)).unwrap();
+-        conn.write_all(format!("SIBOOT1 {code}\n").as_bytes()).unwrap();
+-        let mut reader = std::io::BufReader::new(conn);
+-        let mut answer = String::new();
+-        reader.read_line(&mut answer).unwrap();
+-        let mut rest = Vec::new();
+-        reader.read_to_end(&mut rest).unwrap();
+-        (answer.trim().to_string(), rest)
+-    }
+-
+-    #[test]
+-    fn the_file_goes_to_whoever_has_the_code() {
+-        let listener = rs::Socket::listen(0).unwrap();
+-        let port = listener.local_port();
+-        let offered = std::thread::spawn(move || offer(&listener, "481516", b"pairing file"));
+-        assert_eq!(ask_for_file(port, "000000").0, "NO");
+-        let (answer, file) = ask_for_file(port, "481516");
+-        assert_eq!(answer, "OK 12");
+-        assert_eq!(file, b"pairing file");
+-        assert!(offered.join().unwrap(), "the offer ends once siboot has the file");
      }
 +    Ok(())
 +}
@@ -13441,10 +13454,10 @@ index 0000000..77695ca
 +    result
 +}
 diff --git a/rootshell/src/ui.rs b/rootshell/src/ui.rs
-index 61fd4a6..b38b568 100644
+index 61fd4a6..4e8d2a9 100644
 --- a/rootshell/src/ui.rs
 +++ b/rootshell/src/ui.rs
-@@ -1,605 +1,490 @@
+@@ -1,605 +1,492 @@
 -//! siboot-pair's screen, for rootshell's terminal (Ghostty).
 -//!
 -//! A WASM program there can't ask the terminal its size, runs on one thread
@@ -13730,7 +13743,9 @@ index 61fd4a6..b38b568 100644
 -pub fn text(text: &str) {
 -    paragraph("", text);
 +pub fn header(version: &str, tagline: &str) {
-+    println!("\nsiboot {version} · rootshell\nJay-Void-BA · based on FrizzleM/siboot\n");
++    println!(
++        "\nsiboot {version} · rootshell 1.0.16 (178)\nJay-Void-BA · based on FrizzleM/siboot\n"
++    );
 +    note(tagline);
  }
 -
@@ -14331,7 +14346,7 @@ index 61fd4a6..b38b568 100644
 +/// the folder has more entries than the bounded on-screen list.
 +pub fn select_file(title: &str, extensions: &[&str]) -> Option<PathBuf> {
 +    use std::fmt::Write as _;
-+    let mut directory = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
++    let mut directory = crate::pairing_files::working_directory();
 +    loop {
 +        note(title);
 +        let (paths, truncated) = match file_choices(&directory, extensions) {
