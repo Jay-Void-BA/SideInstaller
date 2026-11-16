@@ -20,6 +20,8 @@ export async function runWasm(workerSource, wasm, argv, { root, input = '', env 
   const handles = new Map([[3, { path: root, preopen: '.' }], [4, { path: root, preopen: '/' }]]);
   const sockets = new Map();
   const socketOperations = {};
+  const fileOperations = {};
+  let maxFileRead = 0, maxSocketRead = 0, replyOverflows = 0, stdoutWrites = 0;
   const receiveTimeouts = workerSource.includes('rootshell_socket_set_recv_timeout(fd,');
   let next = 5, nextSocket = 10, raw = false, stdout = '', stderr = '', calls = 0, logWrites = 0;
   let inputBytes = Buffer.from(input), inputOffset = 0;
@@ -33,6 +35,7 @@ export async function runWasm(workerSource, wasm, argv, { root, input = '', env 
   };
   const stat = p => { const s = fs.statSync(p); return { type: s.isDirectory() ? 3 : 4, size: s.size, mtime: Math.floor(s.mtimeMs * 1e6) }; };
   const fileCall = p => {
+    fileOperations[p.op] = (fileOperations[p.op] || 0) + 1;
     const h = handles.get(p.fd);
     switch (p.op) {
       case 'fd_prestat_get': if (!h?.preopen) return { errno: 8 }; return { type: 0, nameLen: h.preopen.length };
@@ -52,6 +55,7 @@ export async function runWasm(workerSource, wasm, argv, { root, input = '', env 
       case 'fd_close': if (!h) return { errno: 8 }; if (h.native != null) fs.closeSync(h.native); handles.delete(p.fd); return {};
       case 'fd_read': case 'fd_pread': {
         if (!h || h.native == null) return { errno: 8 };
+        maxFileRead = Math.max(maxFileRead, p.length);
         const buffer = Buffer.alloc(Math.min(p.length, 1024 * 1024));
         const count = fs.readSync(h.native, buffer, 0, buffer.length, p.op === 'fd_pread' ? p.offset : h.offset);
         if (p.op === 'fd_read') h.offset += count;
@@ -69,13 +73,31 @@ export async function runWasm(workerSource, wasm, argv, { root, input = '', env 
       case 'fd_sync': fs.fsyncSync(h.native); return {};
       case 'fd_filestat_get': return h ? stat(h.path) : { errno: 8 };
       case 'path_filestat_get': return stat(resolve(p.path, p.dirfd));
-      case 'path_create_directory': fs.mkdirSync(resolve(p.path, p.dirfd)); return {};
+      // Swift maps mkdir errors, including an existing directory, to EIO.
+      // Mapping Node's EEXIST directly would hide the second-launch failure.
+      case 'path_create_directory': {
+        try { fs.mkdirSync(resolve(p.path, p.dirfd)); return {}; }
+        catch { return { errno: 29 }; }
+      }
       case 'path_remove_directory': fs.rmdirSync(resolve(p.path, p.dirfd)); return {};
       case 'path_unlink_file': fs.unlinkSync(resolve(p.path, p.dirfd)); return {};
       case 'path_rename': fs.renameSync(resolve(p.oldPath, p.oldDirfd), resolve(p.newPath, p.newDirfd)); return {};
       case 'fd_filestat_set_size': fs.ftruncateSync(h.native, p.size); return {};
       case 'fd_filestat_set_times': case 'path_filestat_set_times': return {};
-      case 'fd_readdir': return { entries: fs.readdirSync(h.path, { withFileTypes: true }).slice(p.cookie).map(e => ({ name: e.name, isDir: e.isDirectory() })) };
+      case 'fd_readdir': {
+        if (!h) return { errno: 8 };
+        if (!p.cookie || !h.entries) h.entries = fs.readdirSync(h.path, { withFileTypes: true }).map(e => ({ name: e.name, isDir: e.isDirectory() }));
+        // The old broker returns the whole listing. Modern/backported brokers
+        // page by the WASI dirent budget, with an 8 KiB upper bound.
+        if (p.cookie == null) return { entries: h.entries };
+        const budget = Math.min(p.bufLen || 0, 8192), entries = [];
+        let used = 0;
+        for (let index = p.cookie; index < h.entries.length && (used < budget || !entries.length); index++) {
+          const entry = h.entries[index]; entries.push(entry);
+          used += 24 + Buffer.byteLength(entry.name);
+        }
+        return { entries };
+      }
       default: throw new Error(`untested filesystem operation ${p.op}`);
     }
   };
@@ -108,12 +130,13 @@ export async function runWasm(workerSource, wasm, argv, { root, input = '', env 
         return { sent: count };
       }
       case 'recv': {
+        maxSocketRead = Math.max(maxSocketRead, p.maxLen);
         if (!s.buffer.length && !s.ended && !s.error) {
           await new Promise(resolve => { const done = () => { clearTimeout(timer); s.changed.removeListener('change', done); resolve(); }; const timer = s.timeout == null ? undefined : setTimeout(done, s.timeout); s.changed.once('change', done); });
         }
         if (s.error) return { errno: s.error };
         if (!s.buffer.length) return s.ended ? { data: '' } : { errno: 6 };
-        const bytes = s.buffer.subarray(0, Math.min(p.maxLen, 4093));
+        const bytes = s.buffer.subarray(0, p.maxLen);
         s.buffer = s.buffer.subarray(bytes.length);
         return { data: bytes.toString('base64') };
       }
@@ -121,12 +144,16 @@ export async function runWasm(workerSource, wasm, argv, { root, input = '', env 
       default: throw new Error(`untested socket operation ${p.op}`);
     }
   };
-  const sab = new SharedArrayBuffer(8 * 1024 * 1024), view = new Int32Array(sab);
+  // Match wasm-host.js: a reply carries JSON plus Base64 in only 64 KiB.
+  const sab = new SharedArrayBuffer(64 * 1024), view = new Int32Array(sab);
   const bootstrap = `const { parentPort, workerData } = require('node:worker_threads'); globalThis.self=globalThis; globalThis.crypto=require('node:crypto').webcrypto; self.postMessage=m=>parentPort.postMessage(m); parentPort.on('message', data=>self.onmessage({data})); require('node:vm').runInThisContext(workerData.source);`;
   const worker = new Worker(bootstrap, { eval: true, workerData: { source: workerSource } });
   const reply = (id, result) => {
-    const bytes = Buffer.from(JSON.stringify({ errno: 0, ...result, callID: id }));
-    assert(bytes.length < sab.byteLength - 8);
+    let bytes = Buffer.from(JSON.stringify({ errno: 0, ...result, callID: id }));
+    if (bytes.length + 8 > sab.byteLength) {
+      replyOverflows++;
+      bytes = Buffer.from(JSON.stringify({ errno: 28, callID: id }));
+    }
     new Uint8Array(sab, 8, bytes.length).set(bytes);
     Atomics.store(view, 1, bytes.length); Atomics.store(view, 0, 1); Atomics.notify(view, 0);
   };
@@ -136,7 +163,8 @@ export async function runWasm(workerSource, wasm, argv, { root, input = '', env 
       await worker.terminate();
       for (const h of handles.values()) if (h.native != null) fs.closeSync(h.native);
       for (const s of sockets.values()) s.stream?.destroy();
-      error ? reject(error) : resolve({ code, stdout, stderr, rawModes, raw, calls, root, socketOperations });
+      error ? reject(error) : resolve({ code, stdout, stderr, rawModes, raw, calls, root, socketOperations,
+        fileOperations, maxFileRead, maxSocketRead, replyOverflows, stdoutWrites });
     };
     const timer = setTimeout(() => finish(new Error(`rootshell WASM timed out: ${stdout.slice(-1500)} ${stderr}`)), timeout);
     worker.on('error', error => finish(error));
@@ -144,7 +172,7 @@ export async function runWasm(workerSource, wasm, argv, { root, input = '', env 
       calls++;
       try {
         switch (message.kind) {
-          case 'stdout': stdout += Buffer.from(message.data, 'base64'); break;
+          case 'stdout': stdoutWrites++; stdout += Buffer.from(message.data, 'base64'); break;
           case 'stderr': stderr += Buffer.from(message.data, 'base64'); break;
           case 'exit': await finish(null, message.code); break;
           case 'error': await finish(new Error(`${message.message}\n${stdout}\n${stderr}`)); break;
@@ -235,6 +263,29 @@ if (process.argv[1] === new URL(import.meta.url).pathname) {
   const english = await runWasm(source, wasm, ['./siboot.wasm', '--lang', 'en', '--help']);
   assert.equal(english.code, 0, english.stderr);
   assert(english.stdout.includes('Passwords are hidden. Ctrl-V toggles viewing while typing.'));
+  {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'siboot-onboarding-'));
+    const first = await runWasm(source, wasm, ['./siboot.wasm', '--lang', 'en'], { root, input: '\n\n' });
+    assert.equal(first.code, 1, first.stdout + first.stderr);
+    assert(first.stdout.includes('Open Files > Browse > On My iPhone / iPad > rootshell.'));
+    assert.equal(fs.readFileSync(path.join(root, '.siboot/ipa-import-guide.v1'), 'utf8'), '1\n');
+    const second = await runWasm(source, wasm, ['./siboot.wasm', '--lang', 'en'], { root, input: '\n' });
+    assert.equal(second.code, 1, second.stdout + second.stderr);
+    assert(!second.stdout.includes('Open Files > Browse'), 'acknowledged guide should appear only once');
+    assert(second.stdout.includes('Local IPA'), second.stdout);
+    const unacknowledged = fs.mkdtempSync(path.join(os.tmpdir(), 'siboot-guide-cancel-'));
+    const cancelled = await runWasm(source, wasm, ['./siboot.wasm'], { root: unacknowledged, input: 'q\n' });
+    assert(cancelled.stdout.includes('从“文件”导入 IPA'));
+    assert(!fs.existsSync(path.join(unacknowledged, '.siboot/ipa-import-guide.v1')));
+    const explicit = await runWasm(source, wasm, ['./siboot.wasm', '--ipa', '/missing.ipa', '--lang', 'en']);
+    assert(!explicit.stdout.includes('Open Files > Browse'), '--ipa bypasses the interactive tutorial');
+    const occupied = fs.mkdtempSync(path.join(os.tmpdir(), 'siboot-occupied-'));
+    fs.writeFileSync(path.join(occupied, '.siboot'), 'keep me');
+    const conflict = await runWasm(source, wasm, ['./siboot.wasm', '--ipa', '/missing.ipa'], { root: occupied });
+    assert.equal(conflict.code, 1);
+    assert.equal(fs.readFileSync(path.join(occupied, '.siboot'), 'utf8'), 'keep me');
+    console.log('PASS first-launch Files tutorial, Chinese translation, cancellation, repeated startup and directory/file conflicts');
+  }
   const cancelRun = await runWasm(source, wasm, ['./siboot.wasm', '--perf-log']);
   assert.equal(cancelRun.code, 1);
   assert.equal(performanceLog(cancelRun).summary.outcome, 'cancelled');
@@ -284,7 +335,9 @@ if (process.argv[1] === new URL(import.meta.url).pathname) {
     assert.equal(fixture.status, 0, fixture.stderr);
     const offline = await runWasm(source, probe, ['./runtime_check.wasm', '--perf-log'], { root, timeout: 180000 });
     assert.equal(offline.code, 0, offline.stdout + offline.stderr);
-    for (const marker of ['VAULT_OK', 'CSR_OK', 'COMPLETE_SIGNING_OK', 'INVALID_LINKS_REJECTED', 'RENEW_PAIRING_OK']) assert(offline.stdout.includes(marker), offline.stdout);
+    for (const marker of ['DIRECTORY_REUSE_OK', 'VAULT_OK', 'CSR_OK', 'COMPLETE_SIGNING_OK', 'INVALID_LINKS_REJECTED', 'RENEW_PAIRING_OK', 'BOUNDED_READS_LARGE_UPLOAD_PACKETS_OK']) assert(offline.stdout.includes(marker), offline.stdout);
+    assert.equal(offline.replyOverflows, 0, 'file reads must fit the real 64 KiB reply buffer');
+    assert(offline.maxFileRead <= 32768, `oversized file read: ${offline.maxFileRead}`);
     if (!legacy) assert(offline.stdout.includes('LARGE_DIRECTORY_SEALED'), offline.stdout);
     const offlineLog = performanceLog(offline);
     for (const operation of ['vault.scrypt', 'sign.csr', 'ipa.extract', 'sign.macho', 'sign.macho.encode', 'sign.resource', 'sign.resource.hash', 'sign.verify_seals']) {
@@ -298,6 +351,21 @@ if (process.argv[1] === new URL(import.meta.url).pathname) {
     assert.equal(password.raw, false);
     assert(performanceLog(password).records.some(record => record.operation === 'ui.wait'));
     console.log('PASS rootshell Worker password reveal/hide and Unicode/whitespace preservation');
+    const eof = await runWasm(source, probe, ['./runtime_check.wasm', 'password-eof'], { input: 'visible-on-request\x16' });
+    assert.equal(eof.code, 0, eof.stdout + eof.stderr);
+    assert(eof.stdout.includes('\r\x1b[2K\nPASSWORD_EOF_OK'), 'EOF must erase a revealed password before restoring echo');
+    assert.deepEqual(eof.rawModes, [true, false]);
+    const pickerRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'siboot-picker-'));
+    fs.writeFileSync(path.join(pickerRoot, 'App.ipa'), 'local fixture');
+    for (let index = 0; index < 200; index++) fs.writeFileSync(path.join(pickerRoot, `app-${index}.ipa`), '');
+    fs.writeFileSync(path.join(pickerRoot, 'bad\x1b[31m.ipa'), '');
+    const picker = await runWasm(source, probe, ['./runtime_check.wasm', 'picker'], { root: pickerRoot, input: '/App.ipa\n' });
+    assert.equal(picker.code, 0, picker.stdout + picker.stderr);
+    assert(!picker.stdout.includes('\x1b[31m'), 'file names cannot inject terminal commands');
+    assert((picker.fileOperations.path_filestat_get || 0) < 20, 'picker must not stat every item while sorting');
+    assert(picker.stdoutWrites < 25, 'listing must be batched into a small number of terminal writes');
+    assert.equal(picker.replyOverflows, 0);
+    console.log('PASS password EOF cleanup and bounded file picker without per-row host stats/writes');
     const cancelled = await runWasm(source, probe, ['./runtime_check.wasm', 'password-cancel', '--perf-log'], { input: 'never-log-this-secret\x03' });
     assert.equal(cancelled.code, 0, cancelled.stderr);
     assert(cancelled.stdout.includes('PASSWORD_CANCEL_OK'));
@@ -379,6 +447,8 @@ if (process.argv[1] === new URL(import.meta.url).pathname) {
       assert.equal(network.code, 0, network.stdout + network.stderr);
       assert(network.stdout.includes('HTTP_WEBSOCKET_COOPERATIVE_TCP_OK'), network.stdout);
       assert(network.stdout.includes('SOFTWARE_TCP_STACK_OK'), network.stdout);
+      assert.equal(network.replyOverflows, 0);
+      assert(network.maxSocketRead <= 32768, `oversized socket receive: ${network.maxSocketRead}`);
       const networkLog = performanceLog(network);
       const receive = networkLog.summary.metrics['socket.recv'];
       assert(receive.bytes >= 65536 && receive.calls > 0);

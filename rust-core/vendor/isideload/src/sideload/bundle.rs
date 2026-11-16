@@ -224,7 +224,7 @@ fn discover_children(root: &Path) -> Result<(Vec<Bundle>, Vec<Bundle>), Report> 
             let extension = path.extension().and_then(|s| s.to_str()).unwrap_or("");
             let known = matches!(extension, "app" | "appex" | "framework" | "xpc");
             let info = path.join("Info.plist");
-            let executable = fs::canonicalize(&info).ok().and_then(|path| plist::from_file::<_, Dictionary>(path).ok())
+            let executable = fs::read(&info).ok().and_then(|bytes| plist::from_bytes::<Dictionary>(&bytes).ok())
                 .is_some_and(|d| d.get("CFBundleExecutable").and_then(Value::as_string)
                     .is_some_and(|name| fs::metadata(path.join(name)).is_ok_and(|m| m.is_file())));
             if known || executable {

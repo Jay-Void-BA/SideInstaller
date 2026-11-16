@@ -1,5 +1,13 @@
 # Changelog
 
+## siboot 0.21.3 — first launch and reliable rootshell I/O
+
+- Guide the first interactive IPA import through Files, with Chinese/English text and acknowledgement saved only after confirmation.
+- Reuse existing directories despite rootshell's EIO response; preserve regular-file conflicts.
+- Bound reads for the real 64 KiB reply mailbox, buffer ZIP extraction, and retain aggregated 1 MiB upload packets.
+- Cache picker types and renewal validation, isolate upload staging, bound pairing/vault/path parsing, and clear password lines on EOF.
+- Extend the three-Worker gate with actual mailbox/mkdir behavior, large files, malformed archives, repeated startup, and host-call bounds.
+
 ## siboot 0.21.2 — older rootshell startup compatibility
 
 - Load the receive-timeout API through the optional ABI and reject zero-returning stubs during capability detection.

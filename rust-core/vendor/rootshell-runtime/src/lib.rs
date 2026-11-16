@@ -5,6 +5,10 @@ use std::task::{Context, Poll};
 use std::time::Duration;
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 
+/// Replies share a 64 KiB JSON mailbox. Base64 expands binary data by 4/3;
+/// 32 KiB leaves room for JSON fields and call IDs without truncating replies.
+pub const MAX_HOST_READ: usize = 32 * 1024;
+
 #[cfg(target_os = "wasi")]
 #[link(wasm_import_module = "rootshell_socket")]
 unsafe extern "C" {
@@ -226,13 +230,20 @@ impl Read for Socket {
             #[cfg(target_os = "wasi")]
             {
                 let mut count = 0;
+                let requested = buf.len().min(MAX_HOST_READ);
                 unsafe {
                     errno(rootshell_socket_recv(
                         self.fd,
                         buf.as_mut_ptr(),
-                        buf.len().min(i32::MAX as usize) as i32,
+                        requested as i32,
                         &mut count,
                     ))?;
+                }
+                if count as usize > requested {
+                    return Err(io::Error::new(
+                        io::ErrorKind::InvalidData,
+                        "Invalid socket receive length",
+                    ));
                 }
                 Ok(count as usize)
             }
@@ -261,6 +272,12 @@ impl Write for Socket {
                         &mut count,
                     ))?;
                 }
+                if count as usize > buf.len() {
+                    return Err(io::Error::new(
+                        io::ErrorKind::InvalidData,
+                        "Invalid socket send length",
+                    ));
+                }
                 Ok(count as usize)
             }
             #[cfg(not(target_os = "wasi"))]
@@ -280,6 +297,9 @@ impl AsyncRead for Socket {
         cx: &mut Context<'_>,
         buf: &mut ReadBuf<'_>,
     ) -> Poll<io::Result<()>> {
+        if buf.remaining() == 0 {
+            return Poll::Ready(Ok(()));
+        }
         let this = self.get_mut();
         if !this.cooperative {
             // A blocking, unbounded recv would prevent the TCP adapter and its
@@ -333,13 +353,14 @@ pub mod fs {
         std::fs::write(path, contents)
     }
     pub async fn read(path: impl AsRef<Path>) -> io::Result<Vec<u8>> {
-        std::fs::read(path)
+        super::vfs::read(path)
     }
     pub async fn remove_dir_all(path: impl AsRef<Path>) -> io::Result<()> {
         std::fs::remove_dir_all(path)
     }
 }
 
+pub mod directory;
 pub mod vfs;
 
 pub mod perf;

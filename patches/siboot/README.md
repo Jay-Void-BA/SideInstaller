@@ -22,7 +22,11 @@ bash scripts/check-rootshell-runtime.sh /tmp/siboot-source/rootshell/target/wasm
 
 ## 当前行为
 
-rootshell 0.21.2 内完成本地 IPA 选择、设备配对、Apple 登录、完整签名、上传核对、安装和快速续签。运行时不需要 Minis。使用 rootshell 原生的 socket/TLS、文件和终端 ABI，不执行 Linux ELF，不转发安装任务。
+首次交互启动提供“文件”导入 IPA 教程；目录创建兼容 rootshell 对已存在目录返回 EIO 的行为。文件／socket 接收限制为 32 KiB，适配真实 64 KiB 回包；ZIP 解压缓冲写入，上传聚合为 1 MiB。流程拆分为本地选择与验证、设备连接、登录、完整签名和安装；续签保留一次验证后的原始 IPA 与身份快照。
+
+路径边界和递归深度有上限，AFC 使用每次运行独立的暂存父目录并在成功／失败后清理；密码输入结束时清屏恢复回显，文件名中的终端控制字符仅在显示时转义。
+
+rootshell 0.21.3 内完成本地 IPA 选择、设备配对、Apple 登录、完整签名、上传核对、安装和快速续签。运行时不需要 Minis。使用 rootshell 原生的 socket/TLS、文件和终端 ABI，不执行 Linux ELF，不转发安装任务。
 
 两端保留中文／英文、Jay-Void-BA 与 FrizzleM 署名、密码查看／隐藏、独立口令加密登录及签名缓存、失败步骤重试、原始 IPA 续签缓存、配对文件验证后保存到程序同目录。只接受本地 IPA，移除 SideInstaller IPA 下载入口。
 

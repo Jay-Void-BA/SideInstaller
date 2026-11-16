@@ -10,14 +10,14 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/Jay-Void-BA/SideInstaller/releases/tag/siboot-v0.21.2"><img src="https://img.shields.io/badge/release-0.21.2-2563eb?style=flat-square" alt="siboot 0.21.2"></a>
+  <a href="https://github.com/Jay-Void-BA/SideInstaller/releases/tag/siboot-v0.21.3"><img src="https://img.shields.io/badge/release-0.21.3-2563eb?style=flat-square" alt="siboot 0.21.3"></a>
   <a href="https://github.com/Jay-Void-BA/SideInstaller/actions/workflows/checks.yml"><img src="https://github.com/Jay-Void-BA/SideInstaller/actions/workflows/checks.yml/badge.svg?branch=main" alt="CI status"></a>
   <a href="#requirements"><img src="https://img.shields.io/badge/platform-rootshell%20%7C%20iOS%2027%2B-64748b?style=flat-square" alt="rootshell · iOS / iPadOS 27+"></a>
   <a href="https://github.com/Jay-Void-BA/SideInstaller/blob/main/LICENSE.md"><img src="https://img.shields.io/badge/license-Custom-64748b?style=flat-square" alt="SideInstaller custom license"></a>
 </p>
 
 <p align="center">
-  <a href="https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.21.2/siboot.wasm">Download</a> ·
+  <a href="https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.21.3/siboot.wasm">Download</a> ·
   <a href="#quick-start">Quick start</a> ·
   <a href="#usage">Usage</a> ·
   <a href="#performance">Diagnostics</a> ·
@@ -100,23 +100,25 @@ pwd
 
 Copy your `App.ipa` into **Files › Browse › On My iPhone / iPad › rootshell › siboot**. Files in iCloud Drive, Downloads, or another app need to be copied into rootshell's accessible app directory first. Return to the `siboot` directory when opening a new terminal tab.
 
+Create `siboot` only for the first setup. If the folder already exists, enter it with `cd siboot`. The `rootshell` folder in Files is created by the app.
+
 ### 3. Download and verify
 
 Run these commands from the working directory:
 
 ```sh
-curl -fL -C - -o siboot-v0.21.2.wasm.part https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.21.2/siboot.wasm
-sha256sum siboot-v0.21.2.wasm.part
+curl -fL -C - -o siboot-v0.21.3.wasm.part https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.21.3/siboot.wasm
+sha256sum siboot-v0.21.3.wasm.part
 ```
 
-Compare the hash with [SHA256SUMS](https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.21.2/SHA256SUMS) attached to the [release](https://github.com/Jay-Void-BA/SideInstaller/releases/tag/siboot-v0.21.2). When it matches, run:
+Compare the hash with [SHA256SUMS](https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.21.3/SHA256SUMS) attached to the [release](https://github.com/Jay-Void-BA/SideInstaller/releases/tag/siboot-v0.21.3). When it matches, run:
 
 ```sh
-mv siboot-v0.21.2.wasm.part siboot.wasm
+mv siboot-v0.21.3.wasm.part siboot.wasm
 ./siboot.wasm --version
 ```
 
-The output should include `siboot 0.21.2 (rootshell)`. You can also download `siboot.wasm` in Safari, copy it into `rootshell/siboot`, and verify it there.
+The output should include `siboot 0.21.3 (rootshell)`. You can also download `siboot.wasm` in Safari, copy it into `rootshell/siboot`, and verify it there.
 
 > [!TIP]
 > Keep rootshell in the foreground while downloading. If the transfer is interrupted, resume with the same `curl` command and check the hash again. Use a versioned `.part` filename to keep downloads from different releases separate. Rename and run the file only after verification succeeds.
@@ -141,7 +143,7 @@ Open **Settings › Privacy & Security › Developer Mode**, tap **Pair with sib
 
 Follow the prompts to sign in to your Apple Account and enter any verification code. Wait for signing, upload verification, and system installation to finish. Before launching the installed app for the first time, trust its developer under **Settings › General › VPN & Device Management**.
 
-Quote filenames containing spaces, for example `--ipa "My App.ipa"`. You can also run `./siboot.wasm` to choose an IPA and pairing method from the interactive menu. If you already have a pairing file, [import it](#migration) instead.
+Quote filenames containing spaces, for example `--ipa "My App.ipa"`. Run `./siboot.wasm` for the interactive menu. On the first interactive launch, a short guide explains how to copy an IPA from Files into the rootshell folder; acknowledge it after copying. Cancelled guides appear again, while an explicit `--ipa` skips the guide. The picker accepts a full local path as well as a numbered selection. If you already have a pairing file, [import it](#migration) instead.
 
 <details>
 <summary>If the Wi-Fi address cannot be detected</summary>
@@ -202,7 +204,7 @@ Apps signed with a free account typically expire after seven days. Renew before 
 
 You can save your Apple / iCloud account during sign-in. Account passwords, sessions, signing keys, and the anisette cache are encrypted using **scrypt + XChaCha20-Poly1305** and unlocked with a separate local passphrase. The passphrase must contain at least 12 characters, must differ from your Apple password, and is never stored.
 
-Press **Ctrl-V** in the terminal to reveal or hide a password while typing. Visible input is cleared when submitted. Passwords and vault passphrases preserve spaces and Unicode characters. The account menu lets you update a password, temporarily use another account, or forget saved credentials.
+Press **Ctrl-V** in the terminal to reveal or hide a password while typing. Visible input is cleared on submission, cancellation, or end of input. Control characters in file names and remote messages are escaped before display. Passwords and vault passphrases preserve spaces and Unicode characters. The account menu lets you update a password, temporarily use another account, or forget saved credentials.
 
 <a id="performance"></a>
 
@@ -246,7 +248,7 @@ Measurements are **wall-clock durations**. Nested or concurrent operations overl
 - Sign the main executable, App Extensions, ExtensionKit extensions, frameworks, dylibs, and other Mach-O files recursively.
 - Seal and verify `.config`, hidden files, and other resources. Configuration files are protected by the resource seal; they are not independently signed executables.
 - Preserve IPA symbolic links through WASI file metadata, then recreate them on the device through AFC.
-- Read and send large files with a 1 MiB buffer; verify all file sizes and link targets before installation.
+- Read at most 32 KiB per host call to fit the 64 KiB JSON/Base64 reply buffer, then combine reads into 1 MiB AFC upload packets; verify all file sizes and link targets before installation.
 - Retry the current step after a failure. Installation retries reuse completed signing work and establish a new tunnel.
 
 </details>
@@ -272,6 +274,8 @@ RPPairing plist, JSON, and known wrapper formats are supported. Traditional desk
 Imports are verified against the device before a copy is saved as **`rp_pairing_file.plist` beside the program**. Failed imports preserve both the saved record and the source file. Pairing records contain device trust keys; keep them private.
 
 ## Troubleshooting
+
+Local I/O uses reads of at most 32 KiB, buffered ZIP extraction, and combined 1 MiB upload packets. File selection caches entry types and batches terminal output; quick renewal validates one cache snapshot. These reduce host calls while preserving complete signature and upload verification. Device speed and iOS installation time still need measurement with `--perf-log`.
 
 ### Installation takes a long time
 

@@ -8,12 +8,12 @@ import sys
 import zipfile
 
 
-def macho():
-    data = bytearray(512)
+def macho(size=512):
+    data = bytearray(size)
     struct.pack_into('<8I', data, 0, 0xFEEDFACF, 0x100000C, 0, 2, 3, 160, 0, 0)
-    for offset, name, fileoff, size in [(32, b'__TEXT', 0, 512), (104, b'__LINKEDIT', 512, 0)]:
-        struct.pack_into('<II16sQQQQIIII', data, offset, 0x19, 72, name, fileoff, size, fileoff, size, 7, 5, 0, 0)
-    struct.pack_into('<4I', data, 176, 0x1D, 16, 512, 0)
+    for offset, name, fileoff, segment_size in [(32, b'__TEXT', 0, size), (104, b'__LINKEDIT', size, 0)]:
+        struct.pack_into('<II16sQQQQIIII', data, offset, 0x19, 72, name, fileoff, segment_size, fileoff, segment_size, 7, 5, 0, 0)
+    struct.pack_into('<4I', data, 176, 0x1D, 16, size, 0)
     return data
 
 
@@ -40,10 +40,13 @@ def create(folder, large_directory=False):
                     archive.writestr(entry, target)
             else:
                 archive.writestr(base + 'Info.plist', info)
-                archive.writestr(base + executable, macho())
+                archive.writestr(base + executable, macho(256 * 1024 if executable == 'Main' else 512))
             archive.writestr(base + '.config', b'must be sealed')
         for name in ['Resources/.config', 'PlugIns/Tools/injected.dylib', 'Hidden/.bin/driver']:
             archive.writestr('Payload/Fixture.app/' + name, b'configuration' if name.endswith('.config') else macho())
+        archive.writestr('Payload/Fixture.app/Resources/large.dat', bytes(i % 251 for i in range(1024 * 1024 + 123)))
+        # The ZIP central directory itself must also exceed one mailbox reply.
+        archive.comment = b'fixture central-directory search' * 1800
         if large_directory:
             for index in range(320):
                 archive.writestr(f'Payload/Fixture.app/ManyFiles/resource-{index:04d}.dat', b'must be sealed beyond the first readdir buffer')
@@ -65,6 +68,10 @@ def create(folder, large_directory=False):
                 entry.create_system = 3
                 entry.external_attr = 0o120777 << 16
                 archive.writestr(entry, target)
+    for filename, name in [('Backslash.ipa', 'bad\\..\\outside'),
+                           ('Deep.ipa', '/'.join(['nested'] * 130) + '/file')]:
+        with zipfile.ZipFile(folder / filename, 'w', zipfile.ZIP_DEFLATED) as archive:
+            archive.writestr('Payload/Fixture.app/' + name, b'reject before extracting')
 
 
 if __name__ == '__main__':

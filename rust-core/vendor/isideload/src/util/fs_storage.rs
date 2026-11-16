@@ -1,3 +1,7 @@
+#[cfg(target_os = "wasi")]
+use rootshell_runtime::vfs as storage_fs;
+#[cfg(not(target_os = "wasi"))]
+use std::fs as storage_fs;
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, OnceLock, RwLock};
@@ -67,7 +71,7 @@ impl Default for FsStorage {
 /// Private, atomic writes also protect newly created pairing and vault files.
 pub fn write_private(path: &Path, data: &[u8]) -> io::Result<()> {
     let parent = path.parent().unwrap_or(Path::new("."));
-    std::fs::create_dir_all(parent)?;
+    storage_fs::create_dir_all(parent)?;
     let staging = parent.join(format!(".siboot-{}.tmp", uuid::Uuid::new_v4()));
     let result = (|| {
         let mut options = std::fs::OpenOptions::new();
@@ -97,7 +101,7 @@ impl SideloadingStorage for FsStorage {
 
     fn retrieve_data(&self, key: &str) -> Result<Option<Vec<u8>>, Report> {
         let path = self.data_path(key).context("Invalid signing storage key")?;
-        match std::fs::read(&path) {
+        match storage_fs::read(&path) {
             Ok(data) => match self.protector(&path) {
                 Some((protector, relative)) => Ok(Some(protector.open(&relative, &data).context("Couldn't decrypt signing data")?)),
                 None => Ok(Some(data)),

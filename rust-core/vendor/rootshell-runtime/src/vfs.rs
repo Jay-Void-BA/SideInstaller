@@ -147,7 +147,55 @@ pub fn read(path: impl AsRef<Path>) -> io::Result<Vec<u8>> {
     super::perf::io_result::<Vec<u8>>(
         "file.read",
         |bytes| bytes.len() as u64,
-        || fs::read(resolve(path.as_ref())?),
+        || {
+            let mut file = File::open(path)?;
+            let expected = usize::try_from(file.metadata()?.len()).map_err(io::Error::other)?;
+            let mut bytes = Vec::new();
+            bytes
+                .try_reserve_exact(expected)
+                .map_err(io::Error::other)?;
+            bytes.resize(expected, 0);
+            let mut filled = 0;
+            while filled < expected {
+                match file.read(&mut bytes[filled..]) {
+                    Ok(0) => {
+                        bytes.truncate(filled);
+                        return Ok(bytes);
+                    }
+                    Ok(count) => filled += count,
+                    Err(error) if error.kind() == io::ErrorKind::Interrupted => continue,
+                    Err(error) => return Err(error),
+                }
+            }
+            // Avoid read_to_end's extra allocation when the size hint was
+            // exact, while retaining normal read semantics for growing files.
+            let mut extra = [0];
+            loop {
+                match file.read(&mut extra) {
+                    Ok(0) => return Ok(bytes),
+                    Ok(_) => {
+                        bytes.try_reserve(1).map_err(io::Error::other)?;
+                        bytes.push(extra[0]);
+                        break;
+                    }
+                    Err(error) if error.kind() == io::ErrorKind::Interrupted => continue,
+                    Err(error) => return Err(error),
+                }
+            }
+            let mut tail = vec![0; super::MAX_HOST_READ];
+            loop {
+                match file.read(&mut tail) {
+                    Ok(0) => break,
+                    Ok(count) => {
+                        bytes.try_reserve(count).map_err(io::Error::other)?;
+                        bytes.extend_from_slice(&tail[..count]);
+                    }
+                    Err(error) if error.kind() == io::ErrorKind::Interrupted => continue,
+                    Err(error) => return Err(error),
+                }
+            }
+            Ok(bytes)
+        },
     )
 }
 pub fn write(path: impl AsRef<Path>, bytes: impl AsRef<[u8]>) -> io::Result<()> {
@@ -159,7 +207,7 @@ pub fn write(path: impl AsRef<Path>, bytes: impl AsRef<[u8]>) -> io::Result<()> 
     )
 }
 pub fn create_dir_all(path: impl AsRef<Path>) -> io::Result<()> {
-    fs::create_dir_all(resolve(path.as_ref())?)
+    super::directory::create_all(resolve(path.as_ref())?)
 }
 pub fn remove_file(path: impl AsRef<Path>) -> io::Result<()> {
     fs::remove_file(resolve(path.as_ref())?)
@@ -261,6 +309,9 @@ pub fn read_dir(path: impl AsRef<Path>) -> io::Result<ReadDir> {
 
 pub struct File(fs::File);
 impl File {
+    pub fn metadata(&self) -> io::Result<fs::Metadata> {
+        self.0.metadata()
+    }
     pub fn open(path: impl AsRef<Path>) -> io::Result<Self> {
         super::perf::io_result(
             "file.open",
@@ -271,7 +322,8 @@ impl File {
 }
 impl Read for File {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        super::perf::io_bytes("file.read_chunk", || self.0.read(buf))
+        let limit = buf.len().min(super::MAX_HOST_READ);
+        super::perf::io_bytes("file.read_chunk", || self.0.read(&mut buf[..limit]))
     }
 }
 impl Write for File {

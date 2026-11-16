@@ -10,14 +10,14 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/Jay-Void-BA/SideInstaller/releases/tag/siboot-v0.21.2"><img src="https://img.shields.io/badge/release-0.21.2-2563eb?style=flat-square" alt="siboot 0.21.2"></a>
+  <a href="https://github.com/Jay-Void-BA/SideInstaller/releases/tag/siboot-v0.21.3"><img src="https://img.shields.io/badge/release-0.21.3-2563eb?style=flat-square" alt="siboot 0.21.3"></a>
   <a href="https://github.com/Jay-Void-BA/SideInstaller/actions/workflows/checks.yml"><img src="https://github.com/Jay-Void-BA/SideInstaller/actions/workflows/checks.yml/badge.svg?branch=main" alt="CI 检查状态"></a>
   <a href="#requirements"><img src="https://img.shields.io/badge/platform-rootshell%20%7C%20iOS%2027%2B-64748b?style=flat-square" alt="rootshell · iOS／iPadOS 27+"></a>
   <a href="https://github.com/Jay-Void-BA/SideInstaller/blob/main/LICENSE.md"><img src="https://img.shields.io/badge/license-Custom-64748b?style=flat-square" alt="SideInstaller 自定义许可证"></a>
 </p>
 
 <p align="center">
-  <a href="https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.21.2/siboot.wasm">下载 siboot.wasm</a> ·
+  <a href="https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.21.3/siboot.wasm">下载 siboot.wasm</a> ·
   <a href="#quick-start">快速开始</a> ·
   <a href="#usage">常用命令</a> ·
   <a href="#performance">性能诊断</a> ·
@@ -99,23 +99,25 @@ pwd
 
 在“文件 › 浏览 › 我的 iPhone／iPad › rootshell › siboot”中放入自己的 `App.ipa`。iCloud Drive、下载目录或其他应用中的文件，需要先拷贝到 rootshell 可访问的应用目录。新建标签页后先进入 `siboot` 目录。
 
+仅首次配置时创建 `siboot`。目录已存在时，直接 `cd siboot` 进入即可。“文件”中的 `rootshell` 文件夹由应用自动提供。
+
 ### 3. 下载并校验
 
 保持终端位于刚才的目录，逐条执行：
 
 ```sh
-curl -fL -C - -o siboot-v0.21.2.wasm.part https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.21.2/siboot.wasm
-sha256sum siboot-v0.21.2.wasm.part
+curl -fL -C - -o siboot-v0.21.3.wasm.part https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.21.3/siboot.wasm
+sha256sum siboot-v0.21.3.wasm.part
 ```
 
-与 [Release](https://github.com/Jay-Void-BA/SideInstaller/releases/tag/siboot-v0.21.2) 附件 [SHA256SUMS](https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.21.2/SHA256SUMS) 核对一致后，再运行：
+与 [Release](https://github.com/Jay-Void-BA/SideInstaller/releases/tag/siboot-v0.21.3) 附件 [SHA256SUMS](https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.21.3/SHA256SUMS) 核对一致后，再运行：
 
 ```sh
-mv siboot-v0.21.2.wasm.part siboot.wasm
+mv siboot-v0.21.3.wasm.part siboot.wasm
 ./siboot.wasm --version
 ```
 
-版本输出应包含 `siboot 0.21.2 (rootshell)`。也可以通过 Safari 下载 `siboot.wasm`，复制到 `rootshell/siboot` 后校验。
+版本输出应包含 `siboot 0.21.3 (rootshell)`。也可以通过 Safari 下载 `siboot.wasm`，复制到 `rootshell/siboot` 后校验。
 
 > [!TIP]
 > 下载时保持 rootshell 在前台。中断后用同一条 `curl` 命令续传，并再次核对哈希。使用带版本号的 `.part` 文件，避免把旧版本内容续传进新版本；校验一致后再改名运行。
@@ -140,7 +142,7 @@ ifconfig en0 > ifconfig.txt
 
 按提示登录 Apple 账户、输入验证码，等待签名、上传核对和系统安装完成。首次启动应用时，需在“设置 › 通用 › VPN 与设备管理”中信任开发者。
 
-文件名含空格时使用引号，例如 `--ipa "My App.ipa"`。也可运行 `./siboot.wasm`，通过交互菜单选择 IPA 和配对方式；已有配对文件的用户可直接[导入配对](#migration)。
+文件名含空格时使用引号，例如 `--ipa "My App.ipa"`。也可运行 `./siboot.wasm`。首次交互启动会说明如何通过“文件”把 IPA 复制进 rootshell 文件夹，复制后按回车确认；取消后下次仍会显示，显式传入 `--ipa` 则跳过教程。文件选择器支持编号及完整本地路径；已有配对文件的用户可直接[导入配对](#migration)。
 
 <details>
 <summary>无法取得 Wi-Fi 地址时</summary>
@@ -201,7 +203,7 @@ siboot/
 
 登录时可选择保存 Apple／iCloud 账户。账户密码、会话、签名私钥及 anisette 缓存使用 **scrypt + XChaCha20-Poly1305** 加密，每次使用独立的本地口令解锁。口令至少 12 个字符，不能与 Apple 密码相同，也不会被保存。
 
-输入密码时，按终端 **Ctrl-V** 切换显示／隐藏，提交时清除显示内容。账户密码和解锁口令保留原有空格及 Unicode 字符。登录菜单支持更新密码、临时使用其他账户和忘记登录。
+输入密码时，按终端 **Ctrl-V** 切换显示／隐藏，提交、取消或输入结束时均清除当前显示内容。文件名和远程消息中的终端控制字符会转义后再显示。账户密码和解锁口令保留原有空格及 Unicode 字符。登录菜单支持更新密码、临时使用其他账户和忘记登录。
 
 <a id="performance"></a>
 
@@ -245,7 +247,7 @@ siboot/
 - 递归签名主程序、App Extension、ExtensionKit、Framework、dylib 和其他 Mach-O。
 - 封存并复核 `.config`、隐藏文件等资源。普通配置文件通过资源封印保护，不是可独立代码签名的程序。
 - 保留 IPA 内符号链接；rootshell 的 WASI 文件层中保留链接元数据，上传时通过 AFC 在设备上重建。
-- 大文件以 1 MiB 缓冲区读取和发送，安装前核对所有文件大小和链接目标。
+- 单次文件读取最多 32 KiB，以适配 rootshell 的 64 KiB JSON／Base64 回包；合并成 1 MiB 的 AFC 上传数据包，安装前仍核对所有文件大小和链接目标。
 - 步骤失败后可重试当前步骤。安装重试复用已完成的签名结果，并重新建立隧道。
 
 </details>
@@ -275,6 +277,8 @@ iSH／Minis 旧版已弃用，不再更新功能或发布新的 `siboot-aarch64`
 ### 安装耗时较长
 
 程序分别显示上传、文件核对和 iOS 安装耗时。解压、哈希／签名、Apple／anisette 请求、加密隧道、许多小文件的往返及系统 `installd` 都可能占用时间。rootshell 使用 WASM，不保证比 Minis 更快；系统安装时间由 iOS 决定。使用[性能诊断日志](#performance)判断具体耗时阶段。
+
+本地 I/O 限制单次读取大小，并缓冲 ZIP 解压写入；文件选择缓存条目类型并合并终端输出，快速续签只验证一次缓存快照。这些改动减少宿主调用，保留完整签名与上传核对；真机速度变化仍需通过 `--perf-log` 测量。
 
 ### 配对入口没有出现
 

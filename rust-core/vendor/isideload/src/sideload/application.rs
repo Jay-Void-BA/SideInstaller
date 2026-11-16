@@ -11,7 +11,10 @@ use aes_gcm::{AeadInOut, Aes256Gcm, KeyInit, Nonce};
 use rootcause::option_ext::OptionExt;
 use rootcause::prelude::*;
 use sha2::{Digest, Sha256};
+#[cfg(not(target_os = "wasi"))]
 use std::fs::File;
+#[cfg(target_os = "wasi")]
+use rootshell_runtime::vfs::File;
 use std::path::PathBuf;
 
 use tracing::{info, warn};
@@ -54,7 +57,11 @@ impl Application {
                 std::fs::remove_dir_all(&temp_path)
                     .context("Failed to remove existing temporary directory")?;
             }
+            #[cfg(not(target_os = "wasi"))]
             std::fs::create_dir_all(&temp_path).context("Failed to create temporary directory")?;
+            #[cfg(target_os = "wasi")]
+            rootshell_runtime::directory::create_all(&temp_path)
+                .context("Failed to create temporary directory")?;
 
             let file = File::open(&path).context("Failed to open application archive")?;
             let mut archive =

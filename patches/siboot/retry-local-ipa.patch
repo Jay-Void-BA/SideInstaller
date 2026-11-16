@@ -1,8 +1,8 @@
 diff --git a/README.md b/README.md
-index 683de33..940908b 100644
+index 683de33..9a50ddb 100644
 --- a/README.md
 +++ b/README.md
-@@ -1,3 +1,334 @@
+@@ -1,3 +1,338 @@
 -To use it, follow the following instructions: https://sideinstaller.net/install.html
 +<h1 align="center">siboot</h1>
  
@@ -17,14 +17,14 @@ index 683de33..940908b 100644
 +</p>
 +
 +<p align="center">
-+  <a href="https://github.com/Jay-Void-BA/SideInstaller/releases/tag/siboot-v0.21.2"><img src="https://img.shields.io/badge/release-0.21.2-2563eb?style=flat-square" alt="siboot 0.21.2"></a>
++  <a href="https://github.com/Jay-Void-BA/SideInstaller/releases/tag/siboot-v0.21.3"><img src="https://img.shields.io/badge/release-0.21.3-2563eb?style=flat-square" alt="siboot 0.21.3"></a>
 +  <a href="https://github.com/Jay-Void-BA/SideInstaller/actions/workflows/checks.yml"><img src="https://github.com/Jay-Void-BA/SideInstaller/actions/workflows/checks.yml/badge.svg?branch=main" alt="CI status"></a>
 +  <a href="#requirements"><img src="https://img.shields.io/badge/platform-rootshell%20%7C%20iOS%2027%2B-64748b?style=flat-square" alt="rootshell · iOS / iPadOS 27+"></a>
 +  <a href="https://github.com/Jay-Void-BA/SideInstaller/blob/main/LICENSE.md"><img src="https://img.shields.io/badge/license-Custom-64748b?style=flat-square" alt="SideInstaller custom license"></a>
 +</p>
 +
 +<p align="center">
-+  <a href="https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.21.2/siboot.wasm">Download</a> ·
++  <a href="https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.21.3/siboot.wasm">Download</a> ·
 +  <a href="#quick-start">Quick start</a> ·
 +  <a href="#usage">Usage</a> ·
 +  <a href="#performance">Diagnostics</a> ·
@@ -107,23 +107,25 @@ index 683de33..940908b 100644
 +
 +Copy your `App.ipa` into **Files › Browse › On My iPhone / iPad › rootshell › siboot**. Files in iCloud Drive, Downloads, or another app need to be copied into rootshell's accessible app directory first. Return to the `siboot` directory when opening a new terminal tab.
 +
++Create `siboot` only for the first setup. If the folder already exists, enter it with `cd siboot`. The `rootshell` folder in Files is created by the app.
++
 +### 3. Download and verify
 +
 +Run these commands from the working directory:
 +
 +```sh
-+curl -fL -C - -o siboot-v0.21.2.wasm.part https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.21.2/siboot.wasm
-+sha256sum siboot-v0.21.2.wasm.part
++curl -fL -C - -o siboot-v0.21.3.wasm.part https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.21.3/siboot.wasm
++sha256sum siboot-v0.21.3.wasm.part
 +```
 +
-+Compare the hash with [SHA256SUMS](https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.21.2/SHA256SUMS) attached to the [release](https://github.com/Jay-Void-BA/SideInstaller/releases/tag/siboot-v0.21.2). When it matches, run:
++Compare the hash with [SHA256SUMS](https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.21.3/SHA256SUMS) attached to the [release](https://github.com/Jay-Void-BA/SideInstaller/releases/tag/siboot-v0.21.3). When it matches, run:
 +
 +```sh
-+mv siboot-v0.21.2.wasm.part siboot.wasm
++mv siboot-v0.21.3.wasm.part siboot.wasm
 +./siboot.wasm --version
 +```
 +
-+The output should include `siboot 0.21.2 (rootshell)`. You can also download `siboot.wasm` in Safari, copy it into `rootshell/siboot`, and verify it there.
++The output should include `siboot 0.21.3 (rootshell)`. You can also download `siboot.wasm` in Safari, copy it into `rootshell/siboot`, and verify it there.
 +
 +> [!TIP]
 +> Keep rootshell in the foreground while downloading. If the transfer is interrupted, resume with the same `curl` command and check the hash again. Use a versioned `.part` filename to keep downloads from different releases separate. Rename and run the file only after verification succeeds.
@@ -148,7 +150,7 @@ index 683de33..940908b 100644
 +
 +Follow the prompts to sign in to your Apple Account and enter any verification code. Wait for signing, upload verification, and system installation to finish. Before launching the installed app for the first time, trust its developer under **Settings › General › VPN & Device Management**.
 +
-+Quote filenames containing spaces, for example `--ipa "My App.ipa"`. You can also run `./siboot.wasm` to choose an IPA and pairing method from the interactive menu. If you already have a pairing file, [import it](#migration) instead.
++Quote filenames containing spaces, for example `--ipa "My App.ipa"`. Run `./siboot.wasm` for the interactive menu. On the first interactive launch, a short guide explains how to copy an IPA from Files into the rootshell folder; acknowledge it after copying. Cancelled guides appear again, while an explicit `--ipa` skips the guide. The picker accepts a full local path as well as a numbered selection. If you already have a pairing file, [import it](#migration) instead.
 +
 +<details>
 +<summary>If the Wi-Fi address cannot be detected</summary>
@@ -209,7 +211,7 @@ index 683de33..940908b 100644
 +
 +You can save your Apple / iCloud account during sign-in. Account passwords, sessions, signing keys, and the anisette cache are encrypted using **scrypt + XChaCha20-Poly1305** and unlocked with a separate local passphrase. The passphrase must contain at least 12 characters, must differ from your Apple password, and is never stored.
 +
-+Press **Ctrl-V** in the terminal to reveal or hide a password while typing. Visible input is cleared when submitted. Passwords and vault passphrases preserve spaces and Unicode characters. The account menu lets you update a password, temporarily use another account, or forget saved credentials.
++Press **Ctrl-V** in the terminal to reveal or hide a password while typing. Visible input is cleared on submission, cancellation, or end of input. Control characters in file names and remote messages are escaped before display. Passwords and vault passphrases preserve spaces and Unicode characters. The account menu lets you update a password, temporarily use another account, or forget saved credentials.
 +
 +<a id="performance"></a>
 +
@@ -253,7 +255,7 @@ index 683de33..940908b 100644
 +- Sign the main executable, App Extensions, ExtensionKit extensions, frameworks, dylibs, and other Mach-O files recursively.
 +- Seal and verify `.config`, hidden files, and other resources. Configuration files are protected by the resource seal; they are not independently signed executables.
 +- Preserve IPA symbolic links through WASI file metadata, then recreate them on the device through AFC.
-+- Read and send large files with a 1 MiB buffer; verify all file sizes and link targets before installation.
++- Read at most 32 KiB per host call to fit the 64 KiB JSON/Base64 reply buffer, then combine reads into 1 MiB AFC upload packets; verify all file sizes and link targets before installation.
 +- Retry the current step after a failure. Installation retries reuse completed signing work and establish a new tunnel.
 +
 +</details>
@@ -279,6 +281,8 @@ index 683de33..940908b 100644
 +Imports are verified against the device before a copy is saved as **`rp_pairing_file.plist` beside the program**. Failed imports preserve both the saved record and the source file. Pairing records contain device trust keys; keep them private.
 +
 +## Troubleshooting
++
++Local I/O uses reads of at most 32 KiB, buffered ZIP extraction, and combined 1 MiB upload packets. File selection caches entry types and batches terminal output; quick renewal validates one cache snapshot. These reduce host calls while preserving complete signature and upload verification. Device speed and iOS installation time still need measurement with `--perf-log`.
 +
 +### Installation takes a long time
 +
@@ -341,10 +345,10 @@ index 683de33..940908b 100644
 +See the [SideInstaller license](https://github.com/Jay-Void-BA/SideInstaller/blob/main/LICENSE.md) for usage and distribution terms. Vendored dependencies retain their own copyright notices and licenses.
 diff --git a/README.zh-CN.md b/README.zh-CN.md
 new file mode 100644
-index 0000000..4550c6b
+index 0000000..b4ba360
 --- /dev/null
 +++ b/README.zh-CN.md
-@@ -0,0 +1,333 @@
+@@ -0,0 +1,337 @@
 +<h1 align="center">siboot</h1>
 +
 +<p align="center">
@@ -357,14 +361,14 @@ index 0000000..4550c6b
 +</p>
 +
 +<p align="center">
-+  <a href="https://github.com/Jay-Void-BA/SideInstaller/releases/tag/siboot-v0.21.2"><img src="https://img.shields.io/badge/release-0.21.2-2563eb?style=flat-square" alt="siboot 0.21.2"></a>
++  <a href="https://github.com/Jay-Void-BA/SideInstaller/releases/tag/siboot-v0.21.3"><img src="https://img.shields.io/badge/release-0.21.3-2563eb?style=flat-square" alt="siboot 0.21.3"></a>
 +  <a href="https://github.com/Jay-Void-BA/SideInstaller/actions/workflows/checks.yml"><img src="https://github.com/Jay-Void-BA/SideInstaller/actions/workflows/checks.yml/badge.svg?branch=main" alt="CI 检查状态"></a>
 +  <a href="#requirements"><img src="https://img.shields.io/badge/platform-rootshell%20%7C%20iOS%2027%2B-64748b?style=flat-square" alt="rootshell · iOS／iPadOS 27+"></a>
 +  <a href="https://github.com/Jay-Void-BA/SideInstaller/blob/main/LICENSE.md"><img src="https://img.shields.io/badge/license-Custom-64748b?style=flat-square" alt="SideInstaller 自定义许可证"></a>
 +</p>
 +
 +<p align="center">
-+  <a href="https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.21.2/siboot.wasm">下载 siboot.wasm</a> ·
++  <a href="https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.21.3/siboot.wasm">下载 siboot.wasm</a> ·
 +  <a href="#quick-start">快速开始</a> ·
 +  <a href="#usage">常用命令</a> ·
 +  <a href="#performance">性能诊断</a> ·
@@ -446,23 +450,25 @@ index 0000000..4550c6b
 +
 +在“文件 › 浏览 › 我的 iPhone／iPad › rootshell › siboot”中放入自己的 `App.ipa`。iCloud Drive、下载目录或其他应用中的文件，需要先拷贝到 rootshell 可访问的应用目录。新建标签页后先进入 `siboot` 目录。
 +
++仅首次配置时创建 `siboot`。目录已存在时，直接 `cd siboot` 进入即可。“文件”中的 `rootshell` 文件夹由应用自动提供。
++
 +### 3. 下载并校验
 +
 +保持终端位于刚才的目录，逐条执行：
 +
 +```sh
-+curl -fL -C - -o siboot-v0.21.2.wasm.part https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.21.2/siboot.wasm
-+sha256sum siboot-v0.21.2.wasm.part
++curl -fL -C - -o siboot-v0.21.3.wasm.part https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.21.3/siboot.wasm
++sha256sum siboot-v0.21.3.wasm.part
 +```
 +
-+与 [Release](https://github.com/Jay-Void-BA/SideInstaller/releases/tag/siboot-v0.21.2) 附件 [SHA256SUMS](https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.21.2/SHA256SUMS) 核对一致后，再运行：
++与 [Release](https://github.com/Jay-Void-BA/SideInstaller/releases/tag/siboot-v0.21.3) 附件 [SHA256SUMS](https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.21.3/SHA256SUMS) 核对一致后，再运行：
 +
 +```sh
-+mv siboot-v0.21.2.wasm.part siboot.wasm
++mv siboot-v0.21.3.wasm.part siboot.wasm
 +./siboot.wasm --version
 +```
 +
-+版本输出应包含 `siboot 0.21.2 (rootshell)`。也可以通过 Safari 下载 `siboot.wasm`，复制到 `rootshell/siboot` 后校验。
++版本输出应包含 `siboot 0.21.3 (rootshell)`。也可以通过 Safari 下载 `siboot.wasm`，复制到 `rootshell/siboot` 后校验。
 +
 +> [!TIP]
 +> 下载时保持 rootshell 在前台。中断后用同一条 `curl` 命令续传，并再次核对哈希。使用带版本号的 `.part` 文件，避免把旧版本内容续传进新版本；校验一致后再改名运行。
@@ -487,7 +493,7 @@ index 0000000..4550c6b
 +
 +按提示登录 Apple 账户、输入验证码，等待签名、上传核对和系统安装完成。首次启动应用时，需在“设置 › 通用 › VPN 与设备管理”中信任开发者。
 +
-+文件名含空格时使用引号，例如 `--ipa "My App.ipa"`。也可运行 `./siboot.wasm`，通过交互菜单选择 IPA 和配对方式；已有配对文件的用户可直接[导入配对](#migration)。
++文件名含空格时使用引号，例如 `--ipa "My App.ipa"`。也可运行 `./siboot.wasm`。首次交互启动会说明如何通过“文件”把 IPA 复制进 rootshell 文件夹，复制后按回车确认；取消后下次仍会显示，显式传入 `--ipa` 则跳过教程。文件选择器支持编号及完整本地路径；已有配对文件的用户可直接[导入配对](#migration)。
 +
 +<details>
 +<summary>无法取得 Wi-Fi 地址时</summary>
@@ -548,7 +554,7 @@ index 0000000..4550c6b
 +
 +登录时可选择保存 Apple／iCloud 账户。账户密码、会话、签名私钥及 anisette 缓存使用 **scrypt + XChaCha20-Poly1305** 加密，每次使用独立的本地口令解锁。口令至少 12 个字符，不能与 Apple 密码相同，也不会被保存。
 +
-+输入密码时，按终端 **Ctrl-V** 切换显示／隐藏，提交时清除显示内容。账户密码和解锁口令保留原有空格及 Unicode 字符。登录菜单支持更新密码、临时使用其他账户和忘记登录。
++输入密码时，按终端 **Ctrl-V** 切换显示／隐藏，提交、取消或输入结束时均清除当前显示内容。文件名和远程消息中的终端控制字符会转义后再显示。账户密码和解锁口令保留原有空格及 Unicode 字符。登录菜单支持更新密码、临时使用其他账户和忘记登录。
 +
 +<a id="performance"></a>
 +
@@ -592,7 +598,7 @@ index 0000000..4550c6b
 +- 递归签名主程序、App Extension、ExtensionKit、Framework、dylib 和其他 Mach-O。
 +- 封存并复核 `.config`、隐藏文件等资源。普通配置文件通过资源封印保护，不是可独立代码签名的程序。
 +- 保留 IPA 内符号链接；rootshell 的 WASI 文件层中保留链接元数据，上传时通过 AFC 在设备上重建。
-+- 大文件以 1 MiB 缓冲区读取和发送，安装前核对所有文件大小和链接目标。
++- 单次文件读取最多 32 KiB，以适配 rootshell 的 64 KiB JSON／Base64 回包；合并成 1 MiB 的 AFC 上传数据包，安装前仍核对所有文件大小和链接目标。
 +- 步骤失败后可重试当前步骤。安装重试复用已完成的签名结果，并重新建立隧道。
 +
 +</details>
@@ -622,6 +628,8 @@ index 0000000..4550c6b
 +### 安装耗时较长
 +
 +程序分别显示上传、文件核对和 iOS 安装耗时。解压、哈希／签名、Apple／anisette 请求、加密隧道、许多小文件的往返及系统 `installd` 都可能占用时间。rootshell 使用 WASM，不保证比 Minis 更快；系统安装时间由 iOS 决定。使用[性能诊断日志](#performance)判断具体耗时阶段。
++
++本地 I/O 限制单次读取大小，并缓冲 ZIP 解压写入；文件选择缓存条目类型并合并终端输出，快速续签只验证一次缓存快照。这些改动减少宿主调用，保留完整签名与上传核对；真机速度变化仍需通过 `--perf-log` 测量。
 +
 +### 配对入口没有出现
 +
@@ -777,7 +785,7 @@ index 3254ab0..0ba9940 100644
  
  [[package]]
 diff --git a/minis/Cargo.toml b/minis/Cargo.toml
-index 38ec01e..bbb6995 100644
+index 38ec01e..cd6e63d 100644
 --- a/minis/Cargo.toml
 +++ b/minis/Cargo.toml
 @@ -1,8 +1,8 @@
@@ -791,7 +799,17 @@ index 38ec01e..bbb6995 100644
  license = "MIT"
  publish = false
  
-@@ -71,6 +71,12 @@ reqwest = { version = "0.13", features = ["json", "gzip"] }
+@@ -58,7 +58,8 @@ tokio = { version = "1", features = [
+   "sync",
+   "signal",
+ ] }
+-plist = "1.8"
++# The bounded parser uses the event API; pin its minor version as required by plist.
++plist = { version = "~1.10.0", features = ["enable_unstable_features_that_may_break_with_minor_version_bumps"] }
+ serde = { version = "1", features = ["derive"] }
+ serde_json = "1"
+ # A random host identifier for a new pairing, as siboot-pair makes one.
+@@ -71,6 +72,12 @@ reqwest = { version = "0.13", features = ["json", "gzip"] }
  rootcause = "0.12"
  sha2 = "0.11"
  hex = "0.4"
@@ -804,7 +822,7 @@ index 38ec01e..bbb6995 100644
  # No-echo password read from the terminal, for plain output.
  rpassword = "7"
  # The live screen: the terminal's size, and keys one at a time (termios). Already
-@@ -86,9 +92,7 @@ tracing-subscriber = "0.3"
+@@ -86,9 +93,7 @@ tracing-subscriber = "0.3"
  idevice-srp = "0.6"
  sha2-10 = { package = "sha2", version = "0.10" }
  hkdf = "0.12"
@@ -1383,14 +1401,21 @@ index 160bcfa..5be024e 100644
              "reaching Apple's sign-in server",
 diff --git a/minis/locales/zh-CN.json b/minis/locales/zh-CN.json
 new file mode 100644
-index 0000000..75bd2f1
+index 0000000..e120a09
 --- /dev/null
 +++ b/minis/locales/zh-CN.json
-@@ -0,0 +1,451 @@
+@@ -0,0 +1,466 @@
 +{
++  "1. Open Files > Browse > On My iPhone / iPad > rootshell.": "1. 打开“文件”>“浏览”>“我的 iPhone／iPad”>“rootshell”。",
++  "2. Copy your .ipa into the rootshell folder. A file in iCloud Drive or Downloads must be copied here first.": "2. 将 .ipa 复制到 rootshell 文件夹。位于 iCloud 云盘或“下载”中的文件也需要先复制到这里。",
++  "3. Return to rootshell and choose the IPA. If the program is in a subfolder, use 0 to go up or enter the file path.": "3. 返回 rootshell 并选择 IPA。如果程序在子文件夹中，可输入 0 返回上级，或直接输入文件路径。",
++  "6-digit code; m for other methods; q to cancel:": "输入六位验证码；输入 m 选择其他方式，q 取消：",
++  "6-digit code; m for other methods; q to cancel: ": "输入六位验证码；输入 m 选择其他方式，q 取消：",
++  "Announcing \"Pair with {name}\" {dots}": "正在广播“与 {name} 配对” {dots}",
 +  "Another siboot run is using this login storage, or it could not be locked.": "另一个 siboot 正在使用登录存储，或无法锁定存储。",
 +  "Apple Account email:": "Apple 账号邮箱：",
 +  "Apple Account login": "Apple 账号登录",
++  "Apple Account or custom anisette server": "Apple 账户或自定义 anisette 服务器",
 +  "Apple ID": "Apple 账号",
 +  "Apple is calling {number}": "Apple 正在拨打 {number}",
 +  "Apple is calling {number} with a verification code.": "Apple 正在拨打 {number} 告知验证码。",
@@ -1403,6 +1428,7 @@ index 0000000..75bd2f1
 +  "Apple's sign-in server answers": "Apple 登录服务器已响应",
 +  "Asking this iPhone for Developer Mode": "向 iPhone 请求开发者模式",
 +  "Back": "返回",
++  "Before pairing, run ifconfig en0 > ifconfig.txt in rootshell, or supply --wifi-ip with this iPhone's Wi-Fi IPv4 address.": "配对前请在 rootshell 运行 ifconfig en0 > ifconfig.txt，或通过 --wifi-ip 指定本机的 Wi-Fi IPv4 地址。",
 +  "Call {number}": "拨打 {number}",
 +  "Can't reach siboot. Open this page from siboot in Minis's terminal.": "无法连接 siboot，请从 Minis 终端中的 siboot 打开此页面。",
 +  "Cancel": "取消",
@@ -1413,13 +1439,17 @@ index 0000000..75bd2f1
 +  "Choose a complete .ipa file smaller than 4 GB.": "请选择小于 4 GB 的完整 IPA 文件。",
 +  "Choose a file from Minis's Linux filesystem. The verified copy is saved to {path}": "选择 Minis 内的文件。验证通过后副本会保存到 {path}",
 +  "Choose a local .ipa from Files": "从“文件”选择本地 IPA",
++  "Choose a local IPA to sign and install": "选择本地 IPA 进行签名安装",
 +  "Choose a local IPA, or pass --ipa /path/to/App.ipa.": "请选择本地 IPA，或使用 --ipa /path/to/App.ipa 指定路径。",
++  "Choose a number or enter a file path (empty to cancel):": "输入序号或本地文件路径，直接回车取消：",
++  "Choose a number or enter a file path (empty to cancel): ": "输入序号或本地文件路径，直接回车取消：",
 +  "Choose a pairing file in Minis / iSH": "选择 Minis／iSH 内的配对文件",
 +  "Choose a pairing file, or enter its path in Minis.": "请选择配对文件，或输入 Minis 内的路径。",
 +  "Choose a separate unlock passphrase of at least 12 characters. It unlocks your saved login each time and is never saved.": "请设置独立的解锁口令，至少 12 个字符。每次使用保存的登录时需输入此口令，口令本身不会保存。",
 +  "Choose an .ipa file first.": "请先选择 IPA 文件。",
 +  "Choose an app to install": "选择要安装的应用",
 +  "Choose how Apple should send the verification code.": "请选择验证码发送方式。",
++  "Choose one of the listed numbers.": "请选择列表中的序号。",
 +  "Code": "验证码",
 +  "Come back to Minis once Settings says it's paired.": "设置提示配对完成后，请返回 Minis。",
 +  "Confirm unlock passphrase": "确认解锁口令",
@@ -1430,8 +1460,13 @@ index 0000000..75bd2f1
 +  "Continue": "继续",
 +  "Copied the log ({count} lines). Paste it where you ask for help.": "已复制日志（{count} 行），可以粘贴以寻求帮助。",
 +  "Couldn't accept the iPhone's connection.": "无法接受 iPhone 的配对连接。",
++  "Couldn't clean up this upload's staging directory.": "无法清理本次上传的暂存目录。",
 +  "Couldn't copy the log: {reason}.": "无法复制日志：{reason}。",
++  "Couldn't create a private upload staging directory.": "无法创建本次上传的独立暂存目录。",
++  "Couldn't create the performance log.": "无法创建性能日志。",
++  "Couldn't create the siboot storage directory.": "无法创建 siboot 数据目录。",
 +  "Couldn't create the symlink {path}.": "无法创建符号链接 {path}。",
++  "Couldn't create the temporary directory.": "无法创建临时目录。",
 +  "Couldn't create {path} on this iPhone.": "无法在 iPhone 上创建 {path}。",
 +  "Couldn't create {path}.": "无法创建 {path}。",
 +  "Couldn't decrypt the saved signing data.": "无法解密已保存的签名数据。",
@@ -1449,13 +1484,17 @@ index 0000000..75bd2f1
 +  "Couldn't reach installation_proxy on this iPhone.": "无法连接 iPhone 的安装服务。",
 +  "Couldn't reach siboot. It runs in Minis's terminal: is Minis still open?": "无法连接 siboot，请保持 Minis 终端运行。",
 +  "Couldn't reach this iPhone at {addr}. Connect LocalDevVPN, and check Wi-Fi is on.": "无法通过 {addr} 连接 iPhone，请连接 LocalDevVPN 并开启 Wi-Fi。",
++  "Couldn't reach this iPhone. Connect LocalDevVPN and keep Wi-Fi on.": "无法连接本机。请连接 LocalDevVPN 并保持 Wi-Fi 开启。",
 +  "Couldn't read the pairing file at {path}. Pair again in rootshell (`./siboot-pair.wasm`), then run siboot again.": "无法读取 {path} 的配对文件。请重新配对或选择有效的 RPPairing 文件后重试。",
 +  "Couldn't read the password from the terminal.": "无法从终端读取密码。",
++  "Couldn't read the selected pairing file.": "无法读取所选配对文件。",
 +  "Couldn't read the unlock passphrase.": "无法读取解锁口令。",
 +  "Couldn't read {path}.": "无法读取 {path}。",
++  "Couldn't remove this run's upload staging directory.": "无法清理本次上传的暂存目录。",
 +  "Couldn't save the encrypted developer session.": "无法保存加密开发者会话。",
 +  "Couldn't save the encrypted login.": "无法保存加密登录。",
 +  "Couldn't save the pairing file at {path}.": "无法将配对文件保存到 {path}。",
++  "Couldn't save the verified pairing beside siboot.wasm.": "无法将已验证的配对文件保存到 siboot.wasm 同目录。",
 +  "Couldn't save the verified pairing file beside siboot.": "无法将已验证的配对文件保存到程序同目录。",
 +  "Couldn't sign in through any of {count} anisette servers. Try again later.": "尝试的 {count} 个 anisette 服务器均无法登录，请稍后重试。",
 +  "Couldn't start an HTTPS client.": "无法创建 HTTPS 客户端。",
@@ -1471,18 +1510,24 @@ index 0000000..75bd2f1
 +  "Dev Mode": "开发者模式",
 +  "Developer Mode is already on": "开发者模式已开启",
 +  "Developer Mode is in Settings": "请在设置中开启开发者模式",
++  "Device endpoint (default 10.7.0.1:49152 through LocalDevVPN)": "设备地址，默认通过 LocalDevVPN 连接 10.7.0.1:49152",
++  "Directory for the encrypted login and renewal cache": "加密登录信息与续签缓存的保存目录",
++  "Display language (Chinese by default)": "显示语言，默认为中文",
 +  "Done": "完成",
 +  "Email": "邮箱",
 +  "Encrypt the saved login": "加密保存登录",
 +  "Encrypting dummy login and signing data": "加密测试登录与签名数据",
++  "Enter the 6-digit code.": "请输入六位验证码。",
 +  "Enter your iPhone passcode, then the 6-digit code siboot shows. It comes as a notification too.": "输入 iPhone 锁屏密码，再输入 siboot 显示的 6 位配对码，配对码也会通过通知显示。",
 +  "Enter your iPhone passcode, then the 6-digit code siboot shows. Minis's notifications are off, so come back to Minis to read it.": "输入 iPhone 锁屏密码，再输入 siboot 显示的 6 位配对码。Minis 通知已关闭，请返回 Minis 查看配对码。",
++  "Enter your passcode, then the 6-digit code. It arrives as a notification.": "输入设备密码，然后输入程序通知中显示的六位配对码。",
 +  "Failed while {action}.": "{action}时失败。",
 +  "File path": "文件路径",
 +  "Finishing the install": "完成安装",
 +  "Folder in Minis / iSH": "Minis／iSH 内的目录",
 +  "Forget saved login": "删除已保存的登录",
 +  "Free accounts' apps last 7 days. Renew the app before it expires.": "免费账号签名有效期为 7 天，请在到期前重新签名。",
++  "Full IPA signing and installation in rootshell. Minis is not required.": "在 rootshell 中完整签名并安装 IPA，无需 Minis。",
 +  "Go back to Minis: siboot carries on there.": "请返回 Minis，siboot 会在那里继续。",
 +  "Handing SideInstaller the pairing": "向 SideInstaller 交接配对文件",
 +  "Handover": "交接",
@@ -1491,6 +1536,8 @@ index 0000000..75bd2f1
 +  "IPA imported.": "IPA 已导入。",
 +  "IPA path": "IPA 路径",
 +  "IPA path:": "IPA 路径：",
++  "Import an IPA from Files": "从“文件”导入 IPA",
++  "Import an existing RPPairing file; verify before replacing the saved file": "导入已有 RPPairing 文件，验证后再替换已保存的文件",
 +  "Importing {name}… {percent}%": "正在导入 {name}… {percent}%",
 +  "Install": "安装",
 +  "Install a local IPA": "安装本地 IPA",
@@ -1498,7 +1545,9 @@ index 0000000..75bd2f1
 +  "Installing it": "安装应用",
 +  "It now shows under Settings › Privacy & Security, near the bottom. Turn it on there; iOS restarts to finish.": "开关已显示在“设置 › 隐私与安全性”底部，开启后 iPhone 将重启。",
 +  "It's also in {path}.": "日志也已保存到 {path}。",
++  "It's in your notifications too.": "配对码也会显示在通知中。",
 +  "Jay-Void-BA · based on FrizzleM/siboot": "Jay-Void-BA · 基于 FrizzleM/siboot",
++  "Keep Location Diary on (rootshell › Settings › Location Diary Mode › Session Only): it keeps rootshell running while you're in Settings.": "请开启 rootshell › Settings › Location Diary Mode › Session Only，保证切换到系统设置进行配对时程序仍在运行。",
 +  "Keep Minis open until siboot is done: iOS pauses it in the background.": "完成前请保持 Minis 在前台，iOS 会暂停后台运行的 Minis。",
 +  "Language": "语言",
 +  "Local Discovery is off in Open Minis. Turn it on in Minis's Settings › Network, then start again.": "Open Minis 的本地发现已关闭，请在“Minis 设置 › 网络”中开启后重试。",
@@ -1519,11 +1568,16 @@ index 0000000..75bd2f1
 +  "No pairing files here. Open another folder or enter a full file path.": "此处没有配对文件，请打开其他目录或输入完整路径。",
 +  "No password given.": "未输入密码。",
 +  "No password was recorded.": "密码未写入日志。",
++  "No saved app for quick renew. Install a local IPA first.": "尚无可续签的应用，请先安装一个本地 IPA。",
 +  "Nobody tapped Pair with {name} within {duration}. If it never showed in Settings, keep Wi-Fi on, check Open Minis has Local Network access (Settings › Privacy & Security › Local Network), leave the player open, and run siboot again.": "{duration} 内未点击“与 {name} 配对”。若未显示，请开启 Wi-Fi，允许 Minis 访问本地网络，保持播放器打开并重试。",
 +  "Nothing answered at {addr}. Connect LocalDevVPN (it shows Connected), and check Wi-Fi is on.": "{addr} 未响应。请连接 LocalDevVPN，确认显示“已连接”，并开启 Wi-Fi。",
 +  "Nothing answered at {addr}. Connect LocalDevVPN, and check Wi-Fi is on.": "{addr} 未响应，请连接 LocalDevVPN 并开启 Wi-Fi。",
++  "Now, on this iPhone:": "现在请在这台 iPhone 上：",
++  "Number (empty to cancel):": "输入序号，直接回车取消：",
++  "Number (empty to cancel): ": "输入序号，直接回车取消：",
 +  "Number to revoke (empty to stop):": "要撤销的证书序号（留空取消）：",
 +  "Once you unlock it, tap Turn On.": "解锁 iPhone 后，点击“开启”。",
++  "Only the first 256 matching entries are shown. Enter a full path to choose another file.": "仅显示前 256 个匹配项，选择其他文件时请输入完整路径。",
 +  "Open Minis can pair this iPhone": "Open Minis 可以与这台 iPhone 配对",
 +  "Open Minis can pair this iPhone, and post the code as a notification": "Open Minis 可以配对并通过通知显示配对码",
 +  "Open Minis couldn't put Pair with siboot up in Settings. Run siboot again.": "Minis 无法在设置中显示配对条目，请重试。",
@@ -1537,25 +1591,38 @@ index 0000000..75bd2f1
 +  "Opening folder…": "正在打开目录…",
 +  "Other ways": "其他方式",
 +  "Pair automatically": "自动配对",
++  "Pair this iPhone here in rootshell": "在 rootshell 中直接配对本机",
++  "Pair this iPhone in rootshell and save the file beside siboot.wasm": "在 rootshell 中配对本机，并将配对文件保存到 siboot.wasm 同目录",
 +  "Pair this iPhone with siboot": "将这台 iPhone 与 siboot 配对",
 +  "Pair with siboot": "与 siboot 配对",
 +  "Pair with {name} is ready": "与 {name} 的配对已就绪",
 +  "Pair with {name} is up in Settings": "设置中已显示“与 {name} 配对”",
++  "Paired with {name} ({model})": "已与 {name}（{model}）配对",
 +  "Pairing": "配对",
 +  "Pairing and encrypted-login preview. Use dummy credentials only.": "配对与加密登录预览，仅使用测试凭据。",
++  "Pairing cancelled.": "已取消配对。",
 +  "Pairing code": "配对码",
 +  "Pairing didn't finish. Run siboot again, and tap the entry again in Settings.": "配对未完成，请重试并再次点击设置中的配对条目。",
++  "Pairing failed. Check Local Network access and Location Diary Mode in rootshell.": "配对失败。请检查 rootshell 的本地网络权限和 Location Diary Mode 保活设置。",
 +  "Pairing file": "配对文件",
 +  "Pairing file in Minis / iSH": "Minis／iSH 内的配对文件",
 +  "Pairing file path": "配对文件路径",
 +  "Pairing file path:": "配对文件路径：",
++  "Pairing file saved: Files › rootshell › {file}": "配对文件已保存：文件 › rootshell › {file}",
++  "Pairing file selection cancelled.": "已取消选择配对文件。",
++  "Pairing saved": "配对文件已保存",
 +  "Pairing stopped before it finished. Tap the entry in Settings again.": "配对尚未完成就中断了，请重新点击系统设置中的配对项。",
 +  "Pairing this iPhone with siboot": "将这台 iPhone 与 siboot 配对",
 +  "Pairing-file selection cancelled.": "已取消选择配对文件。",
 +  "Password": "密码",
 +  "Password (not shown; it goes only to Apple):": "密码（默认隐藏，仅用于向 Apple 验证）：",
 +  "Password:": "密码：",
++  "Passwords are hidden. Ctrl-V toggles viewing while typing.": "密码默认隐藏，输入时按 Ctrl-V 切换显示或隐藏。",
++  "Performance log saved: {path}": "性能日志已保存：{path}",
++  "Performance log:": "性能日志：",
++  "Plain output or protocol error details": "纯文本输出或显示协议错误详情",
 +  "Preparing the IPA": "准备 IPA",
++  "Press Return after copying the IPA, or type q to cancel: ": "复制 IPA 后按回车继续，或输入 q 取消：",
 +  "Press return here to open it again.": "按回车可重新打开页面。",
 +  "Preview complete": "预览完成",
 +  "Preview iSH folder: {path}": "预览 iSH 目录：{path}",
@@ -1563,12 +1630,15 @@ index 0000000..75bd2f1
 +  "Preview: dummy Apple password": "预览：测试 Apple 密码",
 +  "Quick renew requires the same Apple developer team as the previous install. Use a normal local IPA install to change accounts.": "快速续签需要与上次安装使用相同的 Apple 开发者团队。若要更换账号，请使用普通本地 IPA 安装。",
 +  "Quick renew {name}": "快速续签 {name}",
++  "Quick renew: {name}": "快速续签：{name}",
++  "Re-sign and install the last app using its original IPA": "使用上次保存的原始 IPA 重新签名并安装",
 +  "Ready": "已就绪",
 +  "Ready for quick renew: run siboot renew next time.": "已准备快速续签，下次可运行 siboot renew。",
 +  "Ready to install": "准备安装",
 +  "Retry step": "重试此步骤",
 +  "Retry this step?": "重试当前步骤？",
 +  "Run siboot --ipa /path/to/App.ipa to install a local IPA.": "运行 siboot --ipa /path/to/App.ipa 安装本地 IPA。",
++  "Save detailed performance logs beside siboot.wasm": "将详细性能日志保存到 siboot.wasm 同目录",
 +  "Save login": "保存登录",
 +  "Secret preserved": "输入已完整保留",
 +  "Secure setup preview complete": "安全设置预览完成",
@@ -1578,6 +1648,8 @@ index 0000000..75bd2f1
 +  "Selecting an existing pairing file": "选择已有配对文件",
 +  "Send it to your Apple devices": "发送至 Apple 设备",
 +  "Send the same again": "重新发送",
++  "Settings connected": "系统设置已连接",
++  "Settings connected, waiting…": "系统设置已连接，正在等待……",
 +  "Settings connected: waiting for it to ask for a code": "设置已连接，正在等待配对码请求",
 +  "Settings › Privacy & Security › Developer Mode, at the bottom.": "位于“设置 › 隐私与安全性 › 开发者模式”底部。",
 +  "Show details": "显示详细信息",
@@ -1595,6 +1667,7 @@ index 0000000..75bd2f1
 +  "Something at {addr} took the connection but didn't answer as an iPhone. Turn on Developer Mode (Settings › Privacy & Security › Developer Mode) and check LocalDevVPN is the VPN that's on.": "{addr} 接受了连接，但未正确响应为 iPhone。请开启开发者模式，并确认当前连接的是 LocalDevVPN。",
 +  "Start pairing": "开始配对",
 +  "Start pairing?": "开始配对？",
++  "Still waiting for Settings…": "继续等待系统设置连接……",
 +  "Stop": "停止",
 +  "Stopped": "已停止",
 +  "Stopped at the transfer code.": "已取消输入传输码。",
@@ -1603,6 +1676,7 @@ index 0000000..75bd2f1
 +  "Stopped with Ctrl-C.": "已通过 Ctrl-C 停止。",
 +  "Stopped:": "已停止：",
 +  "Stopping…": "正在停止…",
++  "Tap \"Pair with {name}\". It can take a few seconds to appear.": "点击“与 {name} 配对”，该选项可能需要几秒钟才会出现。",
 +  "Tap Pair with {name}. It can take a few seconds to show.": "点击“与 {name} 配对”，条目可能需要数秒才会显示。",
 +  "Tap again to stop": "再次点击停止",
 +  "Text {number}": "向 {number} 发送短信",
@@ -1610,19 +1684,28 @@ index 0000000..75bd2f1
 +  "That connection closed before asking for a code.": "连接在请求配对码前已关闭。",
 +  "That connection went quiet before asking for a code.": "连接未请求配对码便停止响应。",
 +  "That isn't a 6-digit code or one of t N, c N, d, r, q.": "请输入 6 位验证码或 t N、c N、d、r、q。",
++  "That local file cannot be read.": "无法读取该本地文件。",
++  "The IPA path must be valid UTF-8.": "IPA 路径必须是有效的 UTF-8。",
 +  "The cached IPA is incomplete. Install a local IPA again.": "缓存的 IPA 不完整，请重新安装一次本地 IPA。",
 +  "The code didn't match. Run siboot again and type the new code exactly.": "配对码不匹配，请重试并准确输入新的配对码。",
 +  "The code wasn't entered within {duration}. Run siboot again for a new one.": "{duration} 内未输入配对码，请重试以获取新配对码。",
 +  "The earlier step stayed complete while the install retried.": "重试安装时，先前步骤保留完成状态。",
++  "The iPhone answers. Run siboot.wasm --ipa App.ipa to install.": "设备连接正常。运行 siboot.wasm --ipa App.ipa 即可安装。",
++  "The iPhone answers. This check confirms TCP reachability only.": "iPhone 已响应。本次检查仅确认 TCP 可以连接。",
 +  "The iPhone connected but stopped before asking for a code. Tap the entry in Settings again, or run siboot again.": "iPhone 在请求配对码前停止响应，请再次点击配对条目或重试。",
 +  "The iPhone opened a tunnel port but {addr}:{port} can't be reached.": "iPhone 已打开隧道端口，但无法连接 {addr}:{port}。",
 +  "The iPhone opened a tunnel port but {addr}:{port} didn't answer.": "iPhone 已打开隧道端口，但 {addr}:{port} 未响应。",
 +  "The iPhone stopped answering while checking the pairing.": "iPhone 在验证配对时停止响应。",
++  "The import guide could not be marked as read; it will appear again next time.": "无法保存教程已读标记，下次启动时会再次显示。",
 +  "The log is in {path}.": "日志位于 {path}。",
 +  "The page is open in Minis's browser. Closed it?": "页面已在 Minis 浏览器中打开。",
++  "The pairing file is beside siboot.wasm. Run siboot.wasm --ipa App.ipa to install.": "配对文件已保存到 siboot.wasm 同目录。运行 siboot.wasm --ipa App.ipa 即可安装。",
++  "The performance log could not be completely saved.": "性能日志未能完整保存。",
 +  "The player was closed. It keeps Minis running while you're in Settings, so siboot opened it again: leave it open.": "播放器已关闭。为保持 Minis 在设置页面下继续运行，siboot 已重新打开播放器，请保持它打开。",
 +  "The quick-renew cache cannot be read. Install a local IPA again.": "无法读取快速续签缓存，请重新安装一次本地 IPA。",
++  "The rootshell folder already exists. Reuse it; no directory creation command is needed.": "rootshell 文件夹已经存在，直接使用即可，无需运行命令重新创建。",
 +  "The run's log is in {path}.": "运行日志已保存到 {path}。",
++  "The selected path is not valid UTF-8.": "所选路径不是有效的 UTF-8。",
 +  "The signed app has no bundle identifier.": "签名应用缺少应用标识。",
 +  "The signed app has no folder name.": "签名应用没有有效的目录名称。",
 +  "The signed app has no readable Info.plist.": "签名应用中没有可读取的 Info.plist。",
@@ -1632,11 +1715,13 @@ index 0000000..75bd2f1
 +  "The tunnel works": "隧道连接正常",
 +  "The unlock passphrases didn't match.": "两次解锁口令不一致。",
 +  "The upload of {path} broke off.": "上传 {path} 时中断。",
++  "The upload staging directory could not be removed.": "无法清理本次上传的暂存目录。",
 +  "This Apple Account already has as many signing certificates as Apple allows, so one must be revoked to make siboot's. Apps signed with a revoked certificate stop opening, on every device, until they're signed again. This can't be undone.": "此 Apple 账号的签名证书数量已达上限，需要撤销一张才能继续。所有设备上使用该证书的应用都将无法打开，直到重新签名；撤销操作不可恢复。",
 +  "This Apple Account has reached its limit of App IDs for the week. Wait for one to expire, or use another account.": "此 Apple 账号本周的 App ID 数量已达上限，请等待到期或使用其他账号。",
 +  "This Minis cannot create a pairing file itself. Select an existing RPPairing file at the Pairing step.": "当前 Minis 无法自行创建配对文件，请在配对步骤选择已有的 RPPairing 文件。",
 +  "This Open Minis can't advertise a pairing host.": "当前 Open Minis 无法广播配对主机。",
 +  "This Open Minis can't pair this iPhone itself: that came with Minis 1.16.": "当前 Open Minis 无法直接配对，此功能需要 Minis 1.16+。",
++  "This folder could not be listed. Enter the full local file path instead.": "无法列出此文件夹，请输入本地文件的完整路径。",
 +  "This iPhone accepts the pairing file, and the tunnel opens with it.": "iPhone 已接受配对文件，隧道已成功建立。",
 +  "This iPhone already has 3 apps signed with a free Apple Account. Delete one, then run siboot again.": "这台 iPhone 已安装 3 个由免费账号签名的应用，请先删除一个再重试。",
 +  "This iPhone didn't say its UDID, which signing needs.": "iPhone 未返回签名所需的 UDID。",
@@ -1644,12 +1729,14 @@ index 0000000..75bd2f1
 +  "This iPhone doesn't accept the saved pairing file, so siboot pairs again.": "iPhone 不接受已保存的配对文件，将重新配对。",
 +  "This isn't a complete IPA. Choose another file.": "IPA 文件不完整，请重新选择。",
 +  "This removes the saved login and encrypted local signing data. It does not revoke Apple's certificate.": "将删除已保存的登录及本地加密签名数据，不会撤销 Apple 证书。",
++  "This rootshell build lacks socket receive-timeout support. Pairing and connection checks are available; full installation and renewal require a newer rootshell build or the receive-timeout backport.": "此 rootshell 版本缺少 socket 接收超时接口。可使用配对和连接检查；完整安装及续签需要更新 rootshell，或自行编译接收超时回移补丁。",
 +  "Timed out while {action}.": "{action}时超时。",
 +  "To type here instead, stop with Ctrl-C": "若要改用终端输入，请按 Ctrl-C 停止，",
 +  "Transfer code shown in rootshell:": "rootshell 显示的传输码：",
 +  "Type it into Settings.": "请在设置中输入此配对码。",
 +  "Type it into Settings. It came as a notification too.": "请在设置中输入此配对码，也可以查看通知。",
 +  "Type the code, or: t N to text number N, c N to call it, d for your devices,": "输入验证码，或输入 t N 发送短信、c N 电话验证、d 发送至设备，",
++  "Type this code into Settings:": "请在系统设置中输入这个配对码：",
 +  "Unlock": "解锁",
 +  "Unlock and update saved password": "解锁并更新已保存的密码",
 +  "Unlock cancelled.": "已取消解锁。",
@@ -1668,8 +1755,12 @@ index 0000000..75bd2f1
 +  "Use selected IPA": "使用所选 IPA",
 +  "Uses the cached original IPA and saved pairing. Sign-in and installation still run.": "使用缓存的原始 IPA 与已保存的配对，仍会重新登录、签名并安装。",
 +  "Verification code": "验证码",
++  "Waiting for Settings to check it…": "等待系统设置验证配对码……",
++  "Waiting for Settings…": "等待系统设置连接……",
 +  "Waiting for retry": "等待重试",
 +  "When you start, a player opens over Minis. It plays silence, which keeps Minis running while you're in Settings: leave it open. siboot closes it once you're back.": "开始后会打开静音播放器，让 Minis 在你切换到设置时继续运行。请保持播放器打开，返回后 siboot 会自动关闭它。",
++  "Wi-Fi address for a new pairing; otherwise read ifconfig.txt": "新配对使用的 Wi-Fi 地址，默认从 ifconfig.txt 读取",
++  "With developer-mode: request a restart to enable it": "配合 developer-mode 使用，申请重启以启用开发者模式",
 +  "Yes": "是",
 +  "already on": "已开启",
 +  "and run siboot --terminal.": "再使用 --terminal 选项运行。",
@@ -1691,6 +1782,7 @@ index 0000000..75bd2f1
 +  "file verification took {seconds} s": "文件核对耗时 {seconds} 秒",
 +  "forget the saved login and local signing data?": "删除已保存的登录和本地签名数据？",
 +  "greeting the iPhone": "正在与 iPhone 握手",
++  "hidden": "已隐藏",
 +  "how should Apple send the code?": "选择 Apple 验证码的发送方式",
 +  "iOS installation took {seconds} s": "iOS 安装耗时 {seconds} 秒",
 +  "installd refused the app.": "iPhone 安装服务拒绝了此应用。",
@@ -1777,66 +1869,7 @@ index 0000000..75bd2f1
 +  "{name} signed": "{name} 已签名",
 +  "{name} {version} signed": "{name} {version} 已签名",
 +  "{path} isn't an IPA that can be read. Pick a complete .ipa file, or download it again.": "无法读取 {path}，请选择完整的 IPA 文件，或重新下载后再选择。",
-+  "{server} didn't work: {reason}": "{server} 登录失败：{reason}",
-+  "Full IPA signing and installation in rootshell. Minis is not required.": "在 rootshell 中完整签名并安装 IPA，无需 Minis。",
-+  "Choose a local IPA to sign and install": "选择本地 IPA 进行签名安装",
-+  "Re-sign and install the last app using its original IPA": "使用上次保存的原始 IPA 重新签名并安装",
-+  "Pair this iPhone in rootshell and save the file beside siboot.wasm": "在 rootshell 中配对本机，并将配对文件保存到 siboot.wasm 同目录",
-+  "Import an existing RPPairing file; verify before replacing the saved file": "导入已有 RPPairing 文件，验证后再替换已保存的文件",
-+  "Wi-Fi address for a new pairing; otherwise read ifconfig.txt": "新配对使用的 Wi-Fi 地址，默认从 ifconfig.txt 读取",
-+  "Device endpoint (default 10.7.0.1:49152 through LocalDevVPN)": "设备地址，默认通过 LocalDevVPN 连接 10.7.0.1:49152",
-+  "Apple Account or custom anisette server": "Apple 账户或自定义 anisette 服务器",
-+  "Directory for the encrypted login and renewal cache": "加密登录信息与续签缓存的保存目录",
-+  "Display language (Chinese by default)": "显示语言，默认为中文",
-+  "With developer-mode: request a restart to enable it": "配合 developer-mode 使用，申请重启以启用开发者模式",
-+  "Plain output or protocol error details": "纯文本输出或显示协议错误详情",
-+  "Passwords are hidden. Ctrl-V toggles viewing while typing.": "密码默认隐藏，输入时按 Ctrl-V 切换显示或隐藏。",
-+  "hidden": "已隐藏",
-+  "Number (empty to cancel): ": "输入序号，直接回车取消：",
-+  "Number (empty to cancel):": "输入序号，直接回车取消：",
-+  "Choose one of the listed numbers.": "请选择列表中的序号。",
-+  "6-digit code; m for other methods; q to cancel: ": "输入六位验证码；输入 m 选择其他方式，q 取消：",
-+  "6-digit code; m for other methods; q to cancel:": "输入六位验证码；输入 m 选择其他方式，q 取消：",
-+  "Enter the 6-digit code.": "请输入六位验证码。",
-+  "Choose a number or enter a file path (empty to cancel): ": "输入序号或本地文件路径，直接回车取消：",
-+  "Choose a number or enter a file path (empty to cancel):": "输入序号或本地文件路径，直接回车取消：",
-+  "That local file cannot be read.": "无法读取该本地文件。",
-+  "Before pairing, run ifconfig en0 > ifconfig.txt in rootshell, or supply --wifi-ip with this iPhone's Wi-Fi IPv4 address.": "配对前请在 rootshell 运行 ifconfig en0 > ifconfig.txt，或通过 --wifi-ip 指定本机的 Wi-Fi IPv4 地址。",
-+  "Pairing failed. Check Local Network access and Location Diary Mode in rootshell.": "配对失败。请检查 rootshell 的本地网络权限和 Location Diary Mode 保活设置。",
-+  "Couldn't read the selected pairing file.": "无法读取所选配对文件。",
-+  "Couldn't save the verified pairing beside siboot.wasm.": "无法将已验证的配对文件保存到 siboot.wasm 同目录。",
-+  "Pair this iPhone here in rootshell": "在 rootshell 中直接配对本机",
-+  "Pairing file selection cancelled.": "已取消选择配对文件。",
-+  "Pairing cancelled.": "已取消配对。",
-+  "Couldn't create the siboot storage directory.": "无法创建 siboot 数据目录。",
-+  "Couldn't create the temporary directory.": "无法创建临时目录。",
-+  "Pairing saved": "配对文件已保存",
-+  "The pairing file is beside siboot.wasm. Run siboot.wasm --ipa App.ipa to install.": "配对文件已保存到 siboot.wasm 同目录。运行 siboot.wasm --ipa App.ipa 即可安装。",
-+  "Couldn't reach this iPhone. Connect LocalDevVPN and keep Wi-Fi on.": "无法连接本机。请连接 LocalDevVPN 并保持 Wi-Fi 开启。",
-+  "The iPhone answers. Run siboot.wasm --ipa App.ipa to install.": "设备连接正常。运行 siboot.wasm --ipa App.ipa 即可安装。",
-+  "Keep Location Diary on (rootshell › Settings › Location Diary Mode › Session Only): it keeps rootshell running while you're in Settings.": "请开启 rootshell › Settings › Location Diary Mode › Session Only，保证切换到系统设置进行配对时程序仍在运行。",
-+  "Announcing \"Pair with {name}\" {dots}": "正在广播“与 {name} 配对” {dots}",
-+  "Now, on this iPhone:": "现在请在这台 iPhone 上：",
-+  "Tap \"Pair with {name}\". It can take a few seconds to appear.": "点击“与 {name} 配对”，该选项可能需要几秒钟才会出现。",
-+  "Enter your passcode, then the 6-digit code. It arrives as a notification.": "输入设备密码，然后输入程序通知中显示的六位配对码。",
-+  "Waiting for Settings…": "等待系统设置连接……",
-+  "Settings connected, waiting…": "系统设置已连接，正在等待……",
-+  "Settings connected": "系统设置已连接",
-+  "Type this code into Settings:": "请在系统设置中输入这个配对码：",
-+  "It's in your notifications too.": "配对码也会显示在通知中。",
-+  "Waiting for Settings to check it…": "等待系统设置验证配对码……",
-+  "Still waiting for Settings…": "继续等待系统设置连接……",
-+  "Paired with {name} ({model})": "已与 {name}（{model}）配对",
-+  "Pairing file saved: Files › rootshell › {file}": "配对文件已保存：文件 › rootshell › {file}",
-+  "Quick renew: {name}": "快速续签：{name}",
-+  "No saved app for quick renew. Install a local IPA first.": "尚无可续签的应用，请先安装一个本地 IPA。",
-+  "Save detailed performance logs beside siboot.wasm": "将详细性能日志保存到 siboot.wasm 同目录",
-+  "Performance log:": "性能日志：",
-+  "Couldn't create the performance log.": "无法创建性能日志。",
-+  "The performance log could not be completely saved.": "性能日志未能完整保存。",
-+  "Performance log saved: {path}": "性能日志已保存：{path}",
-+  "This rootshell build lacks socket receive-timeout support. Pairing and connection checks are available; full installation and renewal require a newer rootshell build or the receive-timeout backport.": "此 rootshell 版本缺少 socket 接收超时接口。可使用配对和连接检查；完整安装及续签需要更新 rootshell，或自行编译接收超时回移补丁。",
-+  "The iPhone answers. This check confirms TCP reachability only.": "iPhone 已响应。本次检查仅确认 TCP 可以连接。"
++  "{server} didn't work: {reason}": "{server} 登录失败：{reason}"
 +}
 diff --git a/minis/src/account.rs b/minis/src/account.rs
 index b778e40..31acafc 100644
@@ -2309,10 +2342,10 @@ index 0000000..288eaf2
 +    }
 +}
 diff --git a/minis/src/install.rs b/minis/src/install.rs
-index 904e836..6baa212 100644
+index 904e836..c07d631 100644
 --- a/minis/src/install.rs
 +++ b/minis/src/install.rs
-@@ -5,6 +5,11 @@
+@@ -5,6 +5,10 @@
  //! bundle with a sealed file missing and installs it without a word, and the
  //! app then fails to open.
  
@@ -2320,11 +2353,10 @@ index 904e836..6baa212 100644
 +use rootshell_runtime::vfs as bundle_fs;
 +#[cfg(not(target_os = "wasi"))]
 +use std::fs as bundle_fs;
-+use std::io::Read;
  use std::path::{Path, PathBuf};
  
  use idevice::afc::opcode::AfcFopenMode;
-@@ -24,6 +29,7 @@ pub struct Entry {
+@@ -24,6 +28,7 @@ pub struct Entry {
      pub relative: String,
      pub is_dir: bool,
      pub size: u64,
@@ -2332,21 +2364,26 @@ index 904e836..6baa212 100644
  }
  
  /// Returns what went up, as "51.0 MB, 412 files".
-@@ -38,6 +44,8 @@ pub async fn install(connection: &mut Connection, app_dir: &Path) -> Result<Stri
+@@ -37,7 +42,9 @@ pub async fn install(connection: &mut Connection, app_dir: &Path) -> Result<Stri
+                 app_dir.display().to_string(),
              )
          })?;
-     let remote_root = format!("{STAGING}/{bundle_name}");
+-    let remote_root = format!("{STAGING}/{bundle_name}");
++    let (remote_stage, remote_root) = staging_paths(bundle_name)?;
 +    #[cfg(target_os = "wasi")]
 +    let enumerate = rootshell_runtime::perf::span("install.enumerate", &[]);
      let entries = bundle_entries(app_dir).map_err(|e| {
          Fail::new(
              format!("Couldn't read {}.", app_dir.display()),
-@@ -46,15 +54,21 @@ pub async fn install(connection: &mut Connection, app_dir: &Path) -> Result<Stri
+@@ -46,124 +53,227 @@ pub async fn install(connection: &mut Connection, app_dir: &Path) -> Result<Stri
      })?;
      let total: u64 = entries.iter().map(|e| e.size).sum();
      let files = entries.iter().filter(|e| !e.is_dir).count();
 +    #[cfg(target_os = "wasi")]
-+    enumerate.finish(rootshell_runtime::perf::Outcome::Ok, &[("files", files as u64), ("bytes", total)]);
++    enumerate.finish(
++        rootshell_runtime::perf::Outcome::Ok,
++        &[("files", files as u64), ("bytes", total)],
++    );
      let size = format!("{:.1} MB, {files} files", total as f64 / 1_048_576.0);
      ui::status(&format!(
          "uploading {files} files ({:.1} MB)",
@@ -2358,59 +2395,116 @@ index 904e836..6baa212 100644
      let mut afc = AfcClient::connect_rsd(&mut connection.adapter, &mut connection.handshake)
          .await
          .map_err(|e| Fail::new("Couldn't open AFC on this iPhone.", chain(&e)))?;
+-    // Left from an earlier run, it would mix old files into this upload.
+-    let _ = afc.remove_all(remote_root.clone()).await;
+-    let _ = afc.mk_dir(STAGING).await;
+-    afc.mk_dir(remote_root.clone()).await.map_err(|e| {
+-        Fail::new(
+-            format!("Couldn't create {remote_root} on this iPhone."),
+-            chain(&e),
+-        )
+-    })?;
 +    #[cfg(target_os = "wasi")]
 +    connect.finish(rootshell_runtime::perf::Outcome::Ok, &[]);
-     // Left from an earlier run, it would mix old files into this upload.
-     let _ = afc.remove_all(remote_root.clone()).await;
-     let _ = afc.mk_dir(STAGING).await;
-@@ -65,18 +79,44 @@ pub async fn install(connection: &mut Connection, app_dir: &Path) -> Result<Stri
-         )
-     })?;
++    // A unique parent keeps simultaneous runs from deleting each other's app.
++    // Only this run's parent is removed, on either success or failure.
++    let mut stage_created = false;
++    let result: Result<String> = async {
++        let _ = afc.mk_dir(STAGING).await;
++        afc.mk_dir(remote_stage.clone()).await.map_err(|e| {
++            Fail::new("Couldn't create a private upload staging directory.", chain(&e))
++        })?;
++        stage_created = true;
++        afc.mk_dir(remote_root.clone()).await.map_err(|e| {
++            Fail::new(
++                format!("Couldn't create {remote_root} on this iPhone."),
++                chain(&e),
++            )
++        })?;
  
-+    #[cfg(target_os = "wasi")]
-+    let uploading = rootshell_runtime::perf::span("install.upload", &[("files", files as u64), ("bytes", total)]);
-+    #[cfg(target_os = "wasi")]
-+    rootshell_runtime::perf::checkpoint();
-     let started = std::time::Instant::now();
-     let mut sent: u64 = 0;
+-    let started = std::time::Instant::now();
+-    let mut sent: u64 = 0;
 -    for entry in &entries {
-+    // Keep the existing AFC transfer size without buffering an entire dylib.
-+    let mut buffer = vec![0u8; 1024 * 1024];
-+    #[cfg(target_os = "wasi")]
-+    rootshell_runtime::perf::event("upload.buffer", &[("bytes", buffer.len() as u64)]);
-+    let ordered = entries.iter().filter(|e| e.symlink.is_none()).chain(entries.iter().filter(|e| e.symlink.is_some()));
-+    #[cfg(target_os = "wasi")]
-+    let ordered = ordered.enumerate();
-+    #[cfg(not(target_os = "wasi"))]
-+    let ordered = ordered.map(|entry| (0usize, entry));
-+    for (_index, entry) in ordered {
+-        let remote = format!("{remote_root}/{}", entry.relative);
+-        if entry.is_dir {
+-            afc.mk_dir(remote.clone())
 +        #[cfg(target_os = "wasi")]
-+        let file_span = rootshell_runtime::perf::span("upload.entry", &[("index", _index as u64), ("bytes", entry.size), ("directory", u64::from(entry.is_dir)), ("symlink", u64::from(entry.symlink.is_some()))]);
-         let remote = format!("{remote_root}/{}", entry.relative);
-+        if let Some(target) = &entry.symlink {
-+            afc.link(target.clone(), remote.clone(), idevice::afc::opcode::LinkType::Symlink).await
-+                .map_err(|e| Fail::new(format!("Couldn't create the symlink {remote}."), chain(&e)))?;
++        let uploading = rootshell_runtime::perf::span("install.upload", &[("files", files as u64), ("bytes", total)]);
++        #[cfg(target_os = "wasi")]
++        rootshell_runtime::perf::checkpoint();
++        let started = std::time::Instant::now();
++        let mut sent: u64 = 0;
++        // Keep the existing AFC transfer size without buffering an entire dylib.
++        let mut buffer = vec![0u8; 1024 * 1024];
++        #[cfg(target_os = "wasi")]
++        rootshell_runtime::perf::event("upload.buffer", &[("bytes", buffer.len() as u64)]);
++        let ordered = entries.iter().filter(|e| e.symlink.is_none()).chain(entries.iter().filter(|e| e.symlink.is_some()));
++        #[cfg(target_os = "wasi")]
++        let ordered = ordered.enumerate();
++        #[cfg(not(target_os = "wasi"))]
++        let ordered = ordered.map(|entry| (0usize, entry));
++        for (_index, entry) in ordered {
 +            #[cfg(target_os = "wasi")]
-+            file_span.finish(rootshell_runtime::perf::Outcome::Ok, &[]);
-+            continue;
-+        }
-         if entry.is_dir {
-             afc.mk_dir(remote.clone())
++            let file_span = rootshell_runtime::perf::span("upload.entry", &[("index", _index as u64), ("bytes", entry.size), ("directory", u64::from(entry.is_dir)), ("symlink", u64::from(entry.symlink.is_some()))]);
++            let remote = format!("{remote_root}/{}", entry.relative);
++            if let Some(target) = &entry.symlink {
++                afc.link(target.clone(), remote.clone(), idevice::afc::opcode::LinkType::Symlink).await
++                    .map_err(|e| Fail::new(format!("Couldn't create the symlink {remote}."), chain(&e)))?;
++                #[cfg(target_os = "wasi")]
++                file_span.finish(rootshell_runtime::perf::Outcome::Ok, &[]);
++                continue;
++            }
++            if entry.is_dir {
++                afc.mk_dir(remote.clone())
++                    .await
++                    .map_err(|e| Fail::new(format!("Couldn't create {remote}."), chain(&e)))?;
++                #[cfg(target_os = "wasi")]
++                file_span.finish(rootshell_runtime::perf::Outcome::Ok, &[]);
++                continue;
++            }
++            let mut source = bundle_fs::File::open(app_dir.join(&entry.relative))
++                .map_err(|e| Fail::new(format!("Couldn't read {}.", entry.relative), e.to_string()))?;
++            #[cfg(target_os = "wasi")]
++            let opening = rootshell_runtime::perf::span("upload.open", &[]);
++            let mut file = afc
++                .open(remote.clone(), AfcFopenMode::WrOnly)
                  .await
-                 .map_err(|e| Fail::new(format!("Couldn't create {remote}."), chain(&e)))?;
-+            #[cfg(target_os = "wasi")]
-+            file_span.finish(rootshell_runtime::perf::Outcome::Ok, &[]);
-             continue;
-         }
+-                .map_err(|e| Fail::new(format!("Couldn't create {remote}."), chain(&e)))?;
+-            continue;
+-        }
 -        let bytes = std::fs::read(app_dir.join(&entry.relative))
-+        let mut source = bundle_fs::File::open(app_dir.join(&entry.relative))
-             .map_err(|e| Fail::new(format!("Couldn't read {}.", entry.relative), e.to_string()))?;
-+        #[cfg(target_os = "wasi")]
-+        let opening = rootshell_runtime::perf::span("upload.open", &[]);
-         let mut file = afc
-             .open(remote.clone(), AfcFopenMode::WrOnly)
-             .await
-@@ -86,34 +126,57 @@ pub async fn install(connection: &mut Connection, app_dir: &Path) -> Result<Stri
+-            .map_err(|e| Fail::new(format!("Couldn't read {}.", entry.relative), e.to_string()))?;
+-        let mut file = afc
+-            .open(remote.clone(), AfcFopenMode::WrOnly)
+-            .await
+-            .map_err(|e| {
++                .map_err(|e| {
++                    Fail::new(
++                        format!("Couldn't create {remote} on this iPhone."),
++                        chain(&e),
++                    )
++                })?;
++            #[cfg(target_os = "wasi")]
++            opening.finish(rootshell_runtime::perf::Outcome::Ok, &[]);
++            loop {
++                let count = crate::ipa::read_chunk(&mut source, &mut buffer).map_err(|e| Fail::new(
++                    format!("Couldn't read {}.", entry.relative), e.to_string()))?;
++                if count == 0 { break; }
++                #[cfg(target_os = "wasi")]
++                let chunk = rootshell_runtime::perf::span("upload.chunk", &[("bytes", count as u64)]);
++                file.write_entire(&buffer[..count]).await.map_err(|e| Fail::new(
++                    format!("The upload of {} broke off.", entry.relative), chain(&e)))?;
++                #[cfg(target_os = "wasi")]
++                chunk.finish(rootshell_runtime::perf::Outcome::Ok, &[("bytes", count as u64)]);
++                sent += count as u64;
++                ui::progress("uploaded", sent, total);
++            }
++            #[cfg(target_os = "wasi")]
++            let closing = rootshell_runtime::perf::span("upload.close", &[]);
++            file.close().await.map_err(|e| {
+                 Fail::new(
+-                    format!("Couldn't create {remote} on this iPhone."),
++                    format!("The upload of {} broke off.", entry.relative),
                      chain(&e),
                  )
              })?;
@@ -2420,121 +2514,193 @@ index 904e836..6baa212 100644
 -                chain(&e),
 -            )
 -        })?;
-+        #[cfg(target_os = "wasi")]
-+        opening.finish(rootshell_runtime::perf::Outcome::Ok, &[]);
-+        loop {
-+            let count = source.read(&mut buffer).map_err(|e| Fail::new(
-+                format!("Couldn't read {}.", entry.relative), e.to_string()))?;
-+            if count == 0 { break; }
-+            #[cfg(target_os = "wasi")]
-+            let chunk = rootshell_runtime::perf::span("upload.chunk", &[("bytes", count as u64)]);
-+            file.write_entire(&buffer[..count]).await.map_err(|e| Fail::new(
-+                format!("The upload of {} broke off.", entry.relative), chain(&e)))?;
-+            #[cfg(target_os = "wasi")]
-+            chunk.finish(rootshell_runtime::perf::Outcome::Ok, &[("bytes", count as u64)]);
-+            sent += count as u64;
-+            ui::progress("uploaded", sent, total);
-+        }
-+        #[cfg(target_os = "wasi")]
-+        let closing = rootshell_runtime::perf::span("upload.close", &[]);
-         file.close().await.map_err(|e| {
-             Fail::new(
-                 format!("The upload of {} broke off.", entry.relative),
-                 chain(&e),
-             )
-         })?;
+-        file.close().await.map_err(|e| {
+-            Fail::new(
+-                format!("The upload of {} broke off.", entry.relative),
+-                chain(&e),
+-            )
+-        })?;
 -        sent += entry.size;
-+        #[cfg(target_os = "wasi")]
-+        closing.finish(rootshell_runtime::perf::Outcome::Ok, &[]);
-+        #[cfg(target_os = "wasi")]
-+        file_span.finish(rootshell_runtime::perf::Outcome::Ok, &[]);
-         ui::progress("uploaded", sent, total);
-     }
-     ui::progress("uploaded", total, total);
-     ui::progress_end();
+-        ui::progress("uploaded", sent, total);
+-    }
+-    ui::progress("uploaded", total, total);
+-    ui::progress_end();
 -    ui::detail(&format!(
 -        "upload took {:.1} s",
 -        started.elapsed().as_secs_f64()
 -    ));
-+    let upload_seconds = started.elapsed().as_secs_f64();
-+    #[cfg(target_os = "wasi")]
-+    uploading.finish(rootshell_runtime::perf::Outcome::Ok, &[("bytes", sent)]);
-+    ui::ok(&format!("upload took {upload_seconds:.1} s"));
++            #[cfg(target_os = "wasi")]
++            closing.finish(rootshell_runtime::perf::Outcome::Ok, &[]);
++            #[cfg(target_os = "wasi")]
++            file_span.finish(rootshell_runtime::perf::Outcome::Ok, &[]);
++            ui::progress("uploaded", sent, total);
++        }
++        ui::progress("uploaded", total, total);
++        ui::progress_end();
++        let upload_seconds = started.elapsed().as_secs_f64();
++        #[cfg(target_os = "wasi")]
++        uploading.finish(rootshell_runtime::perf::Outcome::Ok, &[("bytes", sent)]);
++        ui::ok(&format!("upload took {upload_seconds:.1} s"));
  
-     // Every file, at its size: an incomplete bundle installs "fine".
-     ui::status("checking every file arrived whole");
-     let mut missing = Vec::new();
+-    // Every file, at its size: an incomplete bundle installs "fine".
+-    ui::status("checking every file arrived whole");
+-    let mut missing = Vec::new();
 -    for entry in entries.iter().filter(|e| !e.is_dir) {
-+    let checking = std::time::Instant::now();
-+    #[cfg(target_os = "wasi")]
-+    let verification = rootshell_runtime::perf::span("install.verify_upload", &[("files", files as u64)]);
-+    for (index, entry) in entries.iter().filter(|e| !e.is_dir).enumerate() {
-         let remote = format!("{remote_root}/{}", entry.relative);
+-        let remote = format!("{remote_root}/{}", entry.relative);
+-        match afc.get_file_info(remote).await {
+-            Ok(info) if info.size as u64 == entry.size => {}
+-            Ok(info) => missing.push(format!(
+-                "{} ({} of {} bytes)",
+-                entry.relative, info.size, entry.size
+-            )),
+-            Err(_) => missing.push(entry.relative.clone()),
++        // Every file, at its size: an incomplete bundle installs "fine".
++        ui::status("checking every file arrived whole");
++        let mut missing = Vec::new();
++        let checking = std::time::Instant::now();
 +        #[cfg(target_os = "wasi")]
-+        let check = rootshell_runtime::perf::span("install.verify_file", &[("index", index as u64), ("bytes", entry.size)]);
-+        #[cfg(target_os = "wasi")]
-+        let previous_missing = missing.len();
-         match afc.get_file_info(remote).await {
-+            Ok(info) if entry.symlink.is_some() && info.st_link_target == entry.symlink => {},
-+            Ok(_) if entry.symlink.is_some() => missing.push(format!("{} (symlink target changed)", entry.relative)),
-             Ok(info) if info.size as u64 == entry.size => {}
-             Ok(info) => missing.push(format!(
-                 "{} ({} of {} bytes)",
-@@ -121,7 +184,15 @@ pub async fn install(connection: &mut Connection, app_dir: &Path) -> Result<Stri
-             )),
-             Err(_) => missing.push(entry.relative.clone()),
++        let verification = rootshell_runtime::perf::span("install.verify_upload", &[("files", files as u64)]);
++        for (index, entry) in entries.iter().filter(|e| !e.is_dir).enumerate() {
++            let remote = format!("{remote_root}/{}", entry.relative);
++            #[cfg(target_os = "wasi")]
++            let check = rootshell_runtime::perf::span("install.verify_file", &[("index", index as u64), ("bytes", entry.size)]);
++            #[cfg(target_os = "wasi")]
++            let previous_missing = missing.len();
++            match afc.get_file_info(remote).await {
++                Ok(info) if entry.symlink.is_some() && info.st_link_target == entry.symlink => {},
++                Ok(_) if entry.symlink.is_some() => missing.push(format!("{} (symlink target changed)", entry.relative)),
++                Ok(info) if info.size as u64 == entry.size => {}
++                Ok(info) => missing.push(format!(
++                    "{} ({} of {} bytes)",
++                    entry.relative, info.size, entry.size
++                )),
++                Err(_) => missing.push(entry.relative.clone()),
++            }
++            #[cfg(target_os = "wasi")]
++            check.finish(if missing.len() == previous_missing { rootshell_runtime::perf::Outcome::Ok } else { rootshell_runtime::perf::Outcome::Error }, &[]);
++            ui::percent("verified files", ((index + 1) * 100 / files.max(1)) as u64);
          }
++        ui::progress_end();
++        let check_seconds = checking.elapsed().as_secs_f64();
 +        #[cfg(target_os = "wasi")]
-+        check.finish(if missing.len() == previous_missing { rootshell_runtime::perf::Outcome::Ok } else { rootshell_runtime::perf::Outcome::Error }, &[]);
-+        ui::percent("verified files", ((index + 1) * 100 / files.max(1)) as u64);
++        verification.finish(if missing.is_empty() { rootshell_runtime::perf::Outcome::Ok } else { rootshell_runtime::perf::Outcome::Error }, &[("missing", missing.len() as u64)]);
++        ui::ok(&format!("file verification took {check_seconds:.1} s"));
++        if !missing.is_empty() {
++            return Err(Fail::new(
++                format!(
++                    "{} files didn't arrive whole on the iPhone. Run siboot again.",
++                    missing.len()
++                ),
++                missing.join(", "),
++            ));
++        }
++        ui::ok("upload checked: every file arrived whole");
++
++        let mut proxy =
++            InstallationProxyClient::connect_rsd(&mut connection.adapter, &mut connection.handshake)
++                .await
++                .map_err(|e| {
++                    Fail::new(
++                        "Couldn't reach installation_proxy on this iPhone.",
++                        chain(&e),
++                    )
++                })?;
++        // Without PackageType Developer, installd never reads the embedded profile
++        // and rejects the bundle with 0xe8008015.
++        let mut options = plist::Dictionary::new();
++        options.insert("PackageType".into(), "Developer".into());
++        ui::status("installing; this phase is handled by iOS");
++        let installing = std::time::Instant::now();
++        #[cfg(target_os = "wasi")]
++        let system_install = rootshell_runtime::perf::span("install.ios", &[]);
++        #[cfg(target_os = "wasi")]
++        rootshell_runtime::perf::checkpoint();
++        let installed = proxy
++            .install_with_callback(
++                remote_root.clone(),
++                Some(plist::Value::Dictionary(options)),
++                |(percent, _): (u64, ())| async move {
++                    #[cfg(target_os = "wasi")]
++                    rootshell_runtime::perf::event("install.progress", &[("percent", percent)]);
++                    ui::percent("installed", percent);
++                },
++                (),
++            )
++            .await;
++        ui::progress_end();
++        #[cfg(target_os = "wasi")]
++        system_install.finish(if installed.is_ok() { rootshell_runtime::perf::Outcome::Ok } else { rootshell_runtime::perf::Outcome::Error }, &[]);
++        if let Err(e) = installed {
++            let raw = chain(&e);
++            return Err(Fail::new(install_advice(&raw), raw));
++        }
++        let install_seconds = installing.elapsed().as_secs_f64();
++        ui::ok(&format!("iOS installation took {install_seconds:.1} s"));
++        Ok(format!("{size} · upload {upload_seconds:.1}s · check {check_seconds:.1}s · iOS {install_seconds:.1}s"))
      }
-+    ui::progress_end();
-+    let check_seconds = checking.elapsed().as_secs_f64();
-+    #[cfg(target_os = "wasi")]
-+    verification.finish(if missing.is_empty() { rootshell_runtime::perf::Outcome::Ok } else { rootshell_runtime::perf::Outcome::Error }, &[("missing", missing.len() as u64)]);
-+    ui::ok(&format!("file verification took {check_seconds:.1} s"));
-     if !missing.is_empty() {
-         return Err(Fail::new(
-             format!(
-@@ -146,24 +217,35 @@ pub async fn install(connection: &mut Connection, app_dir: &Path) -> Result<Stri
-     // and rejects the bundle with 0xe8008015.
-     let mut options = plist::Dictionary::new();
-     options.insert("PackageType".into(), "Developer".into());
+-    if !missing.is_empty() {
+-        return Err(Fail::new(
+-            format!(
+-                "{} files didn't arrive whole on the iPhone. Run siboot again.",
+-                missing.len()
+-            ),
+-            missing.join(", "),
+-        ));
++    .await;
++    if stage_created {
++        if let Err(error) = afc.remove_all(remote_stage).await {
++            ui::warn("Couldn't clean up this upload's staging directory.");
++            ui::detail(&chain(&error));
++        }
+     }
+-    ui::ok("upload checked: every file arrived whole");
++    result
++}
+ 
+-    let mut proxy =
+-        InstallationProxyClient::connect_rsd(&mut connection.adapter, &mut connection.handshake)
+-            .await
+-            .map_err(|e| {
+-                Fail::new(
+-                    "Couldn't reach installation_proxy on this iPhone.",
+-                    chain(&e),
+-                )
+-            })?;
+-    // Without PackageType Developer, installd never reads the embedded profile
+-    // and rejects the bundle with 0xe8008015.
+-    let mut options = plist::Dictionary::new();
+-    options.insert("PackageType".into(), "Developer".into());
 -    ui::status("installing");
-+    ui::status("installing; this phase is handled by iOS");
-+    let installing = std::time::Instant::now();
-+    #[cfg(target_os = "wasi")]
-+    let system_install = rootshell_runtime::perf::span("install.ios", &[]);
-+    #[cfg(target_os = "wasi")]
-+    rootshell_runtime::perf::checkpoint();
-     let installed = proxy
-         .install_with_callback(
-             remote_root.clone(),
-             Some(plist::Value::Dictionary(options)),
-             |(percent, _): (u64, ())| async move {
-+                #[cfg(target_os = "wasi")]
-+                rootshell_runtime::perf::event("install.progress", &[("percent", percent)]);
-                 ui::percent("installed", percent);
-             },
-             (),
-         )
-         .await;
-     ui::progress_end();
-+    #[cfg(target_os = "wasi")]
-+    system_install.finish(if installed.is_ok() { rootshell_runtime::perf::Outcome::Ok } else { rootshell_runtime::perf::Outcome::Error }, &[]);
-     if let Err(e) = installed {
-         let raw = chain(&e);
-         return Err(Fail::new(install_advice(&raw), raw));
+-    let installed = proxy
+-        .install_with_callback(
+-            remote_root.clone(),
+-            Some(plist::Value::Dictionary(options)),
+-            |(percent, _): (u64, ())| async move {
+-                ui::percent("installed", percent);
+-            },
+-            (),
+-        )
+-        .await;
+-    ui::progress_end();
+-    if let Err(e) = installed {
+-        let raw = chain(&e);
+-        return Err(Fail::new(install_advice(&raw), raw));
++fn staging_paths(bundle_name: &str) -> Result<(String, String)> {
++    if !bundle_name.ends_with(".app")
++        || bundle_name.contains(['/', '\\', '\0'])
++        || Path::new(bundle_name).components().count() != 1
++    {
++        return Err(Fail::known("The signed app has an unsafe folder name."));
      }
-+    let install_seconds = installing.elapsed().as_secs_f64();
-+    ui::ok(&format!("iOS installation took {install_seconds:.1} s"));
-     let _ = afc.remove_all(remote_root).await;
+-    let _ = afc.remove_all(remote_root).await;
 -    Ok(size)
-+    Ok(format!("{size} · upload {upload_seconds:.1}s · check {check_seconds:.1}s · iOS {install_seconds:.1}s"))
++    let parent = format!("{STAGING}/siboot-{}", uuid::Uuid::new_v4());
++    let app = format!("{parent}/{bundle_name}");
++    Ok((parent, app))
  }
  
  fn install_advice(raw: &str) -> String {
-@@ -178,7 +260,7 @@ fn install_advice(raw: &str) -> String {
+@@ -178,7 +288,7 @@ fn install_advice(raw: &str) -> String {
           profile may not include this iPhone."
              .into()
      } else {
@@ -2543,30 +2709,68 @@ index 904e836..6baa212 100644
      }
  }
  
-@@ -191,7 +273,7 @@ pub fn bundle_entries(root: &Path) -> std::io::Result<Vec<Entry>> {
+@@ -186,54 +296,194 @@ fn install_advice(raw: &str) -> String {
+ /// stable order.
+ pub fn bundle_entries(root: &Path) -> std::io::Result<Vec<Entry>> {
+     let mut out = Vec::new();
+-    walk(root, root, &mut out)?;
++    let canonical_root = bundle_fs::canonicalize(root)?;
++    walk(root, &canonical_root, root, &mut out, 0)?;
+     Ok(out)
  }
  
- fn walk(root: &Path, dir: &Path, out: &mut Vec<Entry>) -> std::io::Result<()> {
+-fn walk(root: &Path, dir: &Path, out: &mut Vec<Entry>) -> std::io::Result<()> {
 -    let mut children: Vec<PathBuf> = std::fs::read_dir(dir)?
++fn walk(
++    root: &Path,
++    canonical_root: &Path,
++    dir: &Path,
++    out: &mut Vec<Entry>,
++    depth: usize,
++) -> std::io::Result<()> {
++    if depth > 128 {
++        return Err(std::io::Error::new(
++            std::io::ErrorKind::InvalidData,
++            "The app directory tree is too deep",
++        ));
++    }
 +    let mut children: Vec<PathBuf> = bundle_fs::read_dir(dir)?
          .map(|entry| entry.map(|e| e.path()))
          .collect::<std::io::Result<_>>()?;
      children.sort();
-@@ -201,13 +283,23 @@ fn walk(root: &Path, dir: &Path, out: &mut Vec<Entry>) -> std::io::Result<()> {
-             .map_err(|e| std::io::Error::other(e.to_string()))?
-             .to_string_lossy()
-             .replace('\\', "/");
+     for path in children {
+-        let relative = path
+-            .strip_prefix(root)
+-            .map_err(|e| std::io::Error::other(e.to_string()))?
+-            .to_string_lossy()
+-            .replace('\\', "/");
 -        // Follows symlinks: AFC uploads their contents as plain files.
 -        let meta = std::fs::metadata(&path)?;
++        let relative = upload_relative_path(root, &path)?;
 +        let meta = bundle_fs::symlink_metadata(&path)?;
 +        if meta.file_type().is_symlink() {
 +            let canonical = bundle_fs::canonicalize(&path)?;
-+            if !canonical.starts_with(bundle_fs::canonicalize(root)?) {
++            if !canonical.starts_with(canonical_root) {
 +                return Err(std::io::Error::other("A symlink escapes the signed app"));
 +            }
 +            let target = bundle_fs::read_link(&path)?;
-+            if target.is_absolute() { return Err(std::io::Error::other("App symlinks must use relative targets")); }
-+            out.push(Entry { relative, is_dir: false, size: 0, symlink: Some(target.to_string_lossy().into_owned()) });
++            if target.is_absolute() {
++                return Err(std::io::Error::other(
++                    "App symlinks must use relative targets",
++                ));
++            }
++            let target = target.to_str().ok_or_else(|| {
++                std::io::Error::new(
++                    std::io::ErrorKind::InvalidData,
++                    "A symlink target is not valid UTF-8",
++                )
++            })?;
++            out.push(Entry {
++                relative,
++                is_dir: false,
++                size: 0,
++                symlink: Some(target.to_owned()),
++            });
 +            continue;
 +        }
          if meta.is_dir() {
@@ -2576,20 +2780,88 @@ index 904e836..6baa212 100644
                  size: 0,
 +                symlink: None,
              });
-             walk(root, &path, out)?;
-         } else {
-@@ -215,6 +307,7 @@ fn walk(root: &Path, dir: &Path, out: &mut Vec<Entry>) -> std::io::Result<()> {
+-            walk(root, &path, out)?;
+-        } else {
++            walk(root, canonical_root, &path, out, depth + 1)?;
++        } else if meta.is_file() {
+             out.push(Entry {
                  relative,
                  is_dir: false,
                  size: meta.len(),
 +                symlink: None,
              });
++        } else {
++            return Err(std::io::Error::new(
++                std::io::ErrorKind::InvalidData,
++                "The app contains a non-regular file",
++            ));
          }
      }
-@@ -225,15 +318,39 @@ fn walk(root: &Path, dir: &Path, out: &mut Vec<Entry>) -> std::io::Result<()> {
+     Ok(())
+ }
+ 
++fn upload_relative_path(root: &Path, path: &Path) -> std::io::Result<String> {
++    use std::{io, path::Component};
++    let invalid = || io::Error::new(io::ErrorKind::InvalidData, "Unsafe app upload path");
++    let relative = path.strip_prefix(root).map_err(|_| invalid())?;
++    let mut names = Vec::new();
++    for component in relative.components() {
++        let Component::Normal(name) = component else {
++            return Err(invalid());
++        };
++        let name = name.to_str().ok_or_else(invalid)?;
++        // Never translate a literal backslash into '/', which could turn a
++        // harmless local filename into an AFC traversal or a path collision.
++        if name.contains(['\\', '\0']) {
++            return Err(invalid());
++        }
++        names.push(name);
++    }
++    if names.is_empty() {
++        return Err(invalid());
++    }
++    Ok(names.join("/"))
++}
++
+ #[cfg(test)]
  mod tests {
      use super::*;
  
++    #[test]
++    fn upload_paths_never_reinterpret_separators_or_escape_the_bundle() {
++        let root = Path::new("Demo.app");
++        assert_eq!(
++            upload_relative_path(root, &root.join("Resources/a.config")).unwrap(),
++            "Resources/a.config"
++        );
++        assert!(upload_relative_path(root, &root.join("a\\..\\..\\outside")).is_err());
++        assert!(upload_relative_path(root, Path::new("outside/file")).is_err());
++        assert!(upload_relative_path(root, &root.join("../outside")).is_err());
++        assert!(upload_relative_path(root, root).is_err());
++        #[cfg(unix)]
++        {
++            use std::os::unix::ffi::OsStringExt;
++            let bad = root.join(std::ffi::OsString::from_vec(vec![255]));
++            assert!(upload_relative_path(root, &bad).is_err());
++        }
++    }
++
++    #[test]
++    fn each_upload_has_its_own_staging_parent() {
++        let first = staging_paths("Demo.app").unwrap();
++        let second = staging_paths("Demo.app").unwrap();
++        assert_ne!(first.0, second.0);
++        assert_eq!(first.1, format!("{}/Demo.app", first.0));
++        for name in [
++            "../Demo.app",
++            "a\\..\\Demo.app",
++            "Demo",
++            "Demo.app/other.app",
++        ] {
++            assert!(staging_paths(name).is_err());
++        }
++    }
++
 +    #[cfg(unix)]
 +    #[test]
 +    fn uploads_symlinks_without_flattening_them_and_rejects_external_targets() {
@@ -2601,9 +2873,27 @@ index 904e836..6baa212 100644
 +        symlink("A", app.join("Versions/Current")).unwrap();
 +        symlink("Versions/Current/Core", app.join("Core")).unwrap();
 +        let entries = bundle_entries(&app).unwrap();
-+        assert_eq!(entries.iter().find(|e| e.relative == "Core").unwrap().symlink.as_deref(), Some("Versions/Current/Core"));
-+        assert_eq!(entries.iter().find(|e| e.relative == "Versions/Current").unwrap().symlink.as_deref(), Some("A"));
-+        assert!(!entries.iter().any(|e| e.relative == "Versions/Current/Core"));
++        assert_eq!(
++            entries
++                .iter()
++                .find(|e| e.relative == "Core")
++                .unwrap()
++                .symlink
++                .as_deref(),
++            Some("Versions/Current/Core")
++        );
++        assert_eq!(
++            entries
++                .iter()
++                .find(|e| e.relative == "Versions/Current")
++                .unwrap()
++                .symlink
++                .as_deref(),
++            Some("A")
++        );
++        assert!(!entries
++            .iter()
++            .any(|e| e.relative == "Versions/Current/Core"));
 +        assert_eq!(entries.iter().map(|e| e.size).sum::<u64>(), 13);
 +        bundle_fs::write(root.join("outside"), b"outside the signed bundle").unwrap();
 +        symlink("../outside", app.join("escape")).unwrap();
@@ -2633,10 +2923,10 @@ index 904e836..6baa212 100644
          assert_eq!(
 diff --git a/minis/src/ipa.rs b/minis/src/ipa.rs
 new file mode 100644
-index 0000000..32f6b78
+index 0000000..3ee57cc
 --- /dev/null
 +++ b/minis/src/ipa.rs
-@@ -0,0 +1,171 @@
+@@ -0,0 +1,227 @@
 +//! Bounded uploads from Files into Minis, with a private staging file.
 +
 +use std::io::{self, Read, Write};
@@ -2644,6 +2934,27 @@ index 0000000..32f6b78
 +
 +pub const CHUNK_SIZE: usize = 256 * 1024;
 +pub const MAX_SIZE: u64 = 4 * 1024 * 1024 * 1024;
++
++/// Fill an upload-sized buffer across short reads. rootshell reads at most
++/// 32 KiB per host reply, but AFC should still send a single 1 MiB request.
++pub fn read_chunk(source: &mut impl Read, buffer: &mut [u8]) -> io::Result<usize> {
++    let mut filled = 0;
++    while filled < buffer.len() {
++        match source.read(&mut buffer[filled..]) {
++            Ok(0) => break,
++            Ok(count) if count <= buffer.len() - filled => filled += count,
++            Ok(_) => {
++                return Err(io::Error::new(
++                    io::ErrorKind::InvalidData,
++                    "Invalid file read length",
++                ))
++            }
++            Err(error) if error.kind() == io::ErrorKind::Interrupted => continue,
++            Err(error) => return Err(error),
++        }
++    }
++    Ok(filled)
++}
 +
 +/// Only a browser-uploaded copy is owned here; a --ipa path is never deleted.
 +pub struct Imported(pub PathBuf);
@@ -2663,7 +2974,10 @@ index 0000000..32f6b78
 +
 +impl Upload {
 +    pub fn new(folder: &Path, total: u64) -> io::Result<Self> {
++        #[cfg(not(target_os = "wasi"))]
 +        std::fs::create_dir_all(folder)?;
++        #[cfg(target_os = "wasi")]
++        rootshell_runtime::directory::create_all(folder)?;
 +        let path = folder.join(format!("{}.ipa.part", uuid::Uuid::new_v4()));
 +        let mut options = std::fs::OpenOptions::new();
 +        options.write(true).create_new(true);
@@ -2723,7 +3037,10 @@ index 0000000..32f6b78
 +/// read the main app's small Info.plist; the signer handles the entire bundle.
 +pub fn validate(path: &Path) -> io::Result<()> {
 +    let invalid = |message| io::Error::new(io::ErrorKind::InvalidData, message);
++    #[cfg(not(target_os = "wasi"))]
 +    let file = std::fs::File::open(path)?;
++    #[cfg(target_os = "wasi")]
++    let file = rootshell_runtime::vfs::File::open(path)?;
 +    let mut archive = zip::ZipArchive::new(file).map_err(|e| invalid(e.to_string()))?;
 +    let infos: Vec<String> = archive
 +        .file_names()
@@ -2763,6 +3080,35 @@ index 0000000..32f6b78
 +#[cfg(test)]
 +pub mod tests {
 +    use super::*;
++
++    #[test]
++    fn short_reads_are_aggregated_without_losing_bytes_or_interrupts() {
++        struct Short {
++            bytes: io::Cursor<Vec<u8>>,
++            interrupted: bool,
++        }
++        impl Read for Short {
++            fn read(&mut self, out: &mut [u8]) -> io::Result<usize> {
++                if !self.interrupted {
++                    self.interrupted = true;
++                    return Err(io::ErrorKind::Interrupted.into());
++                }
++                let end = out.len().min(7);
++                self.bytes.read(&mut out[..end])
++            }
++        }
++        let original: Vec<_> = (0..150).map(|n| n as u8).collect();
++        let mut input = Short {
++            bytes: io::Cursor::new(original.clone()),
++            interrupted: false,
++        };
++        let mut buffer = [0; 100];
++        assert_eq!(read_chunk(&mut input, &mut buffer).unwrap(), 100);
++        assert_eq!(buffer.as_slice(), &original[..100]);
++        assert_eq!(read_chunk(&mut input, &mut buffer).unwrap(), 50);
++        assert_eq!(&buffer[..50], &original[100..]);
++        assert_eq!(read_chunk(&mut input, &mut buffer).unwrap(), 0);
++    }
 +
 +    pub fn fixture() -> Vec<u8> {
 +        let mut zip = zip::ZipWriter::new(io::Cursor::new(Vec::new()));
@@ -3431,10 +3777,10 @@ index 048e534..073c1bd 100644
          assert!(!path.exists());
 diff --git a/minis/src/pairing_files.rs b/minis/src/pairing_files.rs
 new file mode 100644
-index 0000000..c0b54b6
+index 0000000..0ec068b
 --- /dev/null
 +++ b/minis/src/pairing_files.rs
-@@ -0,0 +1,267 @@
+@@ -0,0 +1,339 @@
 +//! Select an iSH pairing file and retain a verified private copy beside siboot.
 +
 +use std::io::{self, Read};
@@ -3470,18 +3816,32 @@ index 0000000..c0b54b6
 +
 +#[cfg(target_os = "wasi")]
 +pub fn default_path() -> PathBuf {
-+    let argument = std::env::args_os().next().map(PathBuf::from).unwrap_or_else(|| "siboot.wasm".into());
++    let argument = std::env::args_os()
++        .next()
++        .map(PathBuf::from)
++        .unwrap_or_else(|| "siboot.wasm".into());
 +    let cwd = std::env::current_dir().unwrap_or_else(|_| "/".into());
 +    // rootshell resolves a bare module name in cwd, then HOME/bin. PATH is
 +    // the native shell's PATH and does not describe WASM module lookup.
 +    let candidates = if argument.is_absolute() || argument.components().count() > 1 {
-+        vec![if argument.is_absolute() { argument } else { cwd.join(argument) }]
++        vec![if argument.is_absolute() {
++            argument
++        } else {
++            cwd.join(argument)
++        }]
 +    } else {
-+        let home = std::env::var_os("HOME").map(PathBuf::from).unwrap_or_else(|| "/".into());
++        let home = std::env::var_os("HOME")
++            .map(PathBuf::from)
++            .unwrap_or_else(|| "/".into());
 +        vec![cwd.join(&argument), home.join("bin").join(argument)]
 +    };
-+    candidates.into_iter().find(|path| path.is_file()).and_then(|path| path.canonicalize().ok())
-+        .and_then(|path| path.parent().map(Path::to_path_buf)).unwrap_or(cwd).join("rp_pairing_file.plist")
++    candidates
++        .into_iter()
++        .find(|path| path.is_file())
++        .and_then(|path| path.canonicalize().ok())
++        .and_then(|path| path.parent().map(Path::to_path_buf))
++        .unwrap_or(cwd)
++        .join("rp_pairing_file.plist")
 +}
 +
 +pub fn expand_path(path: &Path) -> PathBuf {
@@ -3505,23 +3865,58 @@ index 0000000..c0b54b6
 +
 +pub fn read(path: &Path) -> io::Result<Vec<u8>> {
 +    let mut bytes = Vec::new();
-+    std::fs::File::open(path)?
-+        .take((MAX_PAIRING + 1) as u64)
++    #[cfg(not(target_os = "wasi"))]
++    let file = std::fs::File::open(path)?;
++    #[cfg(target_os = "wasi")]
++    let file = rootshell_runtime::vfs::File::open(path)?;
++    file.take((MAX_PAIRING + 1) as u64)
 +        .read_to_end(&mut bytes)?;
 +    normalize(&bytes)
 +}
 +
 +pub fn normalize(bytes: &[u8]) -> io::Result<Vec<u8>> {
-+    if bytes.len() > MAX_PAIRING {
++    normalize_nested(bytes, 0)
++}
++
++fn normalize_nested(bytes: &[u8], depth: u8) -> io::Result<Vec<u8>> {
++    if bytes.len() > MAX_PAIRING || depth > 3 {
 +        return Err(invalid());
 +    }
-+    let value = plist::from_bytes::<Value>(bytes)
++    let value = bounded_plist(bytes)
 +        .or_else(|_| {
 +            let json: serde_json::Value = serde_json::from_slice(bytes).map_err(|_| invalid())?;
 +            json_plist(&json).ok_or_else(invalid)
 +        })
 +        .map_err(|_| invalid())?;
-+    decode(value, 0)
++    decode(value, depth)
++}
++
++// Validate container depth with the iterative event reader before building a
++// recursive Value. A small file can still contain thousands of nested arrays.
++fn bounded_plist(bytes: &[u8]) -> io::Result<Value> {
++    let mut depth = 0usize;
++    for (count, event) in plist::stream::Reader::new(io::Cursor::new(bytes)).enumerate() {
++        if count >= 16_384 {
++            return Err(invalid());
++        }
++        match event.map_err(|_| invalid())? {
++            plist::stream::Event::StartArray(length)
++            | plist::stream::Event::StartDictionary(length) => {
++                if length.is_some_and(|length| length > 16_384) {
++                    return Err(invalid());
++                }
++                depth += 1;
++                if depth > 16 {
++                    return Err(invalid());
++                }
++            }
++            plist::stream::Event::EndCollection => {
++                depth = depth.checked_sub(1).ok_or_else(invalid)?
++            }
++            _ => {}
++        }
++    }
++    plist::from_bytes(bytes).map_err(|_| invalid())
 +}
 +
 +fn decode(value: Value, depth: u8) -> io::Result<Vec<u8>> {
@@ -3554,8 +3949,9 @@ index 0000000..c0b54b6
 +        if let Some(nested) = dict.get(key) {
 +            return match nested {
 +                Value::Dictionary(_) => decode(nested.clone(), depth + 1),
-+                Value::Data(bytes) => normalize(bytes),
-+                Value::String(text) => normalize(text.as_bytes()),
++                // Serialized and dictionary wrappers share one depth budget.
++                Value::Data(bytes) => normalize_nested(bytes, depth + 1),
++                Value::String(text) => normalize_nested(text.as_bytes(), depth + 1),
 +                _ => Err(invalid()),
 +            };
 +        }
@@ -3659,6 +4055,28 @@ index 0000000..c0b54b6
 +#[cfg(test)]
 +mod tests {
 +    use super::*;
++
++    #[test]
++    fn rejects_deep_plist_containers_before_recursive_deserialization() {
++        let xml = format!(
++            "<?xml version=\"1.0\"?><plist version=\"1.0\">{}<string>x</string>{}</plist>",
++            "<array>".repeat(256),
++            "</array>".repeat(256)
++        );
++        assert!(normalize(xml.as_bytes()).is_err());
++    }
++
++    #[test]
++    fn serialized_wrappers_cannot_reset_the_recursion_limit() {
++        let mut bytes = RpPairingFile::generate("depth-test").to_bytes();
++        for depth in 1..=5 {
++            let mut wrapper = Dictionary::new();
++            wrapper.insert("RPPairing".into(), Value::Data(bytes));
++            bytes = Vec::new();
++            plist::to_writer_binary(&mut bytes, &wrapper).unwrap();
++            assert_eq!(normalize(&bytes).is_ok(), depth <= 3);
++        }
++    }
 +
 +    #[test]
 +    fn imports_remote_pairing_and_preserves_existing_output_until_verified() {
@@ -3801,10 +4219,10 @@ index bbd0adc..06525c6 100644
      match client
 diff --git a/minis/src/renew.rs b/minis/src/renew.rs
 new file mode 100644
-index 0000000..e10225c
+index 0000000..4d4c3f1
 --- /dev/null
 +++ b/minis/src/renew.rs
-@@ -0,0 +1,210 @@
+@@ -0,0 +1,223 @@
 +//! Retain the last successfully installed original IPA for a real re-sign.
 +use std::io::{self, Read, Write};
 +use std::path::{Path, PathBuf};
@@ -3856,7 +4274,17 @@ index 0000000..e10225c
 +}
 +
 +pub fn load(home: &Path) -> io::Result<Option<SavedApp>> {
-+    let file = match std::fs::File::open(metadata(home)) {
++    Ok(load_original(home)?.map(|(saved, _)| saved))
++}
++
++/// Read and validate a renewal snapshot once. Callers retain its IPA path and
++/// bundle identity together instead of repeatedly reopening the same archive.
++pub fn load_original(home: &Path) -> io::Result<Option<(SavedApp, PathBuf)>> {
++    #[cfg(target_os = "wasi")]
++    use rootshell_runtime::vfs::File;
++    #[cfg(not(target_os = "wasi"))]
++    use std::fs::File;
++    let file = match File::open(metadata(home)) {
 +        Err(error) if error.kind() == io::ErrorKind::NotFound => return Ok(None),
 +        other => other?,
 +    };
@@ -3866,8 +4294,8 @@ index 0000000..e10225c
 +        return Err(io::Error::other("Renewal metadata is too large"));
 +    }
 +    let saved: SavedApp = serde_json::from_slice(&bytes).map_err(io::Error::other)?;
-+    saved.ipa(home)?;
-+    Ok(Some(saved))
++    let original = saved.ipa(home)?;
++    Ok(Some((saved, original)))
 +}
 +
 +/// A browser upload is moved, not copied. External user files stay untouched.
@@ -3902,12 +4330,15 @@ index 0000000..e10225c
 +                options.mode(0o600);
 +            }
 +            let mut output = options.open(&destination)?;
++            #[cfg(not(target_os = "wasi"))]
 +            let mut input = std::fs::File::open(source)?;
++            #[cfg(target_os = "wasi")]
++            let mut input = rootshell_runtime::vfs::File::open(source)?;
 +            let total = input.metadata()?.len();
 +            let mut copied = 0;
 +            let mut buffer = vec![0u8; 1024 * 1024];
 +            loop {
-+                let count = input.read(&mut buffer)?;
++                let count = crate::ipa::read_chunk(&mut input, &mut buffer)?;
 +                if count == 0 {
 +                    break;
 +                }
@@ -4126,8 +4557,25 @@ index 0000000..e71151f
 +        assert!(failure.by_user);
 +    }
 +}
+diff --git a/minis/src/seed.rs b/minis/src/seed.rs
+index 0f190dc..da4159f 100644
+--- a/minis/src/seed.rs
++++ b/minis/src/seed.rs
+@@ -34,7 +34,11 @@ pub async fn hand_over(
+     pairing_path: &Path,
+ ) -> Result<()> {
+     ui::activity("opening SideInstaller's container");
+-    let pairing = std::fs::read(pairing_path).map_err(|e| {
++    #[cfg(target_os = "wasi")]
++    use rootshell_runtime::vfs as fs;
++    #[cfg(not(target_os = "wasi"))]
++    use std::fs;
++    let pairing = fs::read(pairing_path).map_err(|e| {
+         Fail::new(
+             format!("Couldn't read {}.", pairing_path.display()),
+             e.to_string(),
 diff --git a/minis/src/sign.rs b/minis/src/sign.rs
-index a3ef7e5..68eda15 100644
+index a3ef7e5..2e441b1 100644
 --- a/minis/src/sign.rs
 +++ b/minis/src/sign.rs
 @@ -1,8 +1,6 @@
@@ -4153,7 +4601,7 @@ index a3ef7e5..68eda15 100644
  
  pub struct Signed {
      /// The signed `.app` folder, ready to upload.
-@@ -25,109 +19,34 @@ pub struct Signed {
+@@ -25,109 +19,37 @@ pub struct Signed {
      pub version: Option<String>,
  }
  
@@ -4177,9 +4625,9 @@ index a3ef7e5..68eda15 100644
 +impl Signed {
 +    /// Re-signing appends the developer team's identifier.
 +    pub fn is_sideinstaller(&self) -> bool {
-+        ["com.frizzlem.sideinstaller", "com.frizzle.sideinstaller"].iter().any(|base| {
-+            self.bundle_id == *base || self.bundle_id.starts_with(&format!("{base}."))
-+        })
++        ["com.frizzlem.sideinstaller", "com.frizzle.sideinstaller"]
++            .iter()
++            .any(|base| self.bundle_id == *base || self.bundle_id.starts_with(&format!("{base}.")))
      }
  }
  
@@ -4207,7 +4655,10 @@ index a3ef7e5..68eda15 100644
 -        ));
 +/// Only local files are accepted; selecting an app never downloads an IPA.
 +pub fn local_ipa(args: &Args) -> Result<PathBuf> {
-+    let source = args.ipa.as_deref().ok_or_else(|| Fail::known("Choose a local IPA, or pass --ipa /path/to/App.ipa."))?;
++    let source = args
++        .ipa
++        .as_deref()
++        .ok_or_else(|| Fail::known("Choose a local IPA, or pass --ipa /path/to/App.ipa."))?;
 +    if source.starts_with("https://") || source.starts_with("http://") {
 +        return Err(Fail::known("IPA URLs are no longer supported. Download the IPA yourself and select the local file."));
      }
@@ -4282,19 +4733,28 @@ index a3ef7e5..68eda15 100644
  }
  
  pub async fn sign(session: &mut Session, ipa: &Path, device: &DeviceInfo) -> Result<Signed> {
-@@ -180,7 +99,10 @@ fn sign_advice(text: &str) -> String {
+@@ -180,7 +102,19 @@ fn sign_advice(text: &str) -> String {
  
  /// Bundle id, Home Screen name and version of the signed app.
  fn bundle_info(app_dir: &Path) -> Result<(String, String, Option<String>)> {
 -    let info: plist::Dictionary = plist::from_file(app_dir.join("Info.plist"))
 +    let info_path = app_dir.join("Info.plist");
 +    #[cfg(target_os = "wasi")]
-+    let info_path = rootshell_runtime::vfs::canonicalize(&info_path).map_err(|e| Fail::new("The signed app has no readable Info.plist.", e.to_string()))?;
++    let info_path = rootshell_runtime::vfs::canonicalize(&info_path)
++        .map_err(|e| Fail::new("The signed app has no readable Info.plist.", e.to_string()))?;
++    #[cfg(target_os = "wasi")]
++    let info = rootshell_runtime::vfs::read(info_path)
++        .map_err(|e| Fail::new("The signed app has no readable Info.plist.", e.to_string()))
++        .and_then(|bytes| {
++            plist::from_bytes::<plist::Dictionary>(&bytes)
++                .map_err(|e| Fail::new("The signed app has no readable Info.plist.", e.to_string()))
++        })?;
++    #[cfg(not(target_os = "wasi"))]
 +    let info: plist::Dictionary = plist::from_file(info_path)
          .map_err(|e| Fail::new("The signed app has no readable Info.plist.", e.to_string()))?;
      let text = |key: &str| {
          info.get(key)
-@@ -196,7 +118,7 @@ fn bundle_info(app_dir: &Path) -> Result<(String, String, Option<String>)> {
+@@ -196,7 +130,7 @@ fn bundle_info(app_dir: &Path) -> Result<(String, String, Option<String>)> {
      let name = text("CFBundleDisplayName")
          .filter(|n| !n.is_empty())
          .or_else(|| text("CFBundleName"))
@@ -4303,7 +4763,7 @@ index a3ef7e5..68eda15 100644
      let version = text("CFBundleShortVersionString").filter(|v| !v.is_empty());
      Ok((bundle_id, name, version))
  }
-@@ -205,12 +127,39 @@ fn bundle_info(app_dir: &Path) -> Result<(String, String, Option<String>)> {
+@@ -205,12 +139,62 @@ fn bundle_info(app_dir: &Path) -> Result<(String, String, Option<String>)> {
  mod tests {
      use super::*;
  
@@ -4314,12 +4774,22 @@ index a3ef7e5..68eda15 100644
 +        let ipa = root.join("Local.ipa");
 +        std::fs::write(&ipa, crate::ipa::tests::fixture()).unwrap();
 +        let args = |source: &str| {
-+            let crate::Parsed::Run(args) = crate::parse_args(["--ipa".into(), source.into()]).unwrap() else { panic!("install arguments") };
++            let crate::Parsed::Run(args) =
++                crate::parse_args(["--ipa".into(), source.into()]).unwrap()
++            else {
++                panic!("install arguments")
++            };
 +            args
 +        };
 +        assert_eq!(local_ipa(&args(ipa.to_str().unwrap())).unwrap(), ipa);
-+        for source in ["https://example.invalid/App.ipa", "http://127.0.0.1/App.ipa"] {
-+            assert!(local_ipa(&args(source)).unwrap_err().advice.contains("URLs are no longer supported"));
++        for source in [
++            "https://example.invalid/App.ipa",
++            "http://127.0.0.1/App.ipa",
++        ] {
++            assert!(local_ipa(&args(source))
++                .unwrap_err()
++                .advice
++                .contains("URLs are no longer supported"));
 +        }
 +        std::fs::write(&ipa, b"not a ZIP").unwrap();
 +        assert!(local_ipa(&args(ipa.to_str().unwrap())).is_err());
@@ -4328,9 +4798,22 @@ index a3ef7e5..68eda15 100644
 +
 +    #[test]
 +    fn only_sideinstaller_receives_the_pairing_file() {
-+        for id in ["com.frizzlem.sideinstaller", "com.frizzle.sideinstaller.TEAM123456", "example.demo", "com.frizzle.sideinstaller-copy"] {
-+            let signed = Signed { app_dir: PathBuf::new(), bundle_id: id.into(), name: "App".into(), version: None };
-+            assert_eq!(signed.is_sideinstaller(), id == "com.frizzlem.sideinstaller" || id == "com.frizzle.sideinstaller.TEAM123456");
++        for id in [
++            "com.frizzlem.sideinstaller",
++            "com.frizzle.sideinstaller.TEAM123456",
++            "example.demo",
++            "com.frizzle.sideinstaller-copy",
++        ] {
++            let signed = Signed {
++                app_dir: PathBuf::new(),
++                bundle_id: id.into(),
++                name: "App".into(),
++                version: None,
++            };
++            assert_eq!(
++                signed.is_sideinstaller(),
++                id == "com.frizzlem.sideinstaller" || id == "com.frizzle.sideinstaller.TEAM123456"
++            );
 +        }
 +    }
 +
@@ -4626,10 +5109,10 @@ index 96b7dc1..7403ca6 100644
      #[test]
 diff --git a/minis/src/vault.rs b/minis/src/vault.rs
 new file mode 100644
-index 0000000..f9acca9
+index 0000000..e45c84d
 --- /dev/null
 +++ b/minis/src/vault.rs
-@@ -0,0 +1,391 @@
+@@ -0,0 +1,421 @@
 +//! Passphrase-encrypted Apple login and authenticated signing-cache storage.
 +//! iSH has no system keychain; the unlock passphrase is never persisted.
 +
@@ -4722,16 +5205,23 @@ index 0000000..f9acca9
 +        use std::io::Write;
 +        private_directory(home)?;
 +        let path = home.join("apple-login.active");
-+        let mut file = std::fs::OpenOptions::new().write(true).create_new(true).open(&path)?;
++        let mut file = std::fs::OpenOptions::new()
++            .write(true)
++            .create_new(true)
++            .open(&path)?;
 +        let lock = Self(path);
-+        file.write_all(b"siboot rootshell session; remove only after every siboot tab has stopped\n")?;
++        file.write_all(
++            b"siboot rootshell session; remove only after every siboot tab has stopped\n",
++        )?;
 +        file.sync_all()?;
 +        Ok(lock)
 +    }
 +}
 +#[cfg(target_os = "wasi")]
 +impl Drop for Lock {
-+    fn drop(&mut self) { let _ = std::fs::remove_file(&self.0); }
++    fn drop(&mut self) {
++        let _ = std::fs::remove_file(&self.0);
++    }
 +}
 +
 +fn invalid() -> io::Error {
@@ -4746,7 +5236,10 @@ index 0000000..f9acca9
 +}
 +
 +pub fn private_directory(path: &Path) -> io::Result<()> {
++    #[cfg(not(target_os = "wasi"))]
 +    std::fs::create_dir_all(path)?;
++    #[cfg(target_os = "wasi")]
++    rootshell_runtime::directory::create_all(path)?;
 +    #[cfg(unix)]
 +    {
 +        use std::os::unix::fs::PermissionsExt;
@@ -4840,7 +5333,10 @@ index 0000000..f9acca9
 +                    .map_err(io::Error::other)?
 +                    .to_str()
 +                    .ok_or_else(invalid)?;
++                #[cfg(not(target_os = "wasi"))]
 +                let bytes = Zeroizing::new(std::fs::read(&path)?);
++                #[cfg(target_os = "wasi")]
++                let bytes = Zeroizing::new(rootshell_runtime::vfs::read(&path)?);
 +                if bytes.starts_with(HEADER) {
 +                    let _checked = Zeroizing::new(self.open(relative, &bytes)?);
 +                    #[cfg(unix)]
@@ -4886,12 +5382,20 @@ index 0000000..f9acca9
 +}
 +
 +pub fn unlock(home: &Path, passphrase: &str) -> io::Result<SavedLogin> {
++    use std::io::Read;
 +    let file = path(home);
-+    if std::fs::metadata(&file)?.len() > MAX_VAULT {
++    #[cfg(not(target_os = "wasi"))]
++    let input = std::fs::File::open(&file)?;
++    #[cfg(target_os = "wasi")]
++    let input = rootshell_runtime::vfs::File::open(&file)?;
++    // Bound the actual read: an earlier stat does not constrain a file that
++    // grows before it is read, and WASI replies have a fixed mailbox size.
++    let mut encoded = Vec::new();
++    input.take(MAX_VAULT + 1).read_to_end(&mut encoded)?;
++    if encoded.len() as u64 > MAX_VAULT {
 +        return Err(invalid());
 +    }
-+    let envelope: Envelope =
-+        serde_json::from_slice(&std::fs::read(file)?).map_err(|_| invalid())?;
++    let envelope: Envelope = serde_json::from_slice(&encoded).map_err(|_| invalid())?;
 +    if envelope.version != 1 {
 +        return Err(invalid());
 +    }
@@ -4937,6 +5441,15 @@ index 0000000..f9acca9
 +mod tests {
 +    use super::*;
 +    use isideload::util::storage::SideloadingStorage;
++
++    #[test]
++    fn oversized_vault_is_rejected_before_unlocking() {
++        let home = std::env::temp_dir().join(format!("siboot-vault-size-{}", uuid::Uuid::new_v4()));
++        private_directory(&home).unwrap();
++        std::fs::write(path(&home), vec![b'x'; MAX_VAULT as usize + 1]).unwrap();
++        assert!(unlock(&home, "separate local unlock passphrase").is_err());
++        std::fs::remove_dir_all(home).unwrap();
++    }
 +
 +    #[test]
 +    fn login_and_cache_are_authenticated_encrypted_and_private() {
@@ -5684,7 +6197,7 @@ index 9066841..b4b1891 100644
      fn an_empty_answer_asks_again_and_cancel_stops() {
          let server = leaked();
 diff --git a/rootshell/Cargo.lock b/rootshell/Cargo.lock
-index 86f81bc..ea2c03f 100644
+index 86f81bc..eb89d78 100644
 --- a/rootshell/Cargo.lock
 +++ b/rootshell/Cargo.lock
 @@ -2,16 +2,32 @@
@@ -8583,7 +9096,7 @@ index 86f81bc..ea2c03f 100644
 -name = "siboot-pair"
 -version = "0.4.0"
 +name = "siboot-rootshell"
-+version = "0.21.2"
++version = "0.21.3"
  dependencies = [
 + "apple-codesign-quick",
   "base64 0.22.1",
@@ -9412,15 +9925,15 @@ index 86f81bc..ea2c03f 100644
 + "simd-adler32",
 +]
 diff --git a/rootshell/Cargo.toml b/rootshell/Cargo.toml
-index 128e6d7..4dbf085 100644
+index 128e6d7..9db91ee 100644
 --- a/rootshell/Cargo.toml
 +++ b/rootshell/Cargo.toml
-@@ -1,52 +1,62 @@
+@@ -1,52 +1,63 @@
  [package]
 -name = "siboot-pair"
 -version = "0.4.0"
 +name = "siboot-rootshell"
-+version = "0.21.2"
++version = "0.21.3"
  edition = "2021"
 -description = "siboot's pairing step for rootshell's WASM runtime: pairs the iPhone with itself from an App Store app"
 +description = "Full local IPA signing, installation and renewal in rootshell by Jay-Void-BA, based on FrizzleM/siboot"
@@ -9441,7 +9954,8 @@ index 128e6d7..4dbf085 100644
 +tokio = { version = "1", default-features = false, features = ["io-util", "rt", "time", "macros", "sync"] }
 +rootshell-runtime = { path = "../SideInstaller/rust-core/vendor/rootshell-runtime" }
 +isideload = { path = "../SideInstaller/rust-core/vendor/isideload", default-features = false, features = ["fs-storage"] }
-+plist = "1.8"
++# The bounded parser uses the event API; pin its minor version as required by plist.
++plist = { version = "~1.10.0", features = ["enable_unstable_features_that_may_break_with_minor_version_bumps"] }
 +serde = { version = "1", features = ["derive"] }
 +serde_json = "1"
  uuid = { version = "1", features = ["v4"] }
@@ -9506,12 +10020,12 @@ index 128e6d7..4dbf085 100644
  panic = "abort"
  strip = true
 diff --git a/rootshell/README.md b/rootshell/README.md
-index 927169f..d74afee 100644
+index 927169f..0fa6716 100644
 --- a/rootshell/README.md
 +++ b/rootshell/README.md
-@@ -1,136 +1,81 @@
+@@ -1,136 +1,85 @@
 -# siboot-pair for rootshell
-+# siboot for rootshell · 0.21.2
++# siboot for rootshell · 0.21.3
  
 -siboot's pairing step, as a WASM program for
 -[rootshell](https://apps.apple.com/app/rootshell-local-terminal-ssh/id6755794662)
@@ -9552,14 +10066,14 @@ index 927169f..d74afee 100644
 +5. 在这个目录下载并核对程序：
 +
 +   ```sh
-+   curl -fL -C - -o siboot-v0.21.2.wasm.part https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.21.2/siboot.wasm
-+   sha256sum siboot-v0.21.2.wasm.part
++   curl -fL -C - -o siboot-v0.21.3.wasm.part https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.21.3/siboot.wasm
++   sha256sum siboot-v0.21.3.wasm.part
 +   ```
 +
-+   与 [Release 的 SHA256SUMS](https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.21.2/SHA256SUMS) 一致后，再逐条运行：
++   与 [Release 的 SHA256SUMS](https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.21.3/SHA256SUMS) 一致后，再逐条运行：
 +
 +   ```sh
-+   mv siboot-v0.21.2.wasm.part siboot.wasm
++   mv siboot-v0.21.3.wasm.part siboot.wasm
 +   ./siboot.wasm --version
 +   ifconfig en0 > ifconfig.txt
 +   ./siboot.wasm pair
@@ -9567,6 +10081,8 @@ index 927169f..d74afee 100644
 +
 +6. 按提示到“设置 › 隐私与安全性 › 开发者模式”点击 **Pair with siboot**，输入设备密码和通知／终端中的六位配对码。若不能读取 Wi-Fi 地址，用 `./siboot.wasm pair --wifi-ip 192.168.1.10`，将示例地址换成本机 Wi-Fi IPv4。
 +7. 返回 rootshell，运行 `./siboot.wasm --ipa App.ipa` 并按提示登录。以后在相同目录运行 `./siboot.wasm renew` 快速续签，保持 LocalDevVPN 连接。文件名含空格时用引号。
++
++首次交互运行 `./siboot.wasm` 会显示“文件”导入 IPA 教程，确认后不再重复；取消不保存标记。显式 `--ipa` 跳过教程。已有 `siboot` 目录直接进入，无需再次创建。内部数据及临时目录可安全重复使用。
 +
 +下载时保持 rootshell 在前台；中断后使用相同版本的 `.part` 文件续传，核对哈希后再改名。配对文件 `rp_pairing_file.plist`、登录与续签缓存 `.siboot/` 及启用后的性能日志均保存在程序同目录；升级时将新版 `siboot.wasm` 放回这个目录。
 +
@@ -9641,7 +10157,7 @@ index 927169f..d74afee 100644
 -
 -idevice comes from the [`SideInstaller`](../SideInstaller) submodule, so check
 -it out first (`git clone --recursive`, or `git submodule update --init`):
-+- `src/main.rs` 负责完整流程；共享 Minis 的账户、完整签名、上传核对、加密存储和续签逻辑。
++- `src/onboarding.rs` 负责首次导入教程；`src/main.rs` 将本地选择和验证独立于网络／账户操作，续签使用同一份验证快照；共享 Minis 的账户、完整签名、上传核对、加密存储和续签逻辑。
 +- `src/pairing.rs`、`mdns.rs`、`rs.rs` 在 rootshell 内创建配对，不再向 Minis 移交安装任务。
 +- `src/ui.rs` 使用 rootshell 终端 raw/cooked ABI，默认中文，`--lang en` 切换英文。Ctrl-V 显示／隐藏密码。
 +- `rootshell-runtime` 提供 TCP、原生 TLS 和协作接收；虚拟链接元数据由签名器与 AFC 上传共同使用。
@@ -9713,12 +10229,14 @@ index 927169f..d74afee 100644
 +`duration_us` 是墙钟时间；WASI 时钟通常约 1 ms 精度。嵌套事件不能相加。`log_write_us` 反映已统计的日志序列化／写入耗时；采集本身也有开销。内存字段指 WASM 线性内存容量。程序进入诊断前的 WASM 加载时间不在日志内。
 +
 +原版 Worker 运行检查覆盖默认关闭、同目录定位、`--home`、独立文件、成功／失败／取消、日志写入失败及密码、令牌、请求正文过滤。组件单元测试覆盖日志上限、摘要保留、计数器和延迟分桶。
++
++文件和 socket 接收每次最多 32 KiB，以容纳 64 KiB JSON／Base64 回包。ZIP 解压通过 64 KiB 写缓冲合并调用；AFC 上传仍合并为 1 MiB 数据包。文件选择器缓存类型并合并终端输出。性能收益需由真机日志测量。
 diff --git a/rootshell/examples/runtime_check.rs b/rootshell/examples/runtime_check.rs
 new file mode 100644
-index 0000000..513619b
+index 0000000..69b4e5a
 --- /dev/null
 +++ b/rootshell/examples/runtime_check.rs
-@@ -0,0 +1,290 @@
+@@ -0,0 +1,344 @@
 +//! Offline portability test, executed by the real rootshell Worker in CI.
 +#![allow(dead_code)]
 +#[path = "../../minis/src/fail.rs"]
@@ -9777,6 +10295,21 @@ index 0000000..513619b
 +            println!("PASSWORD_CANCEL_OK");
 +            return;
 +        }
++        Some("password-eof") => {
++            assert!(ui::ask_secret("Password test", "Password", "", "")
++                .unwrap()
++                .is_none());
++            println!("PASSWORD_EOF_OK");
++            return;
++        }
++        Some("picker") => {
++            assert_eq!(
++                ui::select_file("Choose an IPA", &["ipa"]).unwrap(),
++                Path::new("/App.ipa")
++            );
++            println!("PICKER_OK");
++            return;
++        }
 +        Some("password") => {
 +            let secret = ui::ask_secret("Password test", "Password", "", "")
 +                .unwrap()
@@ -9796,7 +10329,15 @@ index 0000000..513619b
 +        _ => {}
 +    }
 +    std::env::set_var("TMPDIR", "/tmp");
-+    std::fs::create_dir_all("/tmp").unwrap();
++    rootshell_runtime::directory::create_all("/tmp").unwrap();
++    rootshell_runtime::directory::create_all("/tmp").unwrap();
++    std::fs::write("/occupied", b"keep me").unwrap();
++    assert!(rootshell_runtime::directory::create_all("/occupied/child").is_err());
++    assert_eq!(
++        rootshell_runtime::vfs::read("/occupied").unwrap(),
++        b"keep me"
++    );
++    println!("DIRECTORY_REUSE_OK");
 +    let home = Path::new("/test-storage");
 +    let lock = vault::Lock::acquire(home).unwrap();
 +    assert!(vault::Lock::acquire(home).is_err());
@@ -9821,7 +10362,8 @@ index 0000000..513619b
 +    println!("VAULT_OK");
 +
 +    let private =
-+        rsa::RsaPrivateKey::from_pkcs8_der(&std::fs::read("/test-key.der").unwrap()).unwrap();
++        rsa::RsaPrivateKey::from_pkcs8_der(&rootshell_runtime::vfs::read("/test-key.der").unwrap())
++            .unwrap();
 +    let csr = isideload::sideload::cert_identity::CertificateIdentity::build_csr(&private).unwrap();
 +    let csr = x509_cert::request::CertReq::from_pem(&csr).unwrap();
 +    let signature = rsa::pkcs1v15::Signature::try_from(csr.signature.as_bytes().unwrap()).unwrap();
@@ -9830,7 +10372,9 @@ index 0000000..513619b
 +        .unwrap();
 +    println!("CSR_OK");
 +
-+    let cert = x509_cert::Certificate::from_der(&std::fs::read("/test-cert.der").unwrap()).unwrap();
++    let cert =
++        x509_cert::Certificate::from_der(&rootshell_runtime::vfs::read("/test-cert.der").unwrap())
++            .unwrap();
 +    let signer = apple_codesign_quick::RustCryptoCmsSigner::new(private, cert, Vec::new());
 +    let mut app =
 +        isideload::sideload::application::Application::new("/Fixture.ipa".into()).unwrap();
@@ -9844,8 +10388,10 @@ index 0000000..513619b
 +    );
 +    apple_codesign_quick::sign_bundle(app, &settings).unwrap();
 +    apple_codesign_quick::verify_bundle_resources(app).unwrap();
-+    let resources: plist::Dictionary =
-+        plist::from_file(app.join("_CodeSignature/CodeResources")).unwrap();
++    let resources: plist::Dictionary = plist::from_bytes(
++        &rootshell_runtime::vfs::read(app.join("_CodeSignature/CodeResources")).unwrap(),
++    )
++    .unwrap();
 +    let files = resources["files2"].as_dictionary().unwrap();
 +    for name in [
 +        "Resources/.config",
@@ -9853,6 +10399,7 @@ index 0000000..513619b
 +        "Hidden/.bin/driver",
 +        "Resources/link.dylib",
 +        "Extensions/Widget.appex/.config",
++        "Resources/large.dat",
 +    ] {
 +        assert!(files.contains_key(name), "missing {name}");
 +    }
@@ -9877,13 +10424,32 @@ index 0000000..513619b
 +        "PlugIns/Tools/injected.dylib",
 +        "Hidden/.bin/driver",
 +    ] {
-+        let bytes = std::fs::read(app.join(image)).unwrap();
++        let bytes = rootshell_runtime::vfs::read(app.join(image)).unwrap();
 +        assert!(bytes.len() > 512, "unsigned image {image}");
 +        assert!(
 +            bytes.windows(4).any(|w| w == [0xfa, 0xde, 0x0b, 0x01]),
 +            "missing CMS {image}"
 +        );
 +    }
++    assert!(
++        rootshell_runtime::vfs::read(app.join("Main"))
++            .unwrap()
++            .len()
++            > 256 * 1024
++    );
++    let mut resource = rootshell_runtime::vfs::File::open(app.join("Resources/large.dat")).unwrap();
++    let mut packet = vec![0; 1024 * 1024];
++    assert_eq!(
++        ipa::read_chunk(&mut resource, &mut packet).unwrap(),
++        packet.len()
++    );
++    assert!(packet
++        .iter()
++        .enumerate()
++        .all(|(i, byte)| *byte == (i % 251) as u8));
++    assert_eq!(ipa::read_chunk(&mut resource, &mut packet).unwrap(), 123);
++    assert_eq!(ipa::read_chunk(&mut resource, &mut packet).unwrap(), 0);
++    println!("BOUNDED_READS_LARGE_UPLOAD_PACKETS_OK");
 +    let entries = install::bundle_entries(app).unwrap();
 +    assert_eq!(entries.iter().filter(|e| e.symlink.is_some()).count(), 5);
 +    assert!(entries.iter().any(|e| e.relative == "Resources/link.dylib"
@@ -9891,7 +10457,13 @@ index 0000000..513619b
 +    std::fs::write(app.join("Resources/.config"), b"tampered").unwrap();
 +    assert!(apple_codesign_quick::verify_bundle_resources(app).is_err());
 +    println!("COMPLETE_SIGNING_OK");
-+    for path in ["/Escape.ipa", "/Cycle.ipa", "/Absolute.ipa"] {
++    for path in [
++        "/Escape.ipa",
++        "/Cycle.ipa",
++        "/Absolute.ipa",
++        "/Backslash.ipa",
++        "/Deep.ipa",
++    ] {
 +        assert!(
 +            isideload::sideload::application::Application::new(path.into()).is_err(),
 +            "accepted invalid symlink archive {path}"
@@ -10010,10 +10582,10 @@ index 0000000..513619b
 +    println!("BLOCKING_TIMEOUT_CLASSIFIED");
 +}
 diff --git a/rootshell/src/main.rs b/rootshell/src/main.rs
-index c5c010c..bdb1e2f 100644
+index c5c010c..fa20907 100644
 --- a/rootshell/src/main.rs
 +++ b/rootshell/src/main.rs
-@@ -1,561 +1,681 @@
+@@ -1,561 +1,707 @@
 -//! `siboot-pair`: siboot's pairing step, for rootshell's WASM runtime.
 -//!
 -//! Pairs this iPhone with itself from an App Store app. iOS 27 lists a host
@@ -10056,6 +10628,7 @@ index c5c010c..bdb1e2f 100644
 +#[path = "../../minis/src/ipa.rs"]
 +mod ipa;
  mod mdns;
++mod onboarding;
 +mod pair_ui;
 +mod pairing;
 +#[path = "../../minis/src/pairing_files.rs"]
@@ -10736,9 +11309,8 @@ index c5c010c..bdb1e2f 100644
 +        _ => return Err(Fail::by_user("Pairing cancelled.")),
      }
 -    unreachable!("the loop returns on its last attempt")
-+    tunnel::verify(args.device, path).await
- }
- 
+-}
+-
 -/// The code, in large digits and posted as a notification: Ghostty,
 -/// rootshell's terminal, turns OSC 777 into one, also with rootshell in the
 -/// background.
@@ -10782,8 +11354,9 @@ index c5c010c..bdb1e2f 100644
 -    let b = uuid::Uuid::new_v4();
 -    let n = u16::from_be_bytes([b.as_bytes()[0], b.as_bytes()[1]]);
 -    50000 + n % 10000
--}
--
++    tunnel::verify(args.device, path).await
+ }
+ 
 -#[cfg(test)]
 -mod tests {
 -    use super::*;
@@ -10806,7 +11379,7 @@ index c5c010c..bdb1e2f 100644
 +    })?;
 +    // std::env::temp_dir() must resolve inside rootshell's preopened folder.
 +    let temporary = args.home.join("tmp");
-+    std::fs::create_dir_all(&temporary)
++    rootshell_runtime::directory::create_all(&temporary)
 +        .map_err(|e| Fail::new("Couldn't create the temporary directory.", e.to_string()))?;
 +    std::env::set_var("TMPDIR", temporary.canonicalize().unwrap_or(temporary));
 +    if args.command == Command::Pair {
@@ -10827,30 +11400,52 @@ index c5c010c..bdb1e2f 100644
 -            let code = transfer_code();
 -            assert_eq!(code.len(), 6);
 -            assert!(code.chars().all(|c| c.is_ascii_digit()) && !code.starts_with('0'));
-+    let mut selected = args.clone();
-+    if args.command == Command::Renew {
-+        selected.ipa = Some(cached_ipa(args)?);
-+    } else if args.command == Command::All && args.ipa.is_none() {
-+        let mut choices = vec!["Choose a local IPA to sign and install".to_string()];
-+        let saved = renew::load(&args.home).ok().flatten();
-+        if let Some(saved) = &saved {
-+            choices.push(format!("Quick renew: {}", saved.name));
-+        }
-+        match ui::choose("Local IPA", &choices) {
-+            Some(0) => {
-+                selected.ipa = Some(
-+                    ui::select_file("Choose a local IPA to sign and install", &["ipa"])
-+                        .ok_or_else(|| Fail::by_user("IPA selection cancelled."))?
-+                        .to_string_lossy()
-+                        .to_string(),
-+                )
-+            }
-+            Some(1) if saved.is_some() => {
-+                selected.command = Command::Renew;
-+                selected.ipa = Some(cached_ipa(args)?);
-+            }
-+            _ => return Err(Fail::by_user("IPA selection cancelled.")),
++    let operation = prepare_operation(args)?;
++    let args = &operation.args;
++    rootshell_runtime::perf::event(
++        if args.command == Command::Renew {
++            "workflow.renew"
++        } else {
++            "workflow.install_or_connect"
++        },
++        &[],
++    );
++    let receive_timeouts = rootshell_runtime::receive_timeout_supported();
++    rootshell_runtime::perf::event(
++        "runtime.capabilities",
++        &[("receive_timeouts", u64::from(receive_timeouts))],
++    );
++    if args.command != Command::Check {
++        rootshell_runtime::require_receive_timeout()
++            .map_err(|error| Fail::known(error.to_string()))?;
++    }
++    retry::step(1, "Checking LocalDevVPN and this iPhone", async || {
++        rootshell_runtime::Socket::probe_connection(
++            &args.device.ip().to_string(),
++            args.device.port(),
++        )
++        .map_err(|e| {
++            Fail::new(
++                "Couldn't reach this iPhone. Connect LocalDevVPN and keep Wi-Fi on.",
++                e.to_string(),
++            )
++        })?;
++        Ok(())
++    })
++    .await?;
++    if args.command == Command::Check {
++        if !receive_timeouts {
++            ui::warn(rootshell_runtime::RECEIVE_TIMEOUT_REQUIRED);
          }
++        ui::finish(
++            "Ready",
++            &[if receive_timeouts {
++                "The iPhone answers. Run siboot.wasm --ipa App.ipa to install."
++            } else {
++                "The iPhone answers. This check confirms TCP reachability only."
++            }],
++        );
++        return Ok(());
      }
 -
 -    /// A host waiting on a loopback port, as Settings finds it, pairing in a
@@ -10871,83 +11466,6 @@ index c5c010c..bdb1e2f 100644
 -            (paired, file)
 -        });
 -        (port, shown, thread)
--    }
--
--    fn addr(port: u16) -> std::net::SocketAddr {
--        std::net::SocketAddr::from(([127, 0, 0, 1], port))
-+    let args = &selected;
-+    rootshell_runtime::perf::event(
-+        if args.command == Command::Renew {
-+            "workflow.renew"
-+        } else {
-+            "workflow.install_or_connect"
-+        },
-+        &[],
-+    );
-+    // Validate a selected IPA before opening Apple Account storage or contacting Apple.
-+    let ipa = if matches!(args.command, Command::All | Command::Renew) {
-+        Some(sign::local_ipa(args)?)
-+    } else {
-+        None
-+    };
-+    let receive_timeouts = rootshell_runtime::receive_timeout_supported();
-+    rootshell_runtime::perf::event(
-+        "runtime.capabilities",
-+        &[("receive_timeouts", u64::from(receive_timeouts))],
-+    );
-+    if args.command != Command::Check {
-+        rootshell_runtime::require_receive_timeout()
-+            .map_err(|error| Fail::known(error.to_string()))?;
-     }
--
--    /// The fake iPhone's typing: the next code the host shows.
--    async fn next_code(shown: std::sync::Arc<std::sync::Mutex<std::sync::mpsc::Receiver<String>>>) -> String {
--        tokio::task::spawn_blocking(move || shown.lock().unwrap().recv().unwrap()).await.unwrap()
-+    retry::step(1, "Checking LocalDevVPN and this iPhone", async || {
-+        rootshell_runtime::Socket::probe_connection(
-+            &args.device.ip().to_string(),
-+            args.device.port(),
-+        )
-+        .map_err(|e| {
-+            Fail::new(
-+                "Couldn't reach this iPhone. Connect LocalDevVPN and keep Wi-Fi on.",
-+                e.to_string(),
-+            )
-+        })?;
-+        Ok(())
-+    })
-+    .await?;
-+    if args.command == Command::Check {
-+        if !receive_timeouts {
-+            ui::warn(rootshell_runtime::RECEIVE_TIMEOUT_REQUIRED);
-+        }
-+        ui::finish(
-+            "Ready",
-+            &[if receive_timeouts {
-+                "The iPhone answers. Run siboot.wasm --ipa App.ipa to install."
-+            } else {
-+                "The iPhone answers. This check confirms TCP reachability only."
-+            }],
-+        );
-+        return Ok(());
-     }
--
--    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
--    async fn a_device_pairs_and_the_file_holds_the_host_it_saw() {
--        let (port, shown, host) = host();
--        let shown = std::sync::Arc::new(std::sync::Mutex::new(shown));
--        let phone = fake_iphone::pair(addr(port), next_code(shown)).await.expect("phone paired");
--        let (paired, file) = host.join().unwrap();
--        let peer = paired.expect("host paired");
--        assert_eq!(peer.name, fake_iphone::NAME);
--        assert_eq!(peer.model, fake_iphone::MODEL);
--        // The identity the device was given in M6 is the one written out…
--        assert_eq!(file.identifier, phone.host_identifier);
--        assert_eq!(file.public_key_bytes(), phone.host_public_key);
--        // …with the device's altIRK from M5, and it reads back.
--        assert_eq!(file.alt_irk.as_deref(), Some(&fake_iphone::ALT_IRK[..]));
--        let reread = RpPairingFile::from_bytes(&file.to_bytes()).unwrap();
--        assert_eq!(reread.identifier, file.identifier);
 +    let pairing_path = args.pairing_path();
 +    retry::step(2, "Pairing this iPhone with siboot", async || {
 +        ensure_pairing(args, &pairing_path).await
@@ -10975,58 +11493,48 @@ index c5c010c..bdb1e2f 100644
 +        return Ok(());
      }
 -
--    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
--    async fn a_wrong_code_gets_another_try() {
--        let (port, shown, host) = host();
--        let shown = std::sync::Arc::new(std::sync::Mutex::new(shown));
--        // A typo, then the entry tapped again and the new code typed.
--        let first = fake_iphone::pair(addr(port), async { "000000".to_string() }).await;
--        assert!(first.is_err(), "a wrong code paired");
--        let _typo = next_code(shown.clone()).await;
--        fake_iphone::pair(addr(port), next_code(shown)).await.expect("the second try paired");
--        let (paired, _) = host.join().unwrap();
--        assert_eq!(paired.expect("host paired on the second try").name, fake_iphone::NAME);
+-    fn addr(port: u16) -> std::net::SocketAddr {
+-        std::net::SocketAddr::from(([127, 0, 0, 1], port))
 +    if args.command == Command::DeveloperMode {
 +        return developer_mode(args, &mut connection).await;
      }
 -
--    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
--    async fn three_wrong_codes_end_the_run_and_say_why() {
--        let (port, _shown, host) = host();
--        for _ in 0..MAX_ATTEMPTS {
--            let paired = fake_iphone::pair(addr(port), async { "000000".to_string() }).await;
--            assert!(paired.is_err(), "a wrong code paired");
+-    /// The fake iPhone's typing: the next code the host shows.
+-    async fn next_code(shown: std::sync::Arc<std::sync::Mutex<std::sync::mpsc::Receiver<String>>>) -> String {
+-        tokio::task::spawn_blocking(move || shown.lock().unwrap().recv().unwrap()).await.unwrap()
 +    drop(connection);
 +    let mut session = retry::step(4, "Signing in to your Apple Account", async || {
 +        account::sign_in(args).await
 +    })
 +    .await?;
 +    ui::done(&format!("team {}", session.team));
-+    let ipa = ipa.expect("validated original IPA");
++    let ipa = operation.ipa.as_ref().expect("validated original IPA");
 +    let signed = retry::step(5, "Signing the app for this iPhone", async || {
-+        sign::sign(&mut session, &ipa, &device).await
++        sign::sign(&mut session, ipa, &device).await
 +    })
 +    .await?;
-+    if args.command == Command::Renew {
-+        let saved = renew::load(&args.home).ok().flatten().ok_or_else(|| {
-+            Fail::known("The quick-renew cache cannot be read. Install a local IPA again.")
-+        })?;
-+        if signed.bundle_id != saved.bundle_id {
++    if let Some(original_bundle_id) = &operation.renewal_bundle_id {
++        if &signed.bundle_id != original_bundle_id {
 +            return Err(Fail::known("Quick renew requires the same Apple developer team as the previous install. Use a normal local IPA install to change accounts."));
-         }
--        let (paired, _) = host.join().unwrap();
--        let problem = paired.err().expect("the host should give up");
--        assert!(problem.contains("code didn't match"), "{problem}");
++        }
      }
 -
 -    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
--    async fn a_connection_that_drops_before_the_code_doesnt_end_pairing() {
+-    async fn a_device_pairs_and_the_file_holds_the_host_it_saw() {
 -        let (port, shown, host) = host();
--        drop(std::net::TcpStream::connect(addr(port)).unwrap());
 -        let shown = std::sync::Arc::new(std::sync::Mutex::new(shown));
--        fake_iphone::pair(addr(port), next_code(shown)).await.expect("phone paired");
--        let (paired, _) = host.join().unwrap();
--        assert_eq!(paired.expect("host paired after the stray connection").name, fake_iphone::NAME);
+-        let phone = fake_iphone::pair(addr(port), next_code(shown)).await.expect("phone paired");
+-        let (paired, file) = host.join().unwrap();
+-        let peer = paired.expect("host paired");
+-        assert_eq!(peer.name, fake_iphone::NAME);
+-        assert_eq!(peer.model, fake_iphone::MODEL);
+-        // The identity the device was given in M6 is the one written out…
+-        assert_eq!(file.identifier, phone.host_identifier);
+-        assert_eq!(file.public_key_bytes(), phone.host_public_key);
+-        // …with the device's altIRK from M5, and it reads back.
+-        assert_eq!(file.alt_irk.as_deref(), Some(&fake_iphone::ALT_IRK[..]));
+-        let reread = RpPairingFile::from_bytes(&file.to_bytes()).unwrap();
+-        assert_eq!(reread.identifier, file.identifier);
 +    ui::done(&format!("{} signed", signed.name));
 +    let uploaded = retry::step(6, "Installing it", async || {
 +        let mut connection = tunnel::open(args.device, &pairing_path).await?;
@@ -11037,7 +11545,7 @@ index c5c010c..bdb1e2f 100644
 +    let renewal = rootshell_runtime::perf::span("renew.cache", &[]);
 +    if let Err(error) = renew::remember(
 +        &args.home,
-+        &ipa,
++        ipa,
 +        false,
 +        &signed.name,
 +        &signed.bundle_id,
@@ -11051,18 +11559,17 @@ index c5c010c..bdb1e2f 100644
 +        ui::ok("Ready for quick renew: run siboot renew next time.");
      }
 -
--    /// siboot's side of the hand-off (minis/src/pairing.rs): one request per
--    /// connection, the answer's first line, then the file.
--    fn ask_for_file(port: u16, code: &str) -> (String, Vec<u8>) {
--        use std::io::{BufRead, Read, Write};
--        let mut conn = std::net::TcpStream::connect(addr(port)).unwrap();
--        conn.write_all(format!("SIBOOT1 {code}\n").as_bytes()).unwrap();
--        let mut reader = std::io::BufReader::new(conn);
--        let mut answer = String::new();
--        reader.read_line(&mut answer).unwrap();
--        let mut rest = Vec::new();
--        reader.read_to_end(&mut rest).unwrap();
--        (answer.trim().to_string(), rest)
+-    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+-    async fn a_wrong_code_gets_another_try() {
+-        let (port, shown, host) = host();
+-        let shown = std::sync::Arc::new(std::sync::Mutex::new(shown));
+-        // A typo, then the entry tapped again and the new code typed.
+-        let first = fake_iphone::pair(addr(port), async { "000000".to_string() }).await;
+-        assert!(first.is_err(), "a wrong code paired");
+-        let _typo = next_code(shown.clone()).await;
+-        fake_iphone::pair(addr(port), next_code(shown)).await.expect("the second try paired");
+-        let (paired, _) = host.join().unwrap();
+-        assert_eq!(paired.expect("host paired on the second try").name, fake_iphone::NAME);
 +    if signed.is_sideinstaller() {
 +        retry::step(7, "Handing SideInstaller the pairing", async || {
 +            let mut connection = tunnel::open(args.device, &pairing_path).await?;
@@ -11076,24 +11583,112 @@ index c5c010c..bdb1e2f 100644
 +    ]);
 +    Ok(())
 +}
-+fn cached_ipa(args: &Args) -> Result<String> {
-+    let saved = renew::load(&args.home)
++/// Keep the chosen original and its renewal identity in one immutable snapshot.
++/// Selection and validation happen before network access or account prompts.
++struct Operation {
++    args: Args,
++    ipa: Option<PathBuf>,
++    renewal_bundle_id: Option<String>,
++}
+ 
+-    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+-    async fn three_wrong_codes_end_the_run_and_say_why() {
+-        let (port, _shown, host) = host();
+-        for _ in 0..MAX_ATTEMPTS {
+-            let paired = fake_iphone::pair(addr(port), async { "000000".to_string() }).await;
+-            assert!(paired.is_err(), "a wrong code paired");
++fn prepare_operation(args: &Args) -> Result<Operation> {
++    let mut selected = args.clone();
++    if args.command == Command::Renew {
++        return Ok(renewal_operation(selected, cached_original(args)?));
++    }
++    if args.command == Command::All && args.ipa.is_none() {
++        onboarding::present(&args.home)?;
++        let saved = match renew::load_original(&args.home) {
++            Ok(saved) => saved,
++            Err(error) => {
++                ui::warn("The quick-renew cache cannot be read. Install a local IPA again.");
++                ui::detail(&error.to_string());
++                None
++            }
++        };
++        let mut choices = vec!["Choose a local IPA to sign and install".to_string()];
++        if let Some((app, _)) = &saved {
++            choices.push(format!("Quick renew: {}", app.name));
++        }
++        match ui::choose("Local IPA", &choices) {
++            Some(0) => {
++                let path = ui::select_file("Choose a local IPA to sign and install", &["ipa"])
++                    .ok_or_else(|| Fail::by_user("IPA selection cancelled."))?;
++                selected.ipa = Some(
++                    path.to_str()
++                        .ok_or_else(|| Fail::known("The IPA path must be valid UTF-8."))?
++                        .to_owned(),
++                );
++            }
++            Some(1) => {
++                if let Some(saved) = saved {
++                    return Ok(renewal_operation(selected, saved));
++                }
++                return Err(Fail::by_user("IPA selection cancelled."));
++            }
++            _ => return Err(Fail::by_user("IPA selection cancelled.")),
+         }
+-        let (paired, _) = host.join().unwrap();
+-        let problem = paired.err().expect("the host should give up");
+-        assert!(problem.contains("code didn't match"), "{problem}");
+     }
++    let ipa = if selected.command == Command::All {
++        Some(sign::local_ipa(&selected)?)
++    } else {
++        None
++    };
++    Ok(Operation {
++        args: selected,
++        ipa,
++        renewal_bundle_id: None,
++    })
++}
+ 
+-    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+-    async fn a_connection_that_drops_before_the_code_doesnt_end_pairing() {
+-        let (port, shown, host) = host();
+-        drop(std::net::TcpStream::connect(addr(port)).unwrap());
+-        let shown = std::sync::Arc::new(std::sync::Mutex::new(shown));
+-        fake_iphone::pair(addr(port), next_code(shown)).await.expect("phone paired");
+-        let (paired, _) = host.join().unwrap();
+-        assert_eq!(paired.expect("host paired after the stray connection").name, fake_iphone::NAME);
++fn renewal_operation(mut args: Args, (saved, path): (renew::SavedApp, PathBuf)) -> Operation {
++    args.command = Command::Renew;
++    Operation {
++        args,
++        ipa: Some(path),
++        renewal_bundle_id: Some(saved.bundle_id),
+     }
++}
+ 
+-    /// siboot's side of the hand-off (minis/src/pairing.rs): one request per
+-    /// connection, the answer's first line, then the file.
+-    fn ask_for_file(port: u16, code: &str) -> (String, Vec<u8>) {
+-        use std::io::{BufRead, Read, Write};
+-        let mut conn = std::net::TcpStream::connect(addr(port)).unwrap();
+-        conn.write_all(format!("SIBOOT1 {code}\n").as_bytes()).unwrap();
+-        let mut reader = std::io::BufReader::new(conn);
+-        let mut answer = String::new();
+-        reader.read_line(&mut answer).unwrap();
+-        let mut rest = Vec::new();
+-        reader.read_to_end(&mut rest).unwrap();
+-        (answer.trim().to_string(), rest)
+-    }
++fn cached_original(args: &Args) -> Result<(renew::SavedApp, PathBuf)> {
++    renew::load_original(&args.home)
 +        .map_err(|e| {
 +            Fail::new(
 +                "The quick-renew cache cannot be read. Install a local IPA again.",
 +                e.to_string(),
 +            )
 +        })?
-+        .ok_or_else(|| Fail::known("No saved app for quick renew. Install a local IPA first."))?;
-+    saved
-+        .ipa(&args.home)
-+        .map(|p| p.to_string_lossy().to_string())
-+        .map_err(|e| {
-+            Fail::new(
-+                "The quick-renew cache cannot be read. Install a local IPA again.",
-+                e.to_string(),
-+            )
-+        })
++        .ok_or_else(|| Fail::known("No saved app for quick renew. Install a local IPA first."))
 +}
  
 -    #[test]
@@ -11193,6 +11788,59 @@ index c5c010c..bdb1e2f 100644
 +        assert!(super::parse_args(["--perf-log=false".to_string()]).is_err());
      }
  }
+diff --git a/rootshell/src/onboarding.rs b/rootshell/src/onboarding.rs
+new file mode 100644
+index 0000000..c6703ba
+--- /dev/null
++++ b/rootshell/src/onboarding.rs
+@@ -0,0 +1,47 @@
++//! First interactive launch: explain the Files sandbox before selecting an IPA.
++//! The marker is informational; it never grants access or unlocks credentials.
++use std::{io::Read, path::Path};
++
++use crate::{
++    fail::{Fail, Result},
++    ui,
++};
++
++const MARKER: &str = "ipa-import-guide.v1";
++
++pub fn present(home: &Path) -> Result<()> {
++    let marker = home.join(MARKER);
++    let already_shown = std::fs::File::open(&marker).ok().is_some_and(|file| {
++        let mut bytes = Vec::new();
++        file.take(16).read_to_end(&mut bytes).is_ok() && bytes == b"1\n"
++    });
++    if already_shown {
++        return Ok(());
++    }
++
++    ui::note("Import an IPA from Files");
++    ui::note("1. Open Files > Browse > On My iPhone / iPad > rootshell.");
++    ui::note("2. Copy your .ipa into the rootshell folder. A file in iCloud Drive or Downloads must be copied here first.");
++    ui::note("3. Return to rootshell and choose the IPA. If the program is in a subfolder, use 0 to go up or enter the file path.");
++    ui::note(
++        "The rootshell folder already exists. Reuse it; no directory creation command is needed.",
++    );
++    let answer = ui::ask("Press Return after copying the IPA, or type q to cancel: ")
++        .ok_or_else(|| Fail::by_user("IPA selection cancelled."))?;
++    if answer.trim().eq_ignore_ascii_case("q") {
++        return Err(Fail::by_user("IPA selection cancelled."));
++    }
++
++    // Write only after acknowledgement, so cancelling never hides the guide.
++    // An unwritable marker should not itself prevent selecting a local IPA.
++    let saved = isideload::util::fs_storage::write_private(&marker, b"1\n");
++    rootshell_runtime::perf::event(
++        "onboarding.shown",
++        &[("persisted", u64::from(saved.is_ok()))],
++    );
++    if let Err(error) = saved {
++        ui::warn("The import guide could not be marked as read; it will appear again next time.");
++        ui::detail(&error.to_string());
++    }
++    Ok(())
++}
 diff --git a/rootshell/src/pair_ui.rs b/rootshell/src/pair_ui.rs
 new file mode 100644
 index 0000000..a152256
@@ -11818,10 +12466,10 @@ index 0000000..a152256
 +}
 diff --git a/rootshell/src/pairing.rs b/rootshell/src/pairing.rs
 new file mode 100644
-index 0000000..fd78bd0
+index 0000000..b8bf3cb
 --- /dev/null
 +++ b/rootshell/src/pairing.rs
-@@ -0,0 +1,344 @@
+@@ -0,0 +1,345 @@
 +//! On-device pairing, using rootshell's multicast and socket ABI.
 +use crate::pair_ui as ui;
 +use crate::{mdns, rs};
@@ -12031,7 +12679,7 @@ index 0000000..fd78bd0
 +/// The host identity from an earlier run, so a new pairing doesn't invalidate
 +/// copies of the file handed out before; else a new one.
 +fn identity(output: &std::path::Path) -> (RpPairingFile, Option<[u8; 16]>) {
-+    let file = match std::fs::read(output)
++    let file = match rootshell_runtime::vfs::read(output)
 +        .ok()
 +        .and_then(|b| RpPairingFile::from_bytes(&b).ok())
 +    {
@@ -12066,13 +12714,14 @@ index 0000000..fd78bd0
 +mod tests {
 +    use super::*;
 +    use crate::fake_iphone;
++    type PairingResult = (Result<PeerDevice, String>, RpPairingFile);
 +    /// A host waiting on a loopback port, as Settings finds it, pairing in a
 +    /// thread of its own (the real one blocks in accept). The codes it shows
 +    /// come out of the receiver.
 +    fn host() -> (
 +        u16,
 +        std::sync::mpsc::Receiver<String>,
-+        std::thread::JoinHandle<(Result<PeerDevice, String>, RpPairingFile)>,
++        std::thread::JoinHandle<PairingResult>,
 +    ) {
 +        let listener = rs::Socket::listen(0).unwrap();
 +        let port = listener.local_port();
@@ -12147,7 +12796,7 @@ index 0000000..fd78bd0
 +            assert!(paired.is_err(), "a wrong code paired");
 +        }
 +        let (paired, _) = host.join().unwrap();
-+        let problem = paired.err().expect("the host should give up");
++        let problem = paired.expect_err("the host should give up");
 +        assert!(problem.contains("code didn't match"), "{problem}");
 +    }
 +
@@ -12281,7 +12930,7 @@ index 0000000..596ecec
 +    }
 +}
 diff --git a/rootshell/src/rs.rs b/rootshell/src/rs.rs
-index a203965..3c0ecbf 100644
+index a203965..5cca195 100644
 --- a/rootshell/src/rs.rs
 +++ b/rootshell/src/rs.rs
 @@ -2,8 +2,8 @@
@@ -12295,6 +12944,197 @@ index a203965..3c0ecbf 100644
  
  use std::io;
  use std::pin::Pin;
+@@ -97,7 +97,11 @@ mod host {
+     }
+ 
+     pub unsafe fn rootshell_socket_socket(_domain: i32, kind: i32, fd_out: *mut i32) -> i32 {
+-        let entry = if kind == super::SOCK_STREAM { Entry::Unbound(0) } else { Entry::Datagram };
++        let entry = if kind == super::SOCK_STREAM {
++            Entry::Unbound(0)
++        } else {
++            Entry::Datagram
++        };
+         unsafe { *fd_out = insert(entry) };
+         0
+     }
+@@ -147,7 +151,12 @@ mod host {
+         }
+     }
+ 
+-    pub unsafe fn rootshell_socket_send(fd: i32, buf: *const u8, len: i32, sent_out: *mut u32) -> i32 {
++    pub unsafe fn rootshell_socket_send(
++        fd: i32,
++        buf: *const u8,
++        len: i32,
++        sent_out: *mut u32,
++    ) -> i32 {
+         let data = unsafe { std::slice::from_raw_parts(buf, len as usize) };
+         match stream(fd).and_then(|mut s| s.write(data).map_err(|e| errno(&e))) {
+             Ok(n) => {
+@@ -158,7 +167,12 @@ mod host {
+         }
+     }
+ 
+-    pub unsafe fn rootshell_socket_recv(fd: i32, buf: *mut u8, len: i32, recv_out: *mut u32) -> i32 {
++    pub unsafe fn rootshell_socket_recv(
++        fd: i32,
++        buf: *mut u8,
++        len: i32,
++        recv_out: *mut u32,
++    ) -> i32 {
+         let room = unsafe { std::slice::from_raw_parts_mut(buf, len as usize) };
+         match stream(fd).and_then(|mut s| s.read(room).map_err(|e| errno(&e))) {
+             Ok(n) => {
+@@ -241,7 +255,9 @@ pub struct Socket {
+ impl Socket {
+     pub fn new(kind: i32) -> io::Result<Self> {
+         let mut fd = -1;
+-        check("socket", unsafe { rootshell_socket_socket(AF_INET, kind, &mut fd) })?;
++        check("socket", unsafe {
++            rootshell_socket_socket(AF_INET, kind, &mut fd)
++        })?;
+         Ok(Self { fd })
+     }
+ 
+@@ -249,7 +265,9 @@ impl Socket {
+     pub fn listen(port: u16) -> io::Result<Self> {
+         let s = Self::new(SOCK_STREAM)?;
+         let addr = sockaddr_in([0, 0, 0, 0], port);
+-        check("bind", unsafe { rootshell_socket_bind(s.fd, addr.as_ptr(), 16) })?;
++        check("bind", unsafe {
++            rootshell_socket_bind(s.fd, addr.as_ptr(), 16)
++        })?;
+         check("listen", unsafe { rootshell_socket_listen(s.fd, 4) })?;
+         Ok(s)
+     }
+@@ -257,8 +275,12 @@ impl Socket {
+     /// Blocks until a connection arrives.
+     pub fn accept(&self) -> io::Result<Stream> {
+         let mut fd = -1;
+-        check("accept", unsafe { rootshell_socket_accept(self.fd, &mut fd) })?;
+-        Ok(Stream { socket: Socket { fd } })
++        check("accept", unsafe {
++            rootshell_socket_accept(self.fd, &mut fd)
++        })?;
++        Ok(Stream {
++            socket: Socket { fd },
++        })
+     }
+ 
+     /// One UDP datagram on a socket of its own, then closed: a flow
+@@ -269,10 +291,20 @@ impl Socket {
+         let addr = sockaddr_in(ip, port);
+         let mut sent = 0u32;
+         check("sendto", unsafe {
+-            rootshell_socket_sendto(s.fd, data.as_ptr(), data.len() as i32, addr.as_ptr(), 16, &mut sent)
++            rootshell_socket_sendto(
++                s.fd,
++                data.as_ptr(),
++                data.len() as i32,
++                addr.as_ptr(),
++                16,
++                &mut sent,
++            )
+         })?;
+         if sent as usize != data.len() {
+-            return Err(io::Error::other(format!("sendto sent {sent} of {} bytes", data.len())));
++            return Err(io::Error::other(format!(
++                "sendto sent {sent} of {} bytes",
++                data.len()
++            )));
+         }
+         Ok(())
+     }
+@@ -309,7 +341,9 @@ impl Stream {
+         let mut byte = [0u8; 1];
+         while line.len() < max {
+             let mut got = 0u32;
+-            check("recv", unsafe { rootshell_socket_recv(self.socket.fd, byte.as_mut_ptr(), 1, &mut got) })?;
++            check("recv", unsafe {
++                rootshell_socket_recv(self.socket.fd, byte.as_mut_ptr(), 1, &mut got)
++            })?;
+             if got == 0 || byte[0] == b'\n' {
+                 break;
+             }
+@@ -327,6 +361,12 @@ impl Stream {
+             if sent == 0 {
+                 return Err(io::Error::other("send made no progress"));
+             }
++            if sent as usize > data.len() {
++                return Err(io::Error::new(
++                    io::ErrorKind::InvalidData,
++                    "Invalid pairing send length",
++                ));
++            }
+             data = &data[sent as usize..];
+         }
+         Ok(())
+@@ -334,13 +374,34 @@ impl Stream {
+ }
+ 
+ impl AsyncRead for Stream {
+-    fn poll_read(self: Pin<&mut Self>, _: &mut Context<'_>, buf: &mut ReadBuf<'_>) -> Poll<io::Result<()>> {
++    fn poll_read(
++        self: Pin<&mut Self>,
++        _: &mut Context<'_>,
++        buf: &mut ReadBuf<'_>,
++    ) -> Poll<io::Result<()>> {
+         let room = buf.initialize_unfilled();
++        if room.is_empty() {
++            return Poll::Ready(Ok(()));
++        }
++        let requested = room.len().min(rootshell_runtime::MAX_HOST_READ);
+         let mut got = 0u32;
+-        let e = unsafe { rootshell_socket_recv(self.socket.fd, room.as_mut_ptr(), room.len() as i32, &mut got) };
++        let e = unsafe {
++            rootshell_socket_recv(
++                self.socket.fd,
++                room.as_mut_ptr(),
++                requested as i32,
++                &mut got,
++            )
++        };
+         if let Err(err) = check("recv", e) {
+             return Poll::Ready(Err(err));
+         }
++        if got as usize > requested {
++            return Poll::Ready(Err(io::Error::new(
++                io::ErrorKind::InvalidData,
++                "Invalid pairing receive length",
++            )));
++        }
+         // Zero bytes: the peer closed.
+         buf.advance(got as usize);
+         Poll::Ready(Ok(()))
+@@ -348,10 +409,25 @@ impl AsyncRead for Stream {
+ }
+ 
+ impl AsyncWrite for Stream {
+-    fn poll_write(self: Pin<&mut Self>, _: &mut Context<'_>, data: &[u8]) -> Poll<io::Result<usize>> {
++    fn poll_write(
++        self: Pin<&mut Self>,
++        _: &mut Context<'_>,
++        data: &[u8],
++    ) -> Poll<io::Result<usize>> {
+         let mut sent = 0u32;
+-        let e = unsafe { rootshell_socket_send(self.socket.fd, data.as_ptr(), data.len() as i32, &mut sent) };
+-        Poll::Ready(check("send", e).map(|()| sent as usize))
++        let e = unsafe {
++            rootshell_socket_send(self.socket.fd, data.as_ptr(), data.len() as i32, &mut sent)
++        };
++        Poll::Ready(check("send", e).and_then(|()| {
++            if sent as usize > data.len() {
++                Err(io::Error::new(
++                    io::ErrorKind::InvalidData,
++                    "Invalid pairing send length",
++                ))
++            } else {
++                Ok(sent as usize)
++            }
++        }))
+     }
+ 
+     fn poll_flush(self: Pin<&mut Self>, _: &mut Context<'_>) -> Poll<io::Result<()>> {
 diff --git a/rootshell/src/tunnel.rs b/rootshell/src/tunnel.rs
 new file mode 100644
 index 0000000..77695ca
@@ -12601,10 +13441,10 @@ index 0000000..77695ca
 +    result
 +}
 diff --git a/rootshell/src/ui.rs b/rootshell/src/ui.rs
-index 61fd4a6..225de64 100644
+index 61fd4a6..b38b568 100644
 --- a/rootshell/src/ui.rs
 +++ b/rootshell/src/ui.rs
-@@ -1,605 +1,371 @@
+@@ -1,605 +1,490 @@
 -//! siboot-pair's screen, for rootshell's terminal (Ghostty).
 -//!
 -//! A WASM program there can't ask the terminal its size, runs on one thread
@@ -12620,16 +13460,7 @@ index 61fd4a6..225de64 100644
 -//! What it shows is also kept as plain lines, the run's log, which it offers
 -//! to copy when it stops: through OSC 52, which Ghostty puts on the
 -//! clipboard (a WASM program can't run a command to do it).
-+//! Terminal UI using rootshell's cooked/raw input ABI, with no reader thread.
-+use crate::i18n::tr;
-+use std::{
-+    io::{self, Read, Write},
-+    path::{Path, PathBuf},
-+    sync::atomic::{AtomicBool, AtomicU64, Ordering},
-+};
-+static VERBOSE: AtomicBool = AtomicBool::new(false);
-+static PROGRESS: AtomicU64 = AtomicU64::new(101);
- 
+-
 -use std::io::Write as _;
 -use std::sync::{Mutex, MutexGuard};
 -use std::time::Duration;
@@ -12660,13 +13491,8 @@ index 61fd4a6..225de64 100644
 -    frame: usize,
 -    /// Plain output: the last live text printed, so a repeat isn't.
 -    last: String,
-+#[cfg(target_os = "wasi")]
-+#[link(wasm_import_module = "rootshell_terminal")]
-+unsafe extern "C" {
-+    fn rootshell_terminal_set_raw(enabled: i32) -> i32;
-+    fn rootshell_terminal_is_tty(fd: i32) -> i32;
- }
- 
+-}
+-
 -static SCREEN: Mutex<Screen> = Mutex::new(Screen {
 -    fancy: false,
 -    color: false,
@@ -12681,9 +13507,7 @@ index 61fd4a6..225de64 100644
 -struct Record {
 -    lines: Vec<String>,
 -    last: String,
-+pub fn init(verbose: bool, _: bool) {
-+    VERBOSE.store(verbose, Ordering::Relaxed);
- }
+-}
 -
 -static RECORD: Mutex<Record> = Mutex::new(Record { lines: Vec::new(), last: String::new() });
 -
@@ -12701,26 +13525,35 @@ index 61fd4a6..225de64 100644
 -            r.lines.remove(100);
 -        }
 -        r.lines.push(line.to_string());
--    }
-+pub fn interactive() -> bool {
-+    true
- }
++//! Terminal UI using rootshell's cooked/raw input ABI, with no reader thread.
++use crate::i18n::tr;
++use std::borrow::Cow;
++use std::{
++    io::{self, Read, Write},
++    path::{Path, PathBuf},
++    sync::atomic::{AtomicBool, AtomicU64, Ordering},
++};
++static VERBOSE: AtomicBool = AtomicBool::new(false);
++static PROGRESS: AtomicU64 = AtomicU64::new(101);
++
++/// Names and remote errors can contain terminal commands. Escape controls for
++/// display only; keep original paths and password bytes unchanged for use.
++pub fn safe_text(text: &str) -> Cow<'_, str> {
++    fn unsafe_character(c: char) -> bool {
++        c.is_control() || matches!(c, '\u{202a}'..='\u{202e}' | '\u{2066}'..='\u{2069}')
+     }
+-}
 -
 -/// The run's log so far.
 -pub fn recorded() -> Vec<String> {
 -    RECORD.lock().unwrap_or_else(|poisoned| poisoned.into_inner()).lines.clone()
-+pub fn header(version: &str, tagline: &str) {
-+    println!("\nsiboot {version} · rootshell\nJay-Void-BA · based on FrizzleM/siboot\n");
-+    note(tagline);
- }
+-}
 -
 -fn screen() -> MutexGuard<'static, Screen> {
 -    SCREEN
 -        .lock()
 -        .unwrap_or_else(|poisoned| poisoned.into_inner())
-+pub fn step(n: usize, title: &str) {
-+    println!("\n[{n}] {}", tr(title));
- }
+-}
 -
 -pub fn init(plain: bool) {
 -    let mut s = screen();
@@ -12732,9 +13565,7 @@ index 61fd4a6..225de64 100644
 -        .filter(|c| (20..=400).contains(c))
 -        .unwrap_or(DEFAULT_COLUMNS);
 -    s.measure = columns.min(72) - 1;
-+pub fn done(message: &str) {
-+    ok(message);
- }
+-}
 -
 -/// How a line that stays starts.
 -#[derive(Clone, Copy)]
@@ -12742,9 +13573,7 @@ index 61fd4a6..225de64 100644
 -    Good,
 -    Warn,
 -    Info,
-+pub fn status(message: &str) {
-+    println!("{}", tr(message));
- }
+-}
 -
 -impl Mark {
 -    fn glyph(self) -> (&'static str, &'static str) {
@@ -12762,16 +13591,20 @@ index 61fd4a6..225de64 100644
 -            Mark::Warn => "!!",
 -            Mark::Info => "  ",
 -        }
--    }
-+pub fn activity(message: &str) {
-+    status(message);
- }
++    if !text.chars().any(unsafe_character) {
++        return Cow::Borrowed(text);
+     }
+-}
 -
 -impl Screen {
 -    fn paint(&self, style: &str, text: &str) -> String {
 -        if self.color && !style.is_empty() && !text.is_empty() {
 -            format!("\x1b[{style}m{text}\x1b[0m")
--        } else {
++    let mut escaped = String::new();
++    for c in text.chars() {
++        if unsafe_character(c) {
++            escaped.extend(c.escape_unicode());
+         } else {
 -            text.to_string()
 -        }
 -    }
@@ -12783,8 +13616,9 @@ index 61fd4a6..225de64 100644
 -                format!("  {} {}", self.paint(style, mark), cut(text, room))
 -            }
 -            None => String::new(),
--        }
--    }
++            escaped.push(c);
+         }
+     }
 -
 -    /// Print `lines` to stay, above the live line.
 -    fn emit(&mut self, lines: &[String]) {
@@ -12832,10 +13666,9 @@ index 61fd4a6..225de64 100644
 -            })
 -            .collect()
 -    }
-+pub fn ok(message: &str) {
-+    println!("✓ {}", tr(message));
++    Cow::Owned(escaped)
  }
--
+ 
 -/// The name and version, and what it does.
 -pub fn header(version: &str) {
 -    record(&format!("siboot-pair {version} log"));
@@ -12857,10 +13690,13 @@ index 61fd4a6..225de64 100644
 -        )]
 -    };
 -    s.emit(&lines);
-+pub fn note(message: &str) {
-+    status(message);
++#[cfg(target_os = "wasi")]
++#[link(wasm_import_module = "rootshell_terminal")]
++unsafe extern "C" {
++    fn rootshell_terminal_set_raw(enabled: i32) -> i32;
++    fn rootshell_terminal_is_tty(fd: i32) -> i32;
  }
--
+ 
 -/// A line to keep in mind, marked.
 -pub fn say(mark: Mark, text: &str) {
 -    record(&format!("{} {text}", mark.word()));
@@ -12873,8 +13709,8 @@ index 61fd4a6..225de64 100644
 -        vec![format!("{} {text}", mark.word())]
 -    };
 -    s.emit(&lines);
-+pub fn warn(message: &str) {
-+    println!("! {}", tr(message));
++pub fn init(verbose: bool, _: bool) {
++    VERBOSE.store(verbose, Ordering::Relaxed);
  }
 -
 -/// A paragraph, wrapped; `style` is one of `heading`'s or `dim`'s.
@@ -12887,43 +13723,27 @@ index 61fd4a6..225de64 100644
 -        vec![text.to_string()]
 -    };
 -    s.emit(&lines);
-+pub fn detail(message: &str) {
-+    if VERBOSE.load(Ordering::Relaxed) {
-+        println!("  {message}");
-+    }
++pub fn interactive() -> bool {
++    true
  }
 -
 -pub fn text(text: &str) {
 -    paragraph("", text);
-+pub fn progress(label: &str, done: u64, total: u64) {
-+    percent(
-+        label,
-+        done.saturating_mul(100)
-+            .checked_div(total)
-+            .unwrap_or(0)
-+            .min(100),
-+    );
-+}
-+pub fn percent(label: &str, percent: u64) {
-+    let rounded = percent / 5 * 5;
-+    if PROGRESS.swap(rounded, Ordering::Relaxed) != rounded {
-+        println!("{} {percent}%", tr(label));
-+    }
++pub fn header(version: &str, tagline: &str) {
++    println!("\nsiboot {version} · rootshell\nJay-Void-BA · based on FrizzleM/siboot\n");
++    note(tagline);
  }
 -
 -pub fn heading(text: &str) {
 -    paragraph(BOLD, text);
-+pub fn progress_end() {
-+    PROGRESS.store(101, Ordering::Relaxed);
++pub fn step(n: usize, title: &str) {
++    println!("\n[{n}] {}", safe_text(&tr(title)));
  }
 -
 -pub fn dim(text: &str) {
 -    paragraph(DIM, text);
-+pub fn finish(title: &str, paragraphs: &[&str]) {
-+    println!("\n✓ {}", tr(title));
-+    for text in paragraphs {
-+        note(text);
-+    }
++pub fn done(message: &str) {
++    ok(message);
  }
 -
 -/// Step `n` of a list, its other lines indented under its text.
@@ -12937,9 +13757,8 @@ index 61fd4a6..225de64 100644
 -        vec![format!("  {n}. {text}")]
 -    };
 -    s.emit(&lines);
-+pub fn failure(advice: &str, raw: &str) {
-+    warn(advice);
-+    detail(raw);
++pub fn status(message: &str) {
++    println!("{}", safe_text(&tr(message)));
  }
 -
 -/// A command to type, on one line however long, so it copies whole.
@@ -12948,34 +13767,22 @@ index 61fd4a6..225de64 100644
 -    let mut s = screen();
 -    let line = format!("    {}", s.paint(ACCENT, text));
 -    s.emit(&[line]);
-+pub fn retry_step(advice: &str, raw: &str) -> bool {
-+    failure(advice, raw);
-+    confirm("Retry this step?", true)
++pub fn activity(message: &str) {
++    status(message);
  }
- 
+-
 -pub fn blank() {
 -    screen().emit(&[String::new()]);
-+pub fn ask(prompt: &str) -> Option<String> {
-+    let wait = rootshell_runtime::perf::span("ui.wait", &[("secret", 0)]);
-+    rootshell_runtime::perf::checkpoint();
-+    print!("{}", tr(prompt));
-+    io::stdout().flush().ok()?;
-+    let mut line = String::new();
-+    if io::stdin().read_line(&mut line).ok()? == 0 {
-+        wait.finish(rootshell_runtime::perf::Outcome::Cancelled, &[]);
-+        return None;
-+    }
-+    wait.finish(rootshell_runtime::perf::Outcome::Ok, &[]);
-+    Some(line.trim_end_matches(['\r', '\n']).to_string())
++pub fn ok(message: &str) {
++    println!("✓ {}", safe_text(&tr(message)));
  }
 -
 -/// The live line: what siboot-pair is waiting for now.
 -pub fn live(text: &str) {
 -    record(&format!(" … {text}"));
 -    screen().set_live("◆", STRONG, text);
-+pub fn ask_text(question: &str, label: &str, _: &str, _: &str) -> Option<String> {
-+    note(question);
-+    ask(&format!("{}: ", tr(label)))
++pub fn note(message: &str) {
++    status(message);
  }
 -
 -/// The live line with a spinner, for `time`: it moves only while the program
@@ -12992,24 +13799,12 @@ index 61fd4a6..225de64 100644
 -                s.set_live(glyph, ACCENT, text);
 -            } else {
 -                s.set_live("", "", text);
-+pub fn choose(title: &str, options: &[String]) -> Option<usize> {
-+    note(title);
-+    for (i, option) in options.iter().enumerate() {
-+        println!("  {}. {}", i + 1, tr(option));
-+    }
-+    loop {
-+        let answer = ask("Number (empty to cancel): ")?;
-+        if answer.trim().is_empty() {
-+            return None;
-+        }
-+        if let Ok(number) = answer.trim().parse::<usize>() {
-+            if number > 0 && number <= options.len() {
-+                return Some(number - 1);
-             }
-         }
+-            }
+-        }
 -        std::thread::sleep(FRAME);
-+        warn("Choose one of the listed numbers.");
-     }
+-    }
++pub fn warn(message: &str) {
++    println!("! {}", safe_text(&tr(message)));
  }
 -
 -/// The live line ends as a line that stays.
@@ -13017,34 +13812,35 @@ index 61fd4a6..225de64 100644
 -    let mut s = screen();
 -    if s.fancy && s.live.take().is_some() {
 -        print!("\r\x1b[2K");
-+pub fn confirm(question: &str, default: bool) -> bool {
-+    let suffix = if default { " [Y/n]: " } else { " [y/N]: " };
-+    let answer = ask(&format!("{}{}", tr(question), suffix));
-+    match answer
-+        .as_deref()
-+        .map(str::trim)
-+        .map(str::to_ascii_lowercase)
-+        .as_deref()
-+    {
-+        Some("y" | "yes" | "是" | "好") => true,
-+        Some("") => default,
-+        _ => false,
++pub fn detail(message: &str) {
++    if VERBOSE.load(Ordering::Relaxed) {
++        println!("  {}", safe_text(message));
      }
 -    s.last.clear();
 -    drop(s);
 -    say(mark, text);
  }
- 
+-
 -/// The live line, if any, is left as it was, and the output ends with a newline.
 -pub fn end() {
 -    let mut s = screen();
 -    if s.fancy && s.live.take().is_some() {
 -        println!();
 -        let _ = std::io::stdout().flush();
--    }
-+pub enum Hint {
-+    Plain(String),
-+    Warning(String),
++pub fn progress(label: &str, done: u64, total: u64) {
++    percent(
++        label,
++        done.saturating_mul(100)
++            .checked_div(total)
++            .unwrap_or(0)
++            .min(100),
++    );
++}
++pub fn percent(label: &str, percent: u64) {
++    let rounded = percent / 5 * 5;
++    if PROGRESS.swap(rounded, Ordering::Relaxed) != rounded {
++        println!("{} {percent}%", safe_text(&tr(label)));
+     }
  }
 -
 -/// A failure: the live line, if any, becomes it.
@@ -13063,10 +13859,8 @@ index 61fd4a6..225de64 100644
 -        vec![String::new(), format!("Stopped: {problem}")]
 -    };
 -    s.emit(&lines);
-+pub enum CodeAnswer {
-+    Code(String),
-+    More,
-+    Cancel,
++pub fn progress_end() {
++    PROGRESS.store(101, Ordering::Relaxed);
  }
 -
 -/// `code` in large digits, three groups of three apart, and plainly under
@@ -13079,14 +13873,18 @@ index 61fd4a6..225de64 100644
 -    if !s.fancy {
 -        s.emit(&[format!("    {spaced}")]);
 -        return;
--    }
++pub fn finish(title: &str, paragraphs: &[&str]) {
++    println!("\n✓ {}", safe_text(&tr(title)));
++    for text in paragraphs {
++        note(text);
+     }
 -    let mut lines: Vec<String> = big_digits(code)
 -        .into_iter()
 -        .map(|row| format!("    {}", s.paint(STRONG, &row)))
 -        .collect();
 -    lines.push(format!("    {}", s.paint(DIM, &spaced)));
 -    s.emit(&lines);
--}
+ }
 -
 -/// A notification, which rootshell's terminal posts even with rootshell in
 -/// the background (OSC 777, as Ghostty reads it).
@@ -13097,8 +13895,15 @@ index 61fd4a6..225de64 100644
 -    let clean = |t: &str| t.replace([';', '\x07', '\x1b'], " ");
 -    print!("\x1b]777;notify;{};{}\x07", clean(title), clean(body));
 -    let _ = std::io::stdout().flush();
--}
--
++pub fn failure(advice: &str, raw: &str) {
++    warn(advice);
++    detail(raw);
++}
++pub fn retry_step(advice: &str, raw: &str) -> bool {
++    failure(advice, raw);
++    confirm("Retry this step?", true)
+ }
+ 
 -/// A question answered with a line: a WASM program can't read keys one at a
 -/// time. None at the end of input. `hint` follows it, dimmed: "y/n". The
 -/// question, hint and answer fit 40 columns, or the answer would wrap.
@@ -13112,36 +13917,72 @@ index 61fd4a6..225de64 100644
 -    drop(s);
 -    print!("{prompt}");
 -    let _ = std::io::stdout().flush();
--    let mut line = String::new();
++pub fn ask(prompt: &str) -> Option<String> {
++    let wait = rootshell_runtime::perf::span("ui.wait", &[("secret", 0)]);
++    rootshell_runtime::perf::checkpoint();
++    print!("{}", safe_text(&tr(prompt)));
++    io::stdout().flush().ok()?;
+     let mut line = String::new();
 -    match std::io::stdin().read_line(&mut line) {
 -        Ok(0) | Err(_) => {
 -            println!();
 -            None
--        }
++    if io::stdin().read_line(&mut line).ok()? == 0 {
++        wait.finish(rootshell_runtime::perf::Outcome::Cancelled, &[]);
++        return None;
++    }
++    wait.finish(rootshell_runtime::perf::Outcome::Ok, &[]);
++    Some(line.trim_end_matches(['\r', '\n']).to_string())
++}
++pub fn ask_text(question: &str, label: &str, _: &str, _: &str) -> Option<String> {
++    note(question);
++    ask(&format!("{}: ", tr(label)))
++}
++pub fn choose(title: &str, options: &[String]) -> Option<usize> {
++    note(title);
++    for (i, option) in options.iter().enumerate() {
++        println!("  {}. {}", i + 1, safe_text(&tr(option)));
++    }
++    loop {
++        let answer = ask("Number (empty to cancel): ")?;
++        if answer.trim().is_empty() {
++            return None;
+         }
 -        Ok(_) => {
 -            let answer = line.trim().to_string();
 -            record(&format!(" ?  {question} {answer}"));
 -            Some(answer)
-+pub fn ask_code_or_more(question: &str, _: &str, hints: &[Hint]) -> Option<CodeAnswer> {
-+    note(question);
-+    for hint in hints {
-+        match hint {
-+            Hint::Plain(text) => note(text),
-+            Hint::Warning(text) => warn(text),
++        if let Ok(number) = answer.trim().parse::<usize>() {
++            if number > 0 && number <= options.len() {
++                return Some(number - 1);
++            }
          }
++        warn("Choose one of the listed numbers.");
      }
--}
+ }
 -
 -/// `text` onto the clipboard: OSC 52, which Ghostty, rootshell's terminal,
 -/// takes as a copy. Nothing says whether it did.
 -pub fn copy(text: &str) {
 -    if cfg!(test) {
 -        return;
--    }
++pub fn confirm(question: &str, default: bool) -> bool {
++    let suffix = if default { " [Y/n]: " } else { " [y/N]: " };
++    let answer = ask(&format!("{}{}", tr(question), suffix));
++    match answer
++        .as_deref()
++        .map(str::trim)
++        .map(str::to_ascii_lowercase)
++        .as_deref()
++    {
++        Some("y" | "yes" | "是" | "好") => true,
++        Some("") => default,
++        _ => false,
+     }
 -    print!("\x1b]52;c;{}\x07", base64(text.as_bytes()));
 -    let _ = std::io::stdout().flush();
--}
--
+ }
+ 
 -/// Standard base64, with padding, as OSC 52 takes it.
 -fn base64(bytes: &[u8]) -> String {
 -    const ALPHABET: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
@@ -13153,6 +13994,23 @@ index 61fd4a6..225de64 100644
 -                out.push(ALPHABET[(n >> (18 - 6 * i) & 63) as usize] as char);
 -            } else {
 -                out.push('=');
++pub enum Hint {
++    Plain(String),
++    Warning(String),
++}
++pub enum CodeAnswer {
++    Code(String),
++    More,
++    Cancel,
++}
++pub fn ask_code_or_more(question: &str, _: &str, hints: &[Hint]) -> Option<CodeAnswer> {
++    note(question);
++    for hint in hints {
++        match hint {
++            Hint::Plain(text) => note(text),
++            Hint::Warning(text) => warn(text),
++        }
++    }
 +    loop {
 +        let answer = ask("6-digit code; m for other methods; q to cancel: ")?;
 +        match answer.trim() {
@@ -13207,15 +14065,15 @@ index 61fd4a6..225de64 100644
 +                    io::ErrorKind::Unsupported,
 +                    "terminal required",
 +                ));
-+            }
+             }
+-            out.push_str(DIGITS[d as usize][row]);
 +            if unsafe { rootshell_terminal_set_raw(1) } != 0 {
 +                return Err(io::Error::other(
 +                    "rootshell could not disable password echo",
 +                ));
-             }
--            out.push_str(DIGITS[d as usize][row]);
++            }
 +            Ok(Self {})
-         }
++        }
 +        #[cfg(unix)]
 +        unsafe {
 +            let mut saved = std::mem::zeroed();
@@ -13229,7 +14087,7 @@ index 61fd4a6..225de64 100644
 +                return Err(io::Error::last_os_error());
 +            }
 +            Ok(Self { saved })
-+        }
+         }
 +        #[cfg(not(any(unix, target_os = "wasi")))]
 +        Err(io::Error::new(
 +            io::ErrorKind::Unsupported,
@@ -13237,7 +14095,7 @@ index 61fd4a6..225de64 100644
 +        ))
      }
 -    rows
--}
+ }
 -
 -/// Columns a character takes: two for East Asian wide characters and emoji.
 -fn char_width(c: char) -> usize {
@@ -13256,11 +14114,25 @@ index 61fd4a6..225de64 100644
 -        2
 -    } else {
 -        1
--    }
--}
--
++impl Drop for Raw {
++    fn drop(&mut self) {
++        #[cfg(target_os = "wasi")]
++        unsafe {
++            rootshell_terminal_set_raw(0);
++        }
++        #[cfg(unix)]
++        unsafe {
++            libc::tcsetattr(0, libc::TCSANOW, &self.saved);
++        }
+     }
+ }
+ 
 -fn width(text: &str) -> usize {
 -    text.chars().map(char_width).sum()
++/// Clear the current password line on EOF and I/O errors as well as explicit
++/// cancellation. Restore terminal echo only after the visible line is erased.
++struct SecretLine {
++    active: bool,
  }
 -
 -/// `text` cut to `room` columns, with … where it's cut.
@@ -13274,15 +14146,11 @@ index 61fd4a6..225de64 100644
 -        let w = char_width(c);
 -        if used + w > room {
 -            break;
-+impl Drop for Raw {
++impl Drop for SecretLine {
 +    fn drop(&mut self) {
-+        #[cfg(target_os = "wasi")]
-+        unsafe {
-+            rootshell_terminal_set_raw(0);
-+        }
-+        #[cfg(unix)]
-+        unsafe {
-+            libc::tcsetattr(0, libc::TCSANOW, &self.saved);
++        if self.active {
++            let _ = writeln!(io::stdout(), "\r\x1b[2K");
++            let _ = io::stdout().flush();
          }
 -        out.push(c);
 -        used += w;
@@ -13309,6 +14177,7 @@ index 61fd4a6..225de64 100644
 +    note("Passwords are hidden. Ctrl-V toggles viewing while typing.");
 +    note(label);
 +    let raw = Raw::enter()?;
++    let mut secret_line = SecretLine { active: true };
 +    let wait = rootshell_runtime::perf::span("ui.wait", &[("secret", 1)]);
 +    rootshell_runtime::perf::checkpoint();
 +    let mut bytes = Zeroizing::new(Vec::<u8>::new());
@@ -13333,24 +14202,27 @@ index 61fd4a6..225de64 100644
 -                if used + char_width(c) > room {
 -                    lines.push(std::mem::take(&mut line));
 -                    used = 0;
--                }
--                line.push(c);
--                used += char_width(c);
--            }
 +        if visible {
 +            let tail = Zeroizing::new(
 +                text.chars()
 +                    .skip(count.saturating_sub(window))
 +                    .collect::<String>(),
 +            );
-+            print!("{}", tail.as_str());
++            let rendered = Zeroizing::new(safe_text(tail.as_str()).into_owned());
++            let visible_tail = Zeroizing::new(
++                rendered
++                    .chars()
++                    .skip(rendered.chars().count().saturating_sub(window))
++                    .collect::<String>(),
++            );
++            print!("{}", visible_tail.as_str());
 +        } else {
 +            print!("{}", "*".repeat(count.min(window)));
 +        }
 +        io::stdout().flush()?;
 +        let mut key = [0];
 +        if input.read(&mut key)? == 0 {
-+            println!();
++            drop(secret_line);
 +            drop(raw);
 +            wait.finish(rootshell_runtime::perf::Outcome::Cancelled, &[]);
 +            return Ok(None);
@@ -13363,15 +14235,13 @@ index 61fd4a6..225de64 100644
 +            } else {
 +                0
 +            };
-             continue;
-         }
--        if used > 0 {
--            line.push(' ');
--            used += 1;
++            continue;
++        }
 +        match key[0] {
 +            b'\r' | b'\n' => {
 +                print!("\r\x1b[2K> ({})\n", tr("hidden"));
 +                io::stdout().flush()?;
++                secret_line.active = false;
 +                drop(raw);
 +                let text = String::from_utf8(bytes.to_vec()).map_err(|_| {
 +                    io::Error::new(io::ErrorKind::InvalidData, "password is not UTF-8")
@@ -13382,6 +14252,7 @@ index 61fd4a6..225de64 100644
 +            3 | 4 => {
 +                print!("\r\x1b[2K\n");
 +                io::stdout().flush()?;
++                secret_line.active = false;
 +                drop(raw);
 +                wait.finish(rootshell_runtime::perf::Outcome::Cancelled, &[]);
 +                return Ok(None);
@@ -13394,22 +14265,134 @@ index 61fd4a6..225de64 100644
 +                    while !bytes.is_empty() && std::str::from_utf8(&bytes).is_err() {
 +                        bytes.pop();
 +                    }
-+                }
-+            }
+                 }
+-                line.push(c);
+-                used += char_width(c);
+             }
 +            byte if (byte >= 32 || byte == b'\t') && bytes.len() < 16 * 1024 => bytes.push(byte),
 +            _ => {}
++        }
++    }
++}
++
++/// Cache directory-entry types once. Asking Path::is_dir in a sort comparator
++/// performs O(n log n) synchronous host stats on a WASI filesystem.
++struct FileChoice {
++    path: PathBuf,
++    name: std::ffi::OsString,
++    directory: bool,
++}
++
++fn file_choices(directory: &Path, extensions: &[&str]) -> io::Result<(Vec<FileChoice>, bool)> {
++    let mut paths = Vec::new();
++    let mut truncated = false;
++    for entry in std::fs::read_dir(directory)? {
++        let entry = entry?;
++        let kind = entry.file_type()?;
++        let path = entry.path();
++        let directory = kind.is_dir() || (kind.is_symlink() && path.is_dir());
++        let matching = path
++            .extension()
++            .and_then(|value| value.to_str())
++            .is_some_and(|value| {
++                extensions
++                    .iter()
++                    .any(|extension| value.eq_ignore_ascii_case(extension))
++            });
++        if !directory && !matching {
+             continue;
+         }
+-        if used > 0 {
+-            line.push(' ');
+-            used += 1;
++        if paths.len() == 256 {
++            truncated = true;
++            break;
          }
 -        line.push_str(word);
 -        used += w;
++        paths.push(FileChoice {
++            path,
++            name: entry.file_name(),
++            directory,
++        });
      }
 -    if !line.is_empty() || lines.is_empty() {
 -        lines.push(line);
--    }
++    paths.sort_by(|a, b| {
++        (!a.directory)
++            .cmp(&(!b.directory))
++            .then_with(|| a.name.cmp(&b.name))
++    });
++    Ok((paths, truncated))
++}
++
++/// Browse local files; a typed path remains available when enumeration fails or
++/// the folder has more entries than the bounded on-screen list.
++pub fn select_file(title: &str, extensions: &[&str]) -> Option<PathBuf> {
++    use std::fmt::Write as _;
++    let mut directory = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
++    loop {
++        note(title);
++        let (paths, truncated) = match file_choices(&directory, extensions) {
++            Ok(list) => list,
++            Err(error) => {
++                warn("This folder could not be listed. Enter the full local file path instead.");
++                detail(&error.to_string());
++                (Vec::new(), false)
++            }
++        };
++        // One terminal write replaces a separate WebKit message for every row.
++        let mut listing = format!("{}\n  0. ..\n", safe_text(&directory.to_string_lossy()));
++        for (index, entry) in paths.iter().enumerate() {
++            let _ = writeln!(
++                listing,
++                "  {}. {}{}",
++                index + 1,
++                safe_text(&entry.name.to_string_lossy()),
++                if entry.directory { "/" } else { "" }
++            );
++        }
++        print!("{listing}");
++        if truncated {
++            note("Only the first 256 matching entries are shown. Enter a full path to choose another file.");
++        }
++        let answer = ask("Choose a number or enter a file path (empty to cancel): ")?;
++        let answer = answer.trim();
++        if answer.is_empty() {
++            return None;
++        }
++        let path = if answer == "0" {
++            directory.parent().unwrap_or(&directory).to_path_buf()
++        } else if let Ok(number) = answer.parse::<usize>() {
++            match paths.get(number.saturating_sub(1)) {
++                Some(entry) => entry.path.clone(),
++                None => {
++                    warn("Choose one of the listed numbers.");
++                    continue;
++                }
++            }
++        } else {
++            let path = crate::pairing_files::expand_path(Path::new(answer));
++            if path.is_absolute() {
++                path
++            } else {
++                directory.join(path)
++            }
++        };
++        // Validate the selected path once, after input, rather than relying on
++        // a potentially stale listing or doing one stat for each type check.
++        match std::fs::metadata(&path) {
++            Ok(info) if info.is_dir() => directory = path,
++            Ok(info) if info.is_file() => return Some(path),
++            _ => warn("That local file cannot be read."),
++        }
+     }
 -    lines
  }
  
--#[cfg(test)]
--mod tests {
+ #[cfg(test)]
+ mod tests {
 -    use super::*;
 -
 -    #[test]
@@ -13422,7 +14405,7 @@ index 61fd4a6..225de64 100644
 -        assert_eq!(base64("Settings › Pair".as_bytes()), "U2V0dGluZ3Mg4oC6IFBhaXI=");
 -    }
 -
--    #[test]
+     #[test]
 -    fn the_log_keeps_lines_not_codes() {
 -        // Other tests log too, into the same record: these lines are its own.
 -        header("9.9.9");
@@ -13435,9 +14418,16 @@ index 61fd4a6..225de64 100644
 -        assert_eq!(log.matches("Waiting for the log test").count(), 1, "{log}");
 -        assert!(!log.contains("975310") && !log.contains("975 310"), "{log}");
 -        assert!(log.contains("Stopped: the log test ended."), "{log}");
--    }
--
--    #[test]
++    fn terminal_controls_are_escaped_without_changing_normal_unicode() {
++        assert_eq!(super::safe_text("空格 App.ipa"), "空格 App.ipa");
++        let escaped = super::safe_text("bad\u{1b}[31m\n\u{202e}.ipa");
++        assert!(!escaped.contains('\u{1b}'));
++        assert!(!escaped.contains('\n'));
++        assert!(!escaped.contains('\u{202e}'));
++        assert!(escaped.contains("\\u{1b}"));
+     }
+ 
+     #[test]
 -    fn big_digits_are_three_rows_of_even_width() {
 -        let rows = big_digits("481516");
 -        assert_eq!(rows[0], "╻ ╻ ┏━┓ ╺┓    ┏━╸ ╺┓  ┏━╸");
@@ -13446,65 +14436,11 @@ index 61fd4a6..225de64 100644
 -        // Every digit is three columns, so the rows line up.
 -        for (d, glyph) in DIGITS.iter().enumerate() {
 -            assert!(glyph.iter().all(|row| width(row) == 3), "{d}");
-+/// Browse only local metadata; a typed path is also accepted for Files imports.
-+pub fn select_file(title: &str, extensions: &[&str]) -> Option<PathBuf> {
-+    let mut directory = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
-+    loop {
-+        note(title);
-+        println!("{}", directory.display());
-+        let mut paths: Vec<_> = std::fs::read_dir(&directory)
-+            .ok()?
-+            .filter_map(std::result::Result::ok)
-+            .map(|e| e.path())
-+            .filter(|p| {
-+                p.is_dir()
-+                    || p.extension()
-+                        .and_then(|e| e.to_str())
-+                        .is_some_and(|e| extensions.iter().any(|x| e.eq_ignore_ascii_case(x)))
-+            })
-+            .take(256)
-+            .collect();
-+        paths.sort_by_key(|p| {
-+            (
-+                !p.is_dir(),
-+                p.file_name().unwrap_or_default().to_os_string(),
-+            )
-+        });
-+        println!("  0. ..");
-+        for (i, path) in paths.iter().enumerate() {
-+            println!(
-+                "  {}. {}{}",
-+                i + 1,
-+                path.file_name().unwrap_or_default().to_string_lossy(),
-+                if path.is_dir() { "/" } else { "" }
-+            );
-+        }
-+        let answer = ask("Choose a number or enter a file path (empty to cancel): ")?;
-+        let answer = answer.trim();
-+        if answer.is_empty() {
-+            return None;
-+        }
-+        let path = if answer == "0" {
-+            directory.parent().unwrap_or(&directory).to_path_buf()
-+        } else if let Ok(number) = answer.parse::<usize>() {
-+            match paths.get(number.saturating_sub(1)) {
-+                Some(path) => path.clone(),
-+                None => continue,
-+            }
-+        } else {
-+            let path = crate::pairing_files::expand_path(Path::new(answer));
-+            if path.is_absolute() {
-+                path
-+            } else {
-+                directory.join(path)
-+            }
-+        };
-+        if path.is_dir() {
-+            directory = path;
-+        } else if path.is_file() {
-+            return Some(path);
-+        } else {
-+            warn("That local file cannot be read.");
++    fn picker_filters_extensions_and_sorts_cached_entry_types() {
++        let root = std::env::temp_dir().join(format!("siboot-picker-{}", uuid::Uuid::new_v4()));
++        std::fs::create_dir_all(root.join("folder")).unwrap();
++        for name in ["z.ipa", "a.IPA", "ignore.txt"] {
++            std::fs::write(root.join(name), b"").unwrap();
          }
 -        assert!(rows.iter().all(|row| width(row) == 25));
 -    }
@@ -13522,5 +14458,12 @@ index 61fd4a6..225de64 100644
 -        );
 -        assert_eq!(cut("Waiting for Settings to connect", 12), "Waiting for…");
 -        assert_eq!(cut("short", 12), "short");
++        let (entries, truncated) = super::file_choices(&root, &["ipa"]).unwrap();
++        assert!(!truncated);
++        assert_eq!(entries.len(), 3);
++        assert!(entries[0].directory);
++        assert_eq!(entries[1].name, "a.IPA");
++        assert_eq!(entries[2].name, "z.ipa");
++        std::fs::remove_dir_all(root).unwrap();
      }
  }
