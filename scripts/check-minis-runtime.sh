@@ -3,11 +3,13 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BINARY="$(realpath "${1:?Usage: check-minis-runtime.sh BINARY OFFLINE_PROBE}")"
-PROBE="$(realpath "${2:?Offline probe is required}")"
+PROBE_SOURCE="$(realpath "${2:?Offline probe is required}")"
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 mkdir "$WORK/bin"
 cp "$BINARY" "$WORK/bin/siboot"
+cp "$PROBE_SOURCE" "$WORK/bin/offline_check"
+PROBE="$WORK/bin/offline_check"
 chmod +x "$WORK/bin/siboot" "$PROBE"
 python3 - "$ROOT" "$BINARY" <<'PY'
 import pathlib, sys
