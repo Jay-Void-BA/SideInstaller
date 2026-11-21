@@ -269,14 +269,19 @@ impl CertificateIdentity {
             return Ok(RsaPrivateKey::from_pkcs8_der(&priv_key)?);
         }
 
-        let mut rng = rand::thread_rng();
+        #[cfg(any(target_os = "wasi", feature = "performance"))]
+        let performance = siboot_perf::span("sign.rsa_keygen", &[("bits", 2048)]);
+        #[cfg(any(target_os = "wasi", feature = "performance"))]
+        siboot_perf::checkpoint();
+        // RSA key generation can take seconds under emulation. Keep the async
+        // executor available for the tunnel, UI and cancellation meanwhile.
+        #[cfg(not(target_os = "wasi"))]
+        let private_key = tokio::task::spawn_blocking(|| RsaPrivateKey::new(&mut rand::thread_rng(), 2048))
+            .await.map_err(|error| report!("RSA worker failed: {error}"))??;
         #[cfg(target_os = "wasi")]
-        let performance = rootshell_runtime::perf::span("sign.rsa_keygen", &[("bits", 2048)]);
-        #[cfg(target_os = "wasi")]
-        rootshell_runtime::perf::checkpoint();
-        let private_key = RsaPrivateKey::new(&mut rng, 2048)?;
-        #[cfg(target_os = "wasi")]
-        performance.finish(rootshell_runtime::perf::Outcome::Ok, &[]);
+        let private_key = RsaPrivateKey::new(&mut rand::thread_rng(), 2048)?;
+        #[cfg(any(target_os = "wasi", feature = "performance"))]
+        performance.finish(siboot_perf::Outcome::Ok, &[]);
         storage.store_data(
             &format!("{}/key", email_hash),
             private_key.to_pkcs8_der()?.as_bytes(),
@@ -405,6 +410,8 @@ impl CertificateIdentity {
     #[cfg(not(target_os = "wasi"))]
     /// Create an RSA/SHA-256 PKCS#10 request for the Apple developer portal.
     pub fn build_csr(private_key: &RsaPrivateKey) -> Result<String, Report> {
+        #[cfg(feature = "performance")]
+        let performance = siboot_perf::span("sign.csr", &[]);
         let mut params = CertificateParams::new(vec![])?;
         let mut dn = DistinguishedName::new();
 
@@ -420,13 +427,16 @@ impl CertificateIdentity {
             &PKCS_RSA_SHA256,
         )?;
 
-        Ok(params.serialize_request(&subject_key)?.pem()?)
+        let pem = params.serialize_request(&subject_key)?.pem()?;
+        #[cfg(feature = "performance")]
+        performance.finish(siboot_perf::Outcome::Ok, &[]);
+        Ok(pem)
     }
 
     #[cfg(target_os = "wasi")]
     /// Create an RSA/SHA-256 PKCS#10 request for the Apple developer portal.
     pub fn build_csr(private_key: &RsaPrivateKey) -> Result<String, Report> {
-        let performance = rootshell_runtime::perf::span("sign.csr", &[]);
+        let performance = siboot_perf::span("sign.csr", &[]);
         use rsa::{pkcs1v15::SigningKey, signature::{Signer, SignatureEncoding}};
         use x509_cert::{der::{asn1::BitString, EncodePem}, name::Name, request::{CertReq, CertReqInfo, Version}, spki::SubjectPublicKeyInfoOwned};
         use rsa::pkcs8::EncodePublicKey;
@@ -448,7 +458,7 @@ impl CertificateIdentity {
             signature: BitString::from_bytes(&signature.to_vec())?,
         };
         let pem = request.to_pem(x509_cert::der::pem::LineEnding::LF)?;
-        performance.finish(rootshell_runtime::perf::Outcome::Ok, &[]);
+        performance.finish(siboot_perf::Outcome::Ok, &[]);
         Ok(pem)
     }
 

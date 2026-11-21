@@ -155,6 +155,7 @@ mod tests {
         let dir = TempDir::new();
         let app_dir = write_app_with_both_extension_kinds(&dir.0);
         let mut app = Application {
+            _extraction_directory: None,
             bundle: Bundle::new(app_dir).unwrap(),
         };
         app.update_bundle_id("com.zarz.mornye", "com.zarz.mornye.TEAMID1234")

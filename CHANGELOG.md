@@ -1,3 +1,7 @@
+## siboot 0.22.0
+
+Return to Minis ARM64; deprecate rootshell. Add isolated bounded extraction, native performance logs and signing worker limits; eliminate redundant renewal copies; preserve complete signing and upload verification. Publish the exact ARM64 artifact exercised by CI with a verified resumable installer. Rewrite English/Chinese setup and migration guides. See [release notes](release-notes/siboot-v0.22.0.md).
+
 # Changelog
 
 ## siboot 0.21.4 — rootshell 1.0.16 (178) and verified downloads

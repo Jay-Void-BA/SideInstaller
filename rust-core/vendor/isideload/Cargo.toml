@@ -15,6 +15,7 @@ default = ["install", "keyring-storage"]
 install = ["dep:idevice"]
 keyring-storage = ["dep:keyring"]
 fs-storage = []
+performance = ["apple-codesign-quick/performance"]
 
 # Unfortunately, dependencies are kinda a mess rn, since this requires a beta version of the srp crate.
 # Once that becomes stable, hopefuly duplicate dependencies should clean up.\
@@ -66,3 +67,6 @@ tokio = { version = "1.49.0", features = ["fs", "rt-multi-thread", "time"] }
 rootshell-http = { package = "rootshell-http", path = "../rootshell-http" }
 rootshell-runtime = { path = "../rootshell-runtime" }
 sha2-10 = { package = "sha2", version = "0.10", features = ["oid"] }
+
+[dependencies.siboot-perf]
+path = "../siboot-perf"

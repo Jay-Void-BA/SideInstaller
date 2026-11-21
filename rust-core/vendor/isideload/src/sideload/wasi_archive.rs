@@ -12,8 +12,8 @@ pub(super) fn extract<R: Read + io::Seek>(
     root: &Path,
 ) -> io::Result<()> {
     let performance =
-        rootshell_runtime::perf::span("ipa.extract", &[("entries", archive.len() as u64)]);
-    rootshell_runtime::perf::checkpoint();
+        siboot_perf::span("ipa.extract", &[("entries", archive.len() as u64)]);
+    siboot_perf::checkpoint();
     let invalid = || {
         io::Error::new(
             io::ErrorKind::InvalidData,
@@ -98,7 +98,7 @@ pub(super) fn extract<R: Read + io::Seek>(
     }
     vfs::validate_links(root)?;
     performance.finish(
-        rootshell_runtime::perf::Outcome::Ok,
+        siboot_perf::Outcome::Ok,
         &[
             ("expanded_bytes", expanded),
             ("links", links.len() as u64),

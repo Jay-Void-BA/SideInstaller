@@ -15,7 +15,7 @@ permissions:
 
 jobs:
   prepare:
-    name: Resolve the tested rootshell release
+    name: Resolve the tested Minis release
     if: >-
       github.event.workflow_run.conclusion == 'success' &&
       github.event.workflow_run.head_branch == github.event.repository.default_branch &&
@@ -33,7 +33,7 @@ jobs:
         with:
           ref: ${{ github.event.workflow_run.head_sha }}
 
-      - name: Resolve WASM release metadata
+      - name: Resolve Minis release metadata
         id: meta
         run: |
           python3 - <<'PY'
@@ -67,92 +67,36 @@ jobs:
             echo 'ready=true' >> "$GITHUB_OUTPUT"
           fi
 
-  rootshell:
-    name: Build and verify siboot.wasm
+  publish:
+    name: Publish the tested Minis ARM64 release
     needs: prepare
     if: needs.prepare.outputs.ready == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 45
-    outputs:
-      sha256: ${{ steps.stage.outputs.sha256 }}
-    env:
-      CARGO_INCREMENTAL: "0"
-      CARGO_PROFILE_DEV_DEBUG: "0"
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          ref: ${{ needs.prepare.outputs.source_sha }}
-
-      - uses: actions/setup-node@v6
-        with:
-          node-version: '24'
-
-      - name: JavaScriptCore parser
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: '1.3.2'
-
-      - name: Prepare the exact tested source
-        env:
-          VERSION: ${{ needs.prepare.outputs.version }}
-        run: |
-          bash scripts/prepare-minis.sh "$RUNNER_TEMP/siboot"
-          python3 - <<'PYVERSION'
-          import os, pathlib, tomllib
-          manifest = pathlib.Path(os.environ['RUNNER_TEMP']) / 'siboot/rootshell/Cargo.toml'
-          assert tomllib.loads(manifest.read_text())['package']['version'] == os.environ['VERSION']
-          PYVERSION
-          rustup target add wasm32-wasip1
-
-      - uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            ${{ runner.temp }}/siboot/rootshell/target
-          key: rootshell-release-${{ runner.os }}-${{ hashFiles('patches/siboot/retry-local-ipa.patch', 'rust-core/Cargo.lock') }}
-          restore-keys: rootshell-release-${{ runner.os }}-
-
-      - name: Build the WASI installer and probes
-        working-directory: ${{ runner.temp }}/siboot/rootshell
-        run: cargo build --release --locked --target wasm32-wasip1 --bins --examples
-
-      - name: Recheck the module in rootshell's actual Worker
-        run: bash scripts/check-rootshell-runtime.sh "$RUNNER_TEMP/siboot/rootshell/target/wasm32-wasip1/release/siboot.wasm" "$RUNNER_TEMP/siboot/rootshell/target/wasm32-wasip1/release/examples/runtime_check.wasm"
-
-      - name: Stage the verified release assets
-        id: stage
-        env:
-          RELEASE_TAG: ${{ needs.prepare.outputs.tag }}
-        run: |
-          python3 scripts/package_rootshell.py "$RUNNER_TEMP/siboot/rootshell/target/wasm32-wasip1/release/siboot.wasm" "$RUNNER_TEMP/rootshell-release"
-          cd "$RUNNER_TEMP/rootshell-release"
-          sha256sum --check SHA256SUMS
-          sh install-rootshell.sh --verify
-          echo "sha256=$(sha256sum siboot.wasm | cut -d ' ' -f 1)" >> "$GITHUB_OUTPUT"
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: rootshell-release
-          path: ${{ runner.temp }}/rootshell-release/
-          if-no-files-found: error
-
-  publish:
-    name: Publish the verified rootshell release
-    needs: [prepare, rootshell]
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     permissions:
       contents: write
+      actions: read
     steps:
       - uses: actions/checkout@v7
         with:
           ref: ${{ needs.prepare.outputs.source_sha }}
 
-      - uses: actions/download-artifact@v4
+      - name: Download the exact successful checks artifact
+        uses: actions/download-artifact@v4
         with:
-          name: rootshell-release
-          path: ${{ runner.temp }}/rootshell-release
+          name: minis-release-candidate
+          path: ${{ runner.temp }}/minis-release
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+
+      - name: Verify source, target, file ranges, sizes and digests
+        env:
+          SOURCE_SHA: ${{ needs.prepare.outputs.source_sha }}
+        run: |
+          python3 scripts/minis_artifact.py verify "$RUNNER_TEMP/minis-release"
+          sh "$RUNNER_TEMP/minis-release/install-minis.sh" --verify "$RUNNER_TEMP/minis-release/siboot-aarch64"
+          cd "$RUNNER_TEMP/minis-release"
+          sha256sum --check SHA256SUMS
 
       - name: Publish and mark Latest
         env:
@@ -162,13 +106,9 @@ jobs:
           VERSION: ${{ needs.prepare.outputs.version }}
           SOURCE_SHA: ${{ needs.prepare.outputs.source_sha }}
           NOTES: ${{ needs.prepare.outputs.notes }}
-          EXPECTED_SHA256: ${{ needs.rootshell.outputs.sha256 }}
         run: |
           set -euo pipefail
-          cd "$RUNNER_TEMP/rootshell-release"
-          sha256sum --check SHA256SUMS
-          sh install-rootshell.sh --verify
-          [[ "$(sha256sum siboot.wasm | cut -d ' ' -f 1)" == "$EXPECTED_SHA256" ]]
+          cd "$RUNNER_TEMP/minis-release"
           if gh release view "$TAG" >/dev/null 2>&1; then
             echo "::notice::$TAG already exists; preserving the published release"
             exit 0
@@ -177,12 +117,15 @@ jobs:
             echo "::error::$TAG exists without a release"
             exit 1
           fi
-          cp "$GITHUB_WORKSPACE/$NOTES" "$RUNNER_TEMP/rootshell-notes.md"
+          cp "$GITHUB_WORKSPACE/$NOTES" "$RUNNER_TEMP/minis-notes.md"
           python3 - <<'PYNOTES'
-          import os, pathlib
-          notes = pathlib.Path(os.environ['RUNNER_TEMP']) / 'rootshell-notes.md'
-          with notes.open('a') as output:
-              output.write('\nSHA-256 (`siboot.wasm`): `' + os.environ['EXPECTED_SHA256'] + '`\n')
+          import json, os, pathlib
+          folder = pathlib.Path(os.environ['RUNNER_TEMP'])
+          build = json.loads((folder / 'minis-release/build-info.json').read_text())
+          with (folder / 'minis-notes.md').open('a') as output:
+              output.write('\nSHA-256 (`siboot-aarch64`): `' + build['sha256']['siboot-aarch64'] + '`\n')
               output.write('\nSource commit: `' + os.environ['SOURCE_SHA'] + '`\n')
           PYNOTES
-          gh release create "$TAG" siboot.wasm install-rootshell.sh SHA256SUMS --target "$SOURCE_SHA" --title "siboot $VERSION · rootshell 1.0.16 (178)" --notes-file "$RUNNER_TEMP/rootshell-notes.md" --latest
+          gh release create "$TAG" siboot-aarch64 install-minis.sh SHA256SUMS \
+            --target "$SOURCE_SHA" --title "siboot $VERSION · Minis ARM64" \
+            --notes-file "$RUNNER_TEMP/minis-notes.md" --latest

@@ -1,0 +1,11 @@
+[package]
+name = "siboot-perf"
+version = "0.22.0"
+edition = "2021"
+license = "MIT"
+description = "Opt-in, payload-free performance diagnostics for siboot"
+
+[dependencies]
+serde_json = "1"
+
+[workspace]

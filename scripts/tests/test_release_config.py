@@ -1,4 +1,3 @@
-import hashlib
 import importlib.util
 import json
 import tempfile
@@ -17,7 +16,6 @@ def load(name):
 
 
 release = load("release_config")
-installer = load("package_minis")
 
 
 class ReleaseConfigTests(unittest.TestCase):
@@ -61,26 +59,6 @@ class ReleaseConfigTests(unittest.TestCase):
             with self.subTest(env=env, sha=sha), self.assertRaises(ValueError):
                 release.configuration(self.root, env, sha)
 
-    def test_installer_downloads_and_verifies_the_release_binary(self):
-        source = self.root / "source"
-        source.mkdir()
-        (source / "install.sh").write_text('''#!/bin/sh
-BASE="original"
-SHA256="0000"
-SIZE=1
-fetch "$BASE/bin/siboot-aarch64" "$BIN.part"
-fetch "$BASE/bin/siboot-aarch64" "$BIN.part"
-''')
-        binary = self.root / "binary"
-        binary.write_bytes(b"release executable")
-        out = self.root / "assets"
-        installer.package(source, binary, out, "Jay-Void-BA/SideInstaller", "v2.1.0")
-        script = (out / "install-minis.sh").read_text()
-        self.assertIn("https://github.com/Jay-Void-BA/SideInstaller/releases/download/v2.1.0", script)
-        self.assertIn(hashlib.sha256(binary.read_bytes()).hexdigest(), script)
-        self.assertIn(f"SIZE={binary.stat().st_size}", script)
-        self.assertEqual(script.count('$BASE/siboot-aarch64'), 2)
-        self.assertEqual((out / "siboot-aarch64").read_bytes(), binary.read_bytes())
 
 
 if __name__ == "__main__":

@@ -66,21 +66,21 @@ impl<'a> MachOSigningConfig<'a> {
 }
 
 pub fn sign_macho_file(path: &Path, config: &MachOSigningConfig<'_>) -> Result<()> {
-    #[cfg(target_os = "wasi")]
-    let performance = rootshell_runtime::perf::span("sign.macho", &[]);
+    #[cfg(any(target_os = "wasi", feature = "performance"))]
+    let performance = siboot_perf::span("sign.macho", &[]);
     let original = fs::read(path).map_err(|source| CodeSignError::io(path, source))?;
-    #[cfg(target_os = "wasi")]
+    #[cfg(any(target_os = "wasi", feature = "performance"))]
     let input_bytes = original.len() as u64;
-    #[cfg(target_os = "wasi")]
-    let encoding = rootshell_runtime::perf::span("sign.macho.encode", &[("input_bytes", input_bytes)]);
-    #[cfg(target_os = "wasi")]
-    if input_bytes >= 16 * 1024 * 1024 { rootshell_runtime::perf::checkpoint(); }
+    #[cfg(any(target_os = "wasi", feature = "performance"))]
+    let encoding = siboot_perf::span("sign.macho.encode", &[("input_bytes", input_bytes)]);
+    #[cfg(any(target_os = "wasi", feature = "performance"))]
+    if input_bytes >= 16 * 1024 * 1024 { siboot_perf::checkpoint(); }
     let signed = sign_macho_owned(path, original, config)?;
-    #[cfg(target_os = "wasi")]
-    encoding.finish(rootshell_runtime::perf::Outcome::Ok, &[("output_bytes", signed.len() as u64)]);
+    #[cfg(any(target_os = "wasi", feature = "performance"))]
+    encoding.finish(siboot_perf::Outcome::Ok, &[("output_bytes", signed.len() as u64)]);
     fs::write(path, signed).map_err(|source| CodeSignError::io(path, source))?;
-    #[cfg(target_os = "wasi")]
-    performance.finish(rootshell_runtime::perf::Outcome::Ok, &[("input_bytes", input_bytes)]);
+    #[cfg(any(target_os = "wasi", feature = "performance"))]
+    performance.finish(siboot_perf::Outcome::Ok, &[("input_bytes", input_bytes)]);
     Ok(())
 }
 

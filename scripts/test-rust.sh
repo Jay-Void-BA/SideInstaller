@@ -89,4 +89,6 @@ for crate in "${VENDORED[@]}"; do
   (cd "$dir" && cargo test --lib --no-default-features ${list:+--features "$list"} \
     ${patches[@]+"${patches[@]}"} -- ${skips[@]+"${skips[@]}"})
 done
+echo "==> vendor/siboot-perf"
+cargo test ${locked[@]+"${locked[@]}"} --manifest-path "$CORE/vendor/siboot-perf/Cargo.toml"
 echo "==> All Rust tests passed"

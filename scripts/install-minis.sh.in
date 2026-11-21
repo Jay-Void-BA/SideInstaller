@@ -1,0 +1,71 @@
+#!/bin/sh
+# Generated for one Minis release. Does not check for updates or run the program.
+set -eu
+umask 077
+VERSION="@VERSION@"
+BASE="${SIBOOT_BASE:-@BASE@}"
+SHA256="@SHA256@"
+SIZE=@SIZE@
+DEST="${SIBOOT_INSTALL_DIR:-${HOME:?}/.siboot/bin}"
+BIN="$DEST/siboot"
+PART="$DEST/siboot-$VERSION.aarch64.part"
+
+fail() { printf '%s\n' "$*" >&2; exit 1; }
+regular() {
+    [ ! -L "$1" ] && { [ ! -e "$1" ] || [ -f "$1" ]; }
+}
+verify() {
+    [ ! -L "$1" ] && [ -f "$1" ] || return 1
+    [ "$(wc -c < "$1" | tr -d '[:space:]')" = "$SIZE" ] || return 1
+    printf '%s  %s\n' "$SHA256" "$1" | sha256sum -c - >/dev/null 2>&1
+}
+
+RESTART=0
+case "${1:-}" in
+    --verify)
+        [ "$#" -le 2 ] || fail 'Usage: install-minis.sh --verify [FILE]'
+        verify "${2:-$BIN}" || fail 'Size or SHA-256 verification failed.'
+        printf 'Verified siboot %s (%s bytes).\n' "$VERSION" "$SIZE"
+        exit 0 ;;
+    --restart) [ "$#" -eq 1 ] || fail 'Usage: install-minis.sh [--restart]'; RESTART=1 ;;
+    '') [ "$#" -eq 0 ] || fail 'Usage: install-minis.sh [--restart | --verify [FILE]]' ;;
+    *) fail 'Usage: install-minis.sh [--restart | --verify [FILE]]' ;;
+esac
+case "$(uname -m)" in
+    aarch64|arm64) ;;
+    *) fail 'This executable requires ARM64 Minis. Standard x86 iSH is unsupported.' ;;
+esac
+[ ! -L "$DEST" ] || fail 'The installation directory must not be a symbolic link.'
+mkdir -p "$DEST"
+regular "$BIN" && regular "$PART" || fail 'Refusing a symlink or special file in the download path.'
+LOCK="$DEST/.siboot-download.lock"
+mkdir "$LOCK" 2>/dev/null || fail 'Another download holds .siboot-download.lock. Finish it before retrying.'
+trap 'rmdir "$LOCK" 2>/dev/null || :' EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM HUP
+if verify "$BIN"; then
+    printf 'siboot %s is already verified. Run: %s\n' "$VERSION" "$BIN"
+    exit 0
+fi
+if [ "$RESTART" -eq 1 ]; then rm -f "$PART"; fi
+if ! verify "$PART"; then
+    if [ -f "$PART" ] && [ "$(wc -c < "$PART" | tr -d '[:space:]')" -ge "$SIZE" ]; then
+        fail 'The partial file is corrupt or from another build. Rerun with --restart.'
+    fi
+    if command -v curl >/dev/null 2>&1; then
+        curl -fL --connect-timeout 20 --retry 3 --retry-delay 1 --retry-all-errors \
+            -C - -o "$PART" "$BASE/siboot-aarch64" || \
+            fail 'Download interrupted; rerun to resume. The installed program was preserved.'
+    elif command -v wget >/dev/null 2>&1; then
+        wget -c -O "$PART" "$BASE/siboot-aarch64" || \
+            fail 'Download interrupted; rerun to resume. Install curl if wget cannot resume.'
+    else
+        fail 'Install curl or wget in Minis first.'
+    fi
+fi
+verify "$PART" || fail 'Size or SHA-256 verification failed. The installed program was preserved. Rerun with --restart.'
+chmod 700 "$PART"
+# Same-directory rename only after size and digest verification.
+mv -f "$PART" "$BIN"
+verify "$BIN" || fail 'The installed file changed after verification.'
+printf 'Verified siboot %s (%s bytes). Run: %s\n' "$VERSION" "$SIZE" "$BIN"

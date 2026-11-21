@@ -48,7 +48,7 @@ dependencies = [
 name = "rootshell-runtime"
 version = "0.21.0"
 dependencies = [
- "serde_json",
+ "siboot-perf",
  "tokio",
 ]
 
@@ -92,6 +92,13 @@ dependencies = [
  "serde",
  "serde_core",
  "zmij",
+]
+
+[[package]]
+name = "siboot-perf"
+version = "0.22.0"
+dependencies = [
+ "serde_json",
 ]
 
 [[package]]

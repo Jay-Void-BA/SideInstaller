@@ -94,3 +94,9 @@ version = "0.2.5"
 
 [target.'cfg(target_os = "wasi")'.dependencies.rootshell-runtime]
 path = "../rootshell-runtime"
+
+[features]
+performance = []
+
+[dependencies.siboot-perf]
+path = "../siboot-perf"

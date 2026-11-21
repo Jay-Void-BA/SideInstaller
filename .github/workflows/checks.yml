@@ -1,7 +1,7 @@
 name: checks
 
-# Checks every pull request and push to main. Rust, iOS, translations, Minis and rootshell run
-# side by side:
+# Checks shared code, the iOS source, translations and the Minis ARM64 release.
+# The retired rootshell runtime is not built or released.
 #
 #   rust          the Rust tests (scripts/test-rust.sh: rust-core's own, then
 #                 those of the crates vendored under rust-core/vendor/, such as
@@ -236,54 +236,64 @@ jobs:
         working-directory: ${{ runner.temp }}/siboot/minis
         run: cargo clippy --locked --all-targets -- -D warnings
 
-  rootshell:
-    name: Rootshell WASI installer and runtime
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
+  minis-arm64:
+    name: Minis ARM64 release and complete signing
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 60
     env:
       CARGO_INCREMENTAL: "0"
       CARGO_PROFILE_DEV_DEBUG: "0"
-      CARGO_TARGET_DIR: ${{ github.workspace }}/rust-core/target
     steps:
       - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v6
-        with:
-          node-version: '24'
-
-      - name: JavaScriptCore parser
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: '1.3.2'
-
-      - name: Prepare both installer targets
+      - name: Prepare the pinned source
         run: bash scripts/prepare-minis.sh "$RUNNER_TEMP/siboot"
-
-      - name: Install WASI target
-        run: rustup target add wasm32-wasip1
 
       - uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-            rust-core/target
-          key: rootshell-${{ runner.os }}-${{ hashFiles('patches/siboot/retry-local-ipa.patch', 'rust-core/Cargo.lock') }}
-          restore-keys: rootshell-${{ runner.os }}-
+            ${{ runner.temp }}/minis-target
+          key: minis-arm64-rust100-${{ hashFiles('patches/siboot/retry-local-ipa.patch', 'rust-core/Cargo.lock') }}
+          restore-keys: minis-arm64-rust100-
 
-      - name: Test the complete installer and bounded HTTP transport
+      - name: Build the static ARM64 executable and offline probe
         run: |
-          cargo test --locked --manifest-path "$RUNNER_TEMP/siboot/rootshell/Cargo.toml" --bin siboot
-          cargo test --locked --manifest-path rust-core/vendor/rootshell-http/Cargo.toml
-          cargo test --locked --manifest-path rust-core/vendor/rootshell-runtime/Cargo.toml
+          set -euo pipefail
+          mkdir -p "$HOME/.cargo/registry" "$HOME/.cargo/git" "$RUNNER_TEMP/minis-target"
+          docker run --rm --platform linux/arm64 \
+            -v "$GITHUB_WORKSPACE:$GITHUB_WORKSPACE:ro" \
+            -v "$RUNNER_TEMP/siboot:$RUNNER_TEMP/siboot" \
+            -v "$RUNNER_TEMP/minis-target:/target" \
+            -v "$HOME/.cargo/registry:/usr/local/cargo/registry" \
+            -v "$HOME/.cargo/git:/usr/local/cargo/git" \
+            -w "$RUNNER_TEMP/siboot/minis" \
+            -e CARGO_TARGET_DIR=/target -e CARGO_BUILD_JOBS=4 -e CARGO_INCREMENTAL=0 \
+            -e 'RUSTFLAGS=-C target-feature=+crt-static -C relocation-model=static -C target-cpu=generic' \
+            rust:1.100-alpine@sha256:18b6dc7bc111bde4e2fccf6c4ec95cc4a3486b41e4b090e9b0202eba9540023e sh -euc '
+              apk add --no-cache build-base cmake perl clang linux-headers
+              rustc --version
+              cargo build --release --locked --target aarch64-unknown-linux-musl --bin siboot --example offline_check
+            '
 
-      - name: Clippy on native and WASI targets
+      - name: Run the actual ARM64 release through complete signing and CLI checks
+        run: bash scripts/check-minis-runtime.sh "$RUNNER_TEMP/minis-target/aarch64-unknown-linux-musl/release/siboot" "$RUNNER_TEMP/minis-target/aarch64-unknown-linux-musl/release/examples/offline_check"
+
+      - name: Package the exact tested executable
+        env:
+          SOURCE_SHA: ${{ github.sha }}
         run: |
-          cargo clippy --locked --manifest-path "$RUNNER_TEMP/siboot/rootshell/Cargo.toml" --bin siboot -- -D warnings
-          cargo clippy --locked --manifest-path "$RUNNER_TEMP/siboot/rootshell/Cargo.toml" --target wasm32-wasip1 --bin siboot -- -D warnings
+          set -euo pipefail
+          export RELEASE_TAG="siboot-v$(python3 -c 'import json; print(json.load(open(".github/siboot-release.json"))["version"])')"
+          python3 scripts/package_minis.py "$RUNNER_TEMP/siboot/minis" \
+            "$RUNNER_TEMP/minis-target/aarch64-unknown-linux-musl/release/siboot" "$RUNNER_TEMP/minis-release"
+          python3 scripts/minis_artifact.py record "$RUNNER_TEMP/minis-release" "$RUNNER_TEMP/siboot/minis/Cargo.toml"
+          sh "$RUNNER_TEMP/minis-release/install-minis.sh" --verify "$RUNNER_TEMP/minis-release/siboot-aarch64"
 
-      - name: Build the release module and offline probes
-        run: cargo build --locked --release --manifest-path "$RUNNER_TEMP/siboot/rootshell/Cargo.toml" --target wasm32-wasip1 --bins --examples
-
-      - name: Verify in rootshell's pinned original Worker
-        run: bash scripts/check-rootshell-runtime.sh "$CARGO_TARGET_DIR/wasm32-wasip1/release/siboot.wasm" "$CARGO_TARGET_DIR/wasm32-wasip1/release/examples/runtime_check.wasm"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: minis-release-candidate
+          path: ${{ runner.temp }}/minis-release/
+          if-no-files-found: error
+          retention-days: 14

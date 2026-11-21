@@ -80,6 +80,7 @@ pub struct Sideloader {
     #[cfg_attr(not(feature = "install"), allow(dead_code))]
     delete_app_after_install: bool,
     team: Option<DeveloperTeam>,
+    extraction_directory: Option<std::sync::Arc<super::workspace::ExtractionDirectory>>,
 }
 
 impl Sideloader {
@@ -106,7 +107,13 @@ impl Sideloader {
             //extensions_behavior,
             delete_app_after_install,
             team: None,
+            extraction_directory: None,
         }
+    }
+
+    /// The caller retains a shared owner until installation has finished.
+    pub fn use_extraction_directory(&mut self, directory: Option<std::sync::Arc<super::workspace::ExtractionDirectory>>) {
+        self.extraction_directory = directory;
     }
 
     /// Sign the app at the provided path and return the path to the signed app bundle (in a temp dir). To sign and install, see [`Self::install_app`].
@@ -148,8 +155,8 @@ impl Sideloader {
         let mut group_session = self.dev_session.clone();
 
         let registration = async {
-            #[cfg(target_os = "wasi")]
-            let _performance = rootshell_runtime::perf::span("sign.device_registration", &[]);
+            #[cfg(any(target_os = "wasi", feature = "performance"))]
+            let _performance = siboot_perf::span("sign.device_registration", &[]);
             if let Some((name, udid)) = register_device
                 && let Err(e) = device_session
                     .ensure_device_registered(&team, name, udid, None)
@@ -157,14 +164,14 @@ impl Sideloader {
             {
                 bail!("device registration failed for UDID {udid}: {e}");
             }
-            #[cfg(target_os = "wasi")]
-            _performance.finish(rootshell_runtime::perf::Outcome::Ok, &[]);
+            #[cfg(any(target_os = "wasi", feature = "performance"))]
+            _performance.finish(siboot_perf::Outcome::Ok, &[]);
             Ok::<(), Report>(())
         };
 
         let certificate = async {
-            #[cfg(target_os = "wasi")]
-            let _performance = rootshell_runtime::perf::span("sign.certificate_identity", &[]);
+            #[cfg(any(target_os = "wasi", feature = "performance"))]
+            let _performance = siboot_perf::span("sign.certificate_identity", &[]);
             let identity = CertificateIdentity::retrieve(
                     &self.machine_name,
                     &self.apple_email,
@@ -175,20 +182,27 @@ impl Sideloader {
                 )
                 .await
                 .context("Failed to retrieve certificate identity")?;
-            #[cfg(target_os = "wasi")]
-            _performance.finish(rootshell_runtime::perf::Outcome::Ok, &[]);
+            #[cfg(any(target_os = "wasi", feature = "performance"))]
+            _performance.finish(siboot_perf::Outcome::Ok, &[]);
             Ok::<_, Report>(identity)
         };
 
         // Extracting the archive is blocking work, so it runs off this task and
         // the requests above keep moving meanwhile.
         let bundle = async {
+            let workspace = self.extraction_directory.clone();
             #[cfg(not(target_os = "wasi"))]
-            let mut app = tokio::task::spawn_blocking(move || Application::new(app_path))
+            let mut app = tokio::task::spawn_blocking(move || match workspace {
+                Some(directory) => Application::new_in(app_path, directory),
+                None => Application::new(app_path),
+            })
                 .await
                 .map_err(|e| report!("Failed to open application archive: {e}"))??;
             #[cfg(target_os = "wasi")]
-            let mut app = Application::new(app_path)?;
+            let mut app = match workspace {
+                Some(directory) => Application::new_in(app_path, directory),
+                None => Application::new(app_path),
+            }?;
             let special = app.get_special_app();
             let wanted_memory_limit = memory_limit;
             let memory_limit = wanted_memory_limit.for_app(special.as_ref());
@@ -212,8 +226,8 @@ impl Sideloader {
                 }
             );
 
-            #[cfg(target_os = "wasi")]
-            let performance = rootshell_runtime::perf::span("sign.app_ids", &[]);
+            #[cfg(any(target_os = "wasi", feature = "performance"))]
+            let performance = siboot_perf::span("sign.app_ids", &[]);
             let (mut app_ids, app_group) = try_join(
                 app.register_app_ids(&mut app_id_session, &team),
                 async {
@@ -267,8 +281,8 @@ impl Sideloader {
             }))
             .await?;
 
-            #[cfg(target_os = "wasi")]
-            performance.finish(rootshell_runtime::perf::Outcome::Ok, &[]);
+            #[cfg(any(target_os = "wasi", feature = "performance"))]
+            performance.finish(siboot_perf::Outcome::Ok, &[]);
             info!("App IDs configured");
             Ok::<_, Report>((app, special, group_identifier, main_app_id))
         };
@@ -293,13 +307,13 @@ impl Sideloader {
                 Ok::<(), Report>(())
             },
             async {
-                #[cfg(target_os = "wasi")]
-                let performance = rootshell_runtime::perf::span("sign.provisioning_profile", &[]);
+                #[cfg(any(target_os = "wasi", feature = "performance"))]
+                let performance = siboot_perf::span("sign.provisioning_profile", &[]);
                 let profile = dev_session
                     .download_team_provisioning_profile(&team, &main_app_id, None)
                     .await?;
-                #[cfg(target_os = "wasi")]
-                performance.finish(rootshell_runtime::perf::Outcome::Ok, &[]);
+                #[cfg(any(target_os = "wasi", feature = "performance"))]
+                performance.finish(siboot_perf::Outcome::Ok, &[]);
                 info!("Acquired provisioning profile");
                 Ok::<_, Report>(profile)
             },
@@ -318,6 +332,15 @@ impl Sideloader {
         // as it signs them, since the profile is sealed into CodeResources.
         // Hosts read an extension's copy back: AltStore-family apps reject an
         // extension without one.
+        #[cfg(not(target_os = "wasi"))]
+        let app = tokio::task::spawn_blocking(move || {
+            sign::sign(&mut app, &cert_identity, &provisioning_profile, &special, &team)
+                .context("Failed to sign app")?;
+            Ok::<_, Report>((app, special))
+        }).await.map_err(|error| report!("Signing worker failed: {error}"))??;
+        #[cfg(not(target_os = "wasi"))]
+        let (app, special) = app;
+        #[cfg(target_os = "wasi")]
         sign::sign(
             &mut app,
             &cert_identity,

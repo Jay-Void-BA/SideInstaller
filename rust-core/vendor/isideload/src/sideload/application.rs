@@ -1,20 +1,20 @@
 // This file was made using https://github.com/Dadoum/Sideloader as a reference.
 // I'm planning on redoing this later to better handle entitlements, extensions, etc, but it will do for now
 
-use crate::SideloadError;
 use crate::dev::app_ids::{AppId, AppIdsApi};
 use crate::dev::developer_session::DeveloperSession;
 use crate::dev::teams::DeveloperTeam;
 use crate::sideload::bundle::Bundle;
 use crate::sideload::cert_identity::CertificateIdentity;
+use crate::SideloadError;
 use aes_gcm::{AeadInOut, Aes256Gcm, KeyInit, Nonce};
 use rootcause::option_ext::OptionExt;
 use rootcause::prelude::*;
+#[cfg(target_os = "wasi")]
+use rootshell_runtime::vfs::File;
 use sha2::{Digest, Sha256};
 #[cfg(not(target_os = "wasi"))]
 use std::fs::File;
-#[cfg(target_os = "wasi")]
-use rootshell_runtime::vfs::File;
 use std::path::PathBuf;
 
 use tracing::{info, warn};
@@ -25,13 +25,28 @@ const ALT_PAIRING_FILE: &str = "ALTPairingFile.dat";
 
 pub struct Application {
     pub bundle: Bundle,
+    pub(crate) _extraction_directory: Option<std::sync::Arc<super::workspace::ExtractionDirectory>>,
     //pub temp_path: PathBuf,
 }
 
 impl Application {
     pub fn new(path: PathBuf) -> Result<Self, Report> {
-        #[cfg(target_os = "wasi")]
-        let performance = rootshell_runtime::perf::span("ipa.open", &[]);
+        Self::open(path, None)
+    }
+
+    pub fn new_in(
+        path: PathBuf,
+        directory: std::sync::Arc<super::workspace::ExtractionDirectory>,
+    ) -> Result<Self, Report> {
+        Self::open(path, Some(directory))
+    }
+
+    fn open(
+        path: PathBuf,
+        extraction_directory: Option<std::sync::Arc<super::workspace::ExtractionDirectory>>,
+    ) -> Result<Self, Report> {
+        #[cfg(any(target_os = "wasi", feature = "performance"))]
+        let performance = siboot_perf::span("ipa.open", &[]);
         if !path.exists() {
             bail!(SideloadError::InvalidBundle(
                 "Application path does not exist".to_string(),
@@ -45,15 +60,29 @@ impl Application {
             #[cfg(not(target_os = "wasi"))]
             let temp_dir = std::env::temp_dir();
             #[cfg(target_os = "wasi")]
-            let temp_dir = std::env::var_os("TMPDIR").map(PathBuf::from).unwrap_or_else(|| PathBuf::from("/tmp"));
-            let temp_path = temp_dir.join(
+            let temp_dir = std::env::var_os("TMPDIR")
+                .map(PathBuf::from)
+                .unwrap_or_else(|| PathBuf::from("/tmp"));
+            let legacy_temp_path = temp_dir.join(
                 path.file_name()
                     .ok_or_report()?
                     .to_string_lossy()
                     .to_string()
                     + "_extracted",
             );
-            if temp_path.exists() {
+            let temp_path = extraction_directory
+                .as_ref()
+                .map(|directory| directory.path().to_path_buf())
+                .unwrap_or(legacy_temp_path);
+            if extraction_directory.is_some() {
+                if std::fs::read_dir(&temp_path)
+                    .context("Couldn't inspect extraction workspace")?
+                    .next()
+                    .is_some()
+                {
+                    bail!("Extraction workspace must be empty");
+                }
+            } else if temp_path.exists() {
                 std::fs::remove_dir_all(&temp_path)
                     .context("Failed to remove existing temporary directory")?;
             }
@@ -67,9 +96,11 @@ impl Application {
             let mut archive =
                 ZipArchive::new(file).context("Failed to open application archive")?;
             #[cfg(not(target_os = "wasi"))]
-            archive.extract(&temp_path).context("Failed to extract application archive")?;
+            super::native_archive::extract(&mut archive, &temp_path)
+                .context("Failed to extract application archive")?;
             #[cfg(target_os = "wasi")]
-            super::wasi_archive::extract(&mut archive, &temp_path).context("Failed to extract application archive")?;
+            super::wasi_archive::extract(&mut archive, &temp_path)
+                .context("Failed to extract application archive")?;
 
             let payload_folder = temp_path.join("Payload");
             if payload_folder.exists() && payload_folder.is_dir() {
@@ -98,9 +129,10 @@ impl Application {
         }
         let bundle = Bundle::new(bundle_path)?;
 
-        #[cfg(target_os = "wasi")]
-        performance.finish(rootshell_runtime::perf::Outcome::Ok, &[]);
+        #[cfg(any(target_os = "wasi", feature = "performance"))]
+        performance.finish(siboot_perf::Outcome::Ok, &[]);
         Ok(Application {
+            _extraction_directory: extraction_directory,
             bundle, /*temp_path*/
         })
     }
@@ -160,7 +192,8 @@ impl Application {
         main_app_bundle_id: &str,
         main_app_id_str: &str,
     ) -> Result<(), Report> {
-        self.bundle.rebase_app_extensions(main_app_bundle_id, main_app_id_str)?;
+        self.bundle
+            .rebase_app_extensions(main_app_bundle_id, main_app_id_str)?;
         self.bundle.set_bundle_identifier(main_app_id_str);
 
         Ok(())
@@ -295,7 +328,8 @@ impl Application {
         }
 
         if matches!(special, SpecialApp::AltStore) {
-            self.bundle_pairing_file(pairing_file, &cert.machine_id).await?;
+            self.bundle_pairing_file(pairing_file, &cert.machine_id)
+                .await?;
         }
         Ok(())
     }
@@ -344,13 +378,16 @@ impl Application {
         ) {
             let app_groups =
                 plist::Value::Array(vec![plist::Value::String(group_identifier.to_string())]);
-            self.bundle.app_info.insert("ALTAppGroups".to_string(), app_groups.clone());
+            self.bundle
+                .app_info
+                .insert("ALTAppGroups".to_string(), app_groups.clone());
             // Each extension reads the group from its own Info.plist. The widget
             // in AltStore and in SideStore releases up to 0.7.0-alpha opens the
             // shared database through it; without it, it opens an empty one in
             // its own container. Upstream c23db68 (iLoader 2.3.6).
             for ext in self.bundle.app_extensions_mut() {
-                ext.app_info.insert("ALTAppGroups".to_string(), app_groups.clone());
+                ext.app_info
+                    .insert("ALTAppGroups".to_string(), app_groups.clone());
             }
         }
 
@@ -366,9 +403,7 @@ impl Application {
                     plist::Value::String(device_udid.to_string()),
                 );
             } else {
-                warn!(
-                    "No device UDID to give AltStore; it keeps the ALTDeviceID it shipped with"
-                );
+                warn!("No device UDID to give AltStore; it keeps the ALTDeviceID it shipped with");
             }
         }
     }
@@ -445,9 +480,13 @@ mod tests {
                 plist::to_file_xml(dir.join("Info.plist"), &dict).unwrap();
             };
             write_info(&app_dir, info);
-            write_info(&widget_dir, &[("CFBundleIdentifier", "com.example.app.widget")]);
+            write_info(
+                &widget_dir,
+                &[("CFBundleIdentifier", "com.example.app.widget")],
+            );
 
             let app = Application {
+                _extraction_directory: None,
                 bundle: Bundle::new(app_dir).unwrap(),
             };
             TestApp { root, app }
@@ -476,11 +515,12 @@ mod tests {
     /// its bundle ID, which iOS refused as not under the app's new one.
     #[test]
     fn rebases_extensions_in_plugins_and_extensions() {
-        use crate::sideload::bundle::tests::{TempDir, write_app_with_both_extension_kinds};
+        use crate::sideload::bundle::tests::{write_app_with_both_extension_kinds, TempDir};
 
         let dir = TempDir::new();
         let app_dir = write_app_with_both_extension_kinds(&dir.0);
         let mut app = Application {
+            _extraction_directory: None,
             bundle: Bundle::new(app_dir.clone()).unwrap(),
         };
         app.update_bundle_id("com.zarz.mornye", "com.zarz.mornye.TEAMID1234")
@@ -508,18 +548,36 @@ mod tests {
         );
         // Neither an extension nor under the app's ID: left alone, and no
         // reason to refuse the app.
-        assert_eq!(id_on_disk("Extensions/Strings.bundle"), "org.example.Strings");
-        assert_eq!(id_on_disk("Frameworks/Flutter.framework"), "io.flutter.flutter");
+        assert_eq!(
+            id_on_disk("Extensions/Strings.bundle"),
+            "org.example.Strings"
+        );
+        assert_eq!(
+            id_on_disk("Frameworks/Flutter.framework"),
+            "io.flutter.flutter"
+        );
     }
 
     #[test]
     fn app_groups_reach_the_extensions() {
-        for special in [SpecialApp::SideStore, SpecialApp::SideStoreLc, SpecialApp::AltStore] {
+        for special in [
+            SpecialApp::SideStore,
+            SpecialApp::SideStoreLc,
+            SpecialApp::AltStore,
+        ] {
             let mut test = TestApp::new(&[("CFBundleIdentifier", "com.example.app")]);
             test.app.set_alt_info(&special, GROUP, Some("UDID"));
 
-            assert_eq!(test.main_value("ALTAppGroups"), Some(&groups()), "{special}");
-            assert_eq!(test.widget_value("ALTAppGroups"), Some(&groups()), "{special}");
+            assert_eq!(
+                test.main_value("ALTAppGroups"),
+                Some(&groups()),
+                "{special}"
+            );
+            assert_eq!(
+                test.widget_value("ALTAppGroups"),
+                Some(&groups()),
+                "{special}"
+            );
         }
     }
 
@@ -542,7 +600,8 @@ mod tests {
         ];
 
         let mut test = TestApp::new(&shipped);
-        test.app.set_alt_info(&SpecialApp::AltStore, GROUP, Some("DEVICE-UDID"));
+        test.app
+            .set_alt_info(&SpecialApp::AltStore, GROUP, Some("DEVICE-UDID"));
         assert_eq!(test.main_value("ALTDeviceID"), Some(&"DEVICE-UDID".into()));
         assert_eq!(test.widget_value("ALTDeviceID"), None);
 
@@ -610,7 +669,8 @@ mod tests {
     #[test]
     fn only_altstore_gets_the_device_udid() {
         let mut test = TestApp::new(&[("CFBundleIdentifier", "com.SideStore.SideStore")]);
-        test.app.set_alt_info(&SpecialApp::SideStore, GROUP, Some("UDID"));
+        test.app
+            .set_alt_info(&SpecialApp::SideStore, GROUP, Some("UDID"));
 
         assert_eq!(test.main_value("ALTDeviceID"), None);
     }

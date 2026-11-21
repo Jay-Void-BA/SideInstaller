@@ -149,6 +149,7 @@ dependencies = [
  "sha1 0.11.0",
  "sha2 0.10.9",
  "sha2 0.11.0",
+ "siboot-perf",
  "spki 0.7.3",
  "thiserror",
  "x509-cert 0.2.5",
@@ -1715,6 +1716,7 @@ dependencies = [
  "sha1 0.11.0",
  "sha2 0.10.9",
  "sha2 0.11.0",
+ "siboot-perf",
  "srp",
  "thiserror",
  "tokio",
@@ -2771,7 +2773,7 @@ dependencies = [
 name = "rootshell-runtime"
 version = "0.21.0"
 dependencies = [
- "serde_json",
+ "siboot-perf",
  "tokio",
 ]
 
@@ -3119,6 +3121,13 @@ name = "shlex"
 version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f8fadd59c855ef2080decdef8ff161eb6661b86933c9d82e5ba29dc602a55aba"
+
+[[package]]
+name = "siboot-perf"
+version = "0.22.0"
+dependencies = [
+ "serde_json",
+]
 
 [[package]]
 name = "sideinstaller_ffi"
