@@ -1,3 +1,7 @@
+## siboot 0.22.1
+
+Fix anisette HTTP client creation without system CA certificates in Minis. Bundle public TLS roots alongside system trust, add credential-free `--check-anisette` diagnostics, retain all server errors and distinguish ani rate limits from Apple account limits. Verify missing-CA startup, unknown-issuer rejection, private CA trust and HTTP errors on the actual ARM64 release. See [release notes](release-notes/siboot-v0.22.1.md).
+
 ## siboot 0.22.0
 
 Return to Minis ARM64; deprecate rootshell. Add isolated bounded extraction, native performance logs and signing worker limits; eliminate redundant renewal copies; preserve complete signing and upload verification. Publish the exact ARM64 artifact exercised by CI with a verified resumable installer. Rewrite English/Chinese setup and migration guides. See [release notes](release-notes/siboot-v0.22.0.md).

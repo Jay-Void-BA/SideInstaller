@@ -269,13 +269,17 @@ impl RemoteV3AnisetteProvider {
         storage: Box<dyn SideloadingStorage>,
         serial_number: String,
     ) -> Result<Self, Report> {
+        let client = reqwest::ClientBuilder::new();
+        #[cfg(not(target_os = "wasi"))]
+        let client = crate::util::tls::configure(client)
+            .context("Failed to load anisette TLS roots")?;
         Ok(Self {
             state: None,
             state_key: None,
             url: url.to_string(),
             storage,
             serial_number,
-            client: reqwest::ClientBuilder::new()
+            client: client
                 .build()
                 .context("Failed to build HTTP client")?,
             client_info: Mutex::new(None),

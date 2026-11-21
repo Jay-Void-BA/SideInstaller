@@ -19,3 +19,9 @@ The interface includes English/Chinese, password visibility in the page/live ter
 The offline probe signs with a local test-only key, verifies its CSR, confirms CMS signatures and recursive resource seals, detects tampering, rejects escaping/cyclic archives, and exercises encrypted storage, renewal, pairing import and workspace cleanup. It does not contact Apple or install on a real iPhone.
 
 See the [English guide](../../README.md) or [中文配置与迁移](../../README.zh-CN.md) for end-user setup. Source export must include new files (`git add -N`) before regenerating the patch with `git diff --binary`.
+
+## Anisette TLS and diagnostics (0.22.1)
+
+The standalone Minis manifest opts into `isideload/bundled-roots`, merging Mozilla public roots with system/private CAs. This fixes HTTP client construction when the Linux filesystem has no CA bundle; native application builds retain platform trust by default. `--check-anisette` probes public client metadata without opening login storage or contacting Apple authentication. It bounds concurrent work and reports each server's full failure. Server HTTP 429 failures fall back; Apple account limits still stop sign-in.
+
+The ARM64 release is checked with empty certificate paths and a local TLS fixture that rejects unknown issuers, accepts a configured private CA and reports HTTP failures. Complete signing tests continue under the empty-CA environment.

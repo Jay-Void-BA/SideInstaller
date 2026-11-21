@@ -6,3 +6,5 @@ pub mod fs_storage;
 pub mod keyring_storage;
 pub mod plist;
 pub mod storage;
+#[cfg(not(target_os = "wasi"))]
+pub mod tls;

@@ -1,14 +1,14 @@
 diff --git a/README.md b/README.md
-index 683de33..55ccb66 100644
+index 683de33..3ea9a30 100644
 --- a/README.md
 +++ b/README.md
-@@ -1,3 +1,163 @@
+@@ -1,3 +1,177 @@
 -To use it, follow the following instructions: https://sideinstaller.net/install.html
 +<h1 align="center">siboot</h1>
 +<p align="center">Sign, install, and renew local IPA files in Minis.</p>
 +<p align="center"><strong>English</strong> · <a href="README.zh-CN.md">简体中文</a></p>
 +<p align="center">
-+  <a href="https://github.com/Jay-Void-BA/SideInstaller/releases/tag/siboot-v0.22.0"><img src="https://img.shields.io/badge/release-0.22.0-blue" alt="Release"></a>
++  <a href="https://github.com/Jay-Void-BA/SideInstaller/releases/tag/siboot-v0.22.1"><img src="https://img.shields.io/badge/release-0.22.1-blue" alt="Release"></a>
 +  <a href="https://github.com/Jay-Void-BA/SideInstaller/actions/workflows/checks.yml"><img src="https://github.com/Jay-Void-BA/SideInstaller/actions/workflows/checks.yml/badge.svg?branch=main" alt="Checks"></a>
 +  <a href="SideInstaller/LICENSE.md"><img src="https://img.shields.io/badge/license-Custom-lightgrey" alt="License"></a>
 +</p>
@@ -53,8 +53,8 @@ index 683de33..55ccb66 100644
 +
 +```sh
 +uname -m
-+apk add --no-cache curl
-+curl -fL --retry 3 -o install-minis.sh.part https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.22.0/install-minis.sh &&
++apk add --no-cache curl ca-certificates
++curl -fL --retry 3 -o install-minis.sh.part https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.22.1/install-minis.sh &&
 +mv install-minis.sh.part install-minis.sh &&
 +sh install-minis.sh
 +```
@@ -66,7 +66,7 @@ index 683de33..55ccb66 100644
 +"$HOME/.siboot/bin/siboot" --version
 +```
 +
-+The output must include `siboot 0.22.0`, `Jay-Void-BA` and `FrizzleM`. All asset digests are in [SHA256SUMS](https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.22.0/SHA256SUMS). If a partial download is corrupt or the server refuses resuming, use `sh install-minis.sh --restart`. The script never launches the program automatically.
++The output must include `siboot 0.22.1`, `Jay-Void-BA` and `FrizzleM`. All asset digests are in [SHA256SUMS](https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.22.1/SHA256SUMS). If a partial download is corrupt or the server refuses resuming, use `sh install-minis.sh --restart`. The script never launches the program automatically.
 +
 +For a manual download, save `siboot-aarch64` and `install-minis.sh` together, then verify before running:
 +
@@ -110,6 +110,7 @@ index 683de33..55ccb66 100644
 +| `siboot --pairing-file /home/phone.plist` | Verify and import an RPPairing file |
 +| `siboot --lang en` / `siboot --lang zh-CN` | Choose English / Simplified Chinese |
 +| `siboot --terminal` / `siboot --web` | Choose the live terminal / Minis page |
++| `siboot --check-anisette` | Diagnose default ani endpoints without IPA, Apple login or VPN |
 +| `siboot --perf-log` | Write detailed performance measurements |
 +| `siboot --jobs 2` | Use two signing workers; supported range is 1–4 |
 +| `siboot --help` | Show all options |
@@ -129,6 +130,19 @@ index 683de33..55ccb66 100644
 +Start with **one signing worker**, the default under emulation. Compare the same IPA with `--jobs 2` if needed; more workers can be slower or use more memory. Version 0.22.0 buffers extraction writes, caches directory creation, isolates signing workspaces, moves CPU-heavy signing off the async device workers, and avoids copying the renewal IPA again. Complete resource sealing and per-file upload checks stay enabled. These changes are tested offline; real-device speed depends on the app, Minis and iOS. No device benchmark is claimed.
 +
 +The ordinary error report is saved under `$HOME/.siboot/siboot.log`. Review it before sharing; the separate performance log has stricter data limits.
++
++## Anisette connectivity
++
++Version 0.22.1 includes Mozilla public CA certificates for the standalone installer, while retaining system/private CA trust. A minimal Minis filesystem with no CA bundle previously let the Apple preflight pass using its embedded Apple root but failed to construct every anisette HTTP client.
++
++```sh
++"$HOME/.siboot/bin/siboot" --check-anisette --terminal
++"$HOME/.siboot/bin/siboot" --check-anisette --anisette https://ani.iloader.app --terminal
++```
++
++The check probes `/v3/client_info` with at most three concurrent requests and a 12-second limit per server. It prints each endpoint's DNS, TLS, timeout or HTTP error, without opening the login vault, pairing, provisioning an identity or signing in to Apple. A successful check proves metadata connectivity; provisioning and Apple authentication can still fail separately. `--perf-log` records numeric timings for these probes.
++
++For older versions or other tools in Minis, restore the system bundle with `apk add --no-cache ca-certificates` and `update-ca-certificates`. When a custom proxy uses its own CA, install that CA in Minis as well; iOS's trust store is separate. A server-specific HTTP 429 is tried on another endpoint; an Apple account rate limit still stops login attempts.
 +
 +## Files and migration
 +
@@ -170,15 +184,15 @@ index 683de33..55ccb66 100644
 +The inherited SideInstaller code remains under [LICENSE.md](SideInstaller/LICENSE.md); dependency licenses also apply. This repository contains inherited implementation and is **not a clean-room rewrite**, so it is not relabeled as MIT. See the license for its terms.
 diff --git a/README.zh-CN.md b/README.zh-CN.md
 new file mode 100644
-index 0000000..bacc2aa
+index 0000000..76677e0
 --- /dev/null
 +++ b/README.zh-CN.md
-@@ -0,0 +1,163 @@
+@@ -0,0 +1,177 @@
 +<h1 align="center">siboot</h1>
 +<p align="center">在 Minis 中签名、安装和续签本地 IPA。</p>
 +<p align="center"><a href="README.md">English</a> · <strong>简体中文</strong></p>
 +<p align="center">
-+  <a href="https://github.com/Jay-Void-BA/SideInstaller/releases/tag/siboot-v0.22.0"><img src="https://img.shields.io/badge/release-0.22.0-blue" alt="版本"></a>
++  <a href="https://github.com/Jay-Void-BA/SideInstaller/releases/tag/siboot-v0.22.1"><img src="https://img.shields.io/badge/release-0.22.1-blue" alt="版本"></a>
 +  <a href="https://github.com/Jay-Void-BA/SideInstaller/actions/workflows/checks.yml"><img src="https://github.com/Jay-Void-BA/SideInstaller/actions/workflows/checks.yml/badge.svg?branch=main" alt="检查"></a>
 +  <a href="SideInstaller/LICENSE.md"><img src="https://img.shields.io/badge/license-Custom-lightgrey" alt="许可证"></a>
 +</p>
@@ -222,8 +236,8 @@ index 0000000..bacc2aa
 +
 +```sh
 +uname -m
-+apk add --no-cache curl
-+curl -fL --retry 3 -o install-minis.sh.part https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.22.0/install-minis.sh &&
++apk add --no-cache curl ca-certificates
++curl -fL --retry 3 -o install-minis.sh.part https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.22.1/install-minis.sh &&
 +mv install-minis.sh.part install-minis.sh &&
 +sh install-minis.sh
 +```
@@ -235,7 +249,7 @@ index 0000000..bacc2aa
 +"$HOME/.siboot/bin/siboot" --version
 +```
 +
-+输出应包含 `siboot 0.22.0`、`Jay-Void-BA` 和 `FrizzleM`。[SHA256SUMS](https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.22.0/SHA256SUMS) 提供全部发布文件的摘要。分片损坏或服务器拒绝续传时，使用 `sh install-minis.sh --restart`。脚本不会自动启动程序。
++输出应包含 `siboot 0.22.1`、`Jay-Void-BA` 和 `FrizzleM`。[SHA256SUMS](https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.22.1/SHA256SUMS) 提供全部发布文件的摘要。分片损坏或服务器拒绝续传时，使用 `sh install-minis.sh --restart`。脚本不会自动启动程序。
 +
 +也可手动下载 `siboot-aarch64` 和 `install-minis.sh`，放入同一目录，验证后运行：
 +
@@ -279,6 +293,7 @@ index 0000000..bacc2aa
 +| `siboot --pairing-file /home/phone.plist` | 验证并导入 RPPairing 文件 |
 +| `siboot --lang en` / `siboot --lang zh-CN` | 选择英文／简体中文 |
 +| `siboot --terminal` / `siboot --web` | 选择实时终端／Minis 页面 |
++| `siboot --check-anisette` | 无需 IPA、Apple 登录或 VPN，检测默认 ani 服务 |
 +| `siboot --perf-log` | 输出详细性能测量 |
 +| `siboot --jobs 2` | 使用两个签名线程，可选范围为 1–4 |
 +| `siboot --help` | 查看全部参数 |
@@ -298,6 +313,19 @@ index 0000000..bacc2aa
 +默认使用**一个签名线程**，适合模拟环境。可用同一 IPA 对比 `--jobs 2`；更多线程可能更慢或增加内存。0.22.0 缓冲解压写入、缓存目录创建、隔离签名工作目录，将重型签名移出异步设备线程，并避免续签重复拷贝 IPA。完整资源封印与逐文件上传检查继续保留。这些改动经过离线验证，实际速度取决于 IPA、Minis 和 iOS；不宣称已经取得真机性能数据。
 +
 +普通错误报告位于 `$HOME/.siboot/siboot.log`，分享前请检查内容。独立性能日志采用更严格的数据限制。
++
++## ani 连接诊断
++
++0.22.1 为独立程序内置 Mozilla 公共 CA 证书，并继续支持系统及私有 CA。此前，精简 Minis 文件系统没有 CA 证书时，Apple 检查可因内置 Apple 根证书而通过，但全部 ani HTTP 客户端都会创建失败。
++
++```sh
++"$HOME/.siboot/bin/siboot" --check-anisette --terminal
++"$HOME/.siboot/bin/siboot" --check-anisette --anisette https://ani.iloader.app --terminal
++```
++
++检测最多并发三个请求，每台服务器限时 12 秒，只请求 `/v3/client_info`，逐项显示 DNS、TLS、超时或 HTTP 错误。不打开登录保险库，不配对、不配置身份、不登录 Apple。检测通过仅代表客户端信息接口可达，后续身份配置或 Apple 认证仍可能单独失败。可加 `--perf-log` 记录数值计时。
++
++旧版本及 Minis 中其他网络工具可通过 `apk add --no-cache ca-certificates` 和 `update-ca-certificates` 修复系统证书。自定义代理使用私有 CA 时，还需将该 CA 安装到 Minis；iOS 的证书库与 Minis 独立。ani 服务自身的 HTTP 429 会转试其他节点；Apple 账户限流仍会停止登录尝试。
 +
 +## 文件与迁移
 +
@@ -338,7 +366,7 @@ index 0000000..bacc2aa
 +
 +继承的 SideInstaller 代码继续遵循 [LICENSE.md](SideInstaller/LICENSE.md)，依赖另遵循各自许可。仓库包含继承实现，**并非净室重写**，因此不能整体改标为 MIT；具体权利以许可证为准。
 diff --git a/minis/Cargo.lock b/minis/Cargo.lock
-index 3254ab0..08dce6a 100644
+index 3254ab0..80ccc98 100644
 --- a/minis/Cargo.lock
 +++ b/minis/Cargo.lock
 @@ -76,10 +76,12 @@ dependencies = [
@@ -362,7 +390,7 @@ index 3254ab0..08dce6a 100644
   "rsa",
   "rustls",
   "serde",
-@@ -1489,11 +1492,15 @@ dependencies = [
+@@ -1489,17 +1492,22 @@ dependencies = [
   "rcgen",
   "reqwest",
   "rootcause",
@@ -378,7 +406,14 @@ index 3254ab0..08dce6a 100644
   "srp",
   "thiserror",
   "tokio",
-@@ -1536,8 +1543,6 @@ checksum = "8f42a60cbdf9a97f5d2305f08a87dc4e09308d1276d28c869c684d7777685682"
+  "tokio-tungstenite",
+  "tracing",
+  "uuid",
++ "webpki-root-certs",
+  "x509-cert 0.2.5",
+  "zip",
+ ]
+@@ -1536,8 +1544,6 @@ checksum = "8f42a60cbdf9a97f5d2305f08a87dc4e09308d1276d28c869c684d7777685682"
  [[package]]
  name = "jktcp"
  version = "0.1.6"
@@ -387,7 +422,7 @@ index 3254ab0..08dce6a 100644
  dependencies = [
   "futures",
   "getrandom 0.3.4",
-@@ -2453,6 +2458,28 @@ dependencies = [
+@@ -2453,6 +2459,28 @@ dependencies = [
   "triomphe",
  ]
  
@@ -416,18 +451,18 @@ index 3254ab0..08dce6a 100644
  [[package]]
  name = "rpassword"
  version = "7.5.4"
-@@ -2812,8 +2839,9 @@ checksum = "f8fadd59c855ef2080decdef8ff161eb6661b86933c9d82e5ba29dc602a55aba"
+@@ -2812,8 +2840,9 @@ checksum = "f8fadd59c855ef2080decdef8ff161eb6661b86933c9d82e5ba29dc602a55aba"
  
  [[package]]
  name = "siboot"
 -version = "0.18.1"
-+version = "0.22.0"
++version = "0.22.1"
  dependencies = [
 + "apple-codesign-quick",
   "base64 0.22.1",
   "chacha20poly1305",
   "ed25519-dalek",
-@@ -2824,17 +2852,31 @@ dependencies = [
+@@ -2824,17 +2853,31 @@ dependencies = [
   "isideload",
   "libc",
   "plist",
@@ -460,14 +495,14 @@ index 3254ab0..08dce6a 100644
  
  [[package]]
 diff --git a/minis/Cargo.toml b/minis/Cargo.toml
-index 38ec01e..02af3a0 100644
+index 38ec01e..b6c7e2d 100644
 --- a/minis/Cargo.toml
 +++ b/minis/Cargo.toml
 @@ -1,8 +1,8 @@
  [package]
  name = "siboot"
 -version = "0.18.1"
-+version = "0.22.0"
++version = "0.22.1"
  edition = "2021"
 -description = "PC-free bootstrap that pairs and installs SideInstaller onto the iPhone it runs on, from Open Minis's Linux shell"
 +description = "Local IPA signing and installation in Minis by Jay-Void-BA, based on FrizzleM/siboot"
@@ -483,15 +518,16 @@ index 38ec01e..02af3a0 100644
  # The same vendored idevice SideInstaller ships (OPACK back-reference fix and
  # logging changes, see ../SideInstaller/rust-core/vendor/idevice/README.md), with the features
  # the pipeline needs:
-@@ -45,6 +47,7 @@ idevice = { path = "../SideInstaller/rust-core/vendor/idevice", default-features
+@@ -45,6 +47,8 @@ idevice = { path = "../SideInstaller/rust-core/vendor/idevice", default-features
  # fs-storage instead of a keyring, which iSH doesn't have.
  isideload = { path = "../SideInstaller/rust-core/vendor/isideload", default-features = false, features = [
    "fs-storage",
 +  "performance",
++  "bundled-roots",
  ] }
  
  tokio = { version = "1", features = [
-@@ -58,19 +61,25 @@ tokio = { version = "1", features = [
+@@ -58,19 +62,25 @@ tokio = { version = "1", features = [
    "sync",
    "signal",
  ] }
@@ -520,7 +556,7 @@ index 38ec01e..02af3a0 100644
  # No-echo password read from the terminal, for plain output.
  rpassword = "7"
  # The live screen: the terminal's size, and keys one at a time (termios). Already
-@@ -80,15 +89,16 @@ tracing = "0.1"
+@@ -80,15 +90,16 @@ tracing = "0.1"
  tracing-subscriber = "0.3"
  
  [dev-dependencies]
@@ -539,7 +575,7 @@ index 38ec01e..02af3a0 100644
  
  # isideload signs with apple-codesign-quick; SideInstaller's vendored copy also
  # signs ExtensionKit extensions (#110). Patches only apply at a workspace root,
-@@ -102,4 +112,5 @@ apple-codesign-quick = { path = "../SideInstaller/rust-core/vendor/apple-codesig
+@@ -102,4 +113,5 @@ apple-codesign-quick = { path = "../SideInstaller/rust-core/vendor/apple-codesig
  # software TCP stack and TLS.
  opt-level = 3
  lto = "thin"
@@ -945,10 +981,10 @@ index 163b7d0..9878e93 100644
 +`--perf-log` writes private JSONL measurements beside the actual executable. `--jobs 1` is the default under Minis emulation; compare 2–4 workers only with measured results. Complete sealing and upload verification remain enabled. rootshell is deprecated and is not required for pairing.
 diff --git a/minis/examples/offline_check.rs b/minis/examples/offline_check.rs
 new file mode 100644
-index 0000000..d0038d0
+index 0000000..2337ac0
 --- /dev/null
 +++ b/minis/examples/offline_check.rs
-@@ -0,0 +1,223 @@
+@@ -0,0 +1,234 @@
 +//! Offline native release probe: uses the production signer, extractor and upload manifest.
 +#![allow(dead_code)]
 +#[path = "../src/fail.rs"]
@@ -1001,6 +1037,17 @@ index 0000000..d0038d0
 +}
 +
 +fn probe() {
++    assert!(
++        isideload::anisette::remote_v3::RemoteV3AnisetteProvider::new(
++            "https://new.ani.sidestore.io",
++            Box::new(isideload::util::storage::InMemoryStorage::new()),
++            "0".into(),
++        )
++        .is_ok(),
++        "the standalone client must build even without a system CA bundle"
++    );
++    assert!(isideload::auth::grandslam::GrandSlam::build_reqwest_client(false).is_ok());
++    println!("BUNDLED_TLS_ROOTS_OK");
 +    let home = Path::new("test-storage");
 +    let lock = vault::Lock::acquire(home).unwrap();
 +    assert!(vault::Lock::acquire(home).is_err());
@@ -1339,10 +1386,10 @@ index 160bcfa..9d3490c 100644
              "reaching Apple's sign-in server",
 diff --git a/minis/locales/zh-CN.json b/minis/locales/zh-CN.json
 new file mode 100644
-index 0000000..c482b30
+index 0000000..3405359
 --- /dev/null
 +++ b/minis/locales/zh-CN.json
-@@ -0,0 +1,476 @@
+@@ -0,0 +1,485 @@
 +{
 +  "1. Open Files > Browse > On My iPhone / iPad > rootshell.": "1. 打开“文件”>“浏览”>“我的 iPhone／iPad”>“rootshell”。",
 +  "2. Copy your .ipa into the rootshell folder. A file in iCloud Drive or Downloads must be copied here first.": "2. 将 .ipa 复制到 rootshell 文件夹。位于 iCloud 云盘或“下载”中的文件也需要先复制到这里。",
@@ -1817,10 +1864,19 @@ index 0000000..c482b30
 +  "Continue to choose an IPA?": "继续选择 IPA？",
 +  "Couldn't create a private signing workspace.": "无法创建私有签名工作目录。",
 +  "Couldn't read the pairing file at {path}. Pair again in Minis or import a working RPPairing file, then run siboot again.": "无法读取 {path} 的配对文件。请在 Minis 中重新配对或导入有效的 RPPairing 文件，然后再次运行 siboot。",
-+  "This iPhone doesn't accept the pairing file (it was removed in Settings, or the iPhone was reset). Pair again in Minis or import a working RPPairing file, then run siboot again.": "此 iPhone 不接受该配对文件（可能已在设置中移除，或设备已重置）。请在 Minis 中重新配对或导入有效的 RPPairing 文件，然后再次运行 siboot。"
++  "This iPhone doesn't accept the pairing file (it was removed in Settings, or the iPhone was reset). Pair again in Minis or import a working RPPairing file, then run siboot again.": "此 iPhone 不接受该配对文件（可能已在设置中移除，或设备已重置）。请在 Minis 中重新配对或导入有效的 RPPairing 文件，然后再次运行 siboot。",
++  "Checks anisette servers without Apple login or device pairing.": "检测 ani 服务器，无需 Apple 登录或设备配对。",
++  "Checking anisette client info only; Apple login and provisioning are not tested.": "仅检测 ani 客户端信息接口，不执行 Apple 登录或身份配置。",
++  "Anisette check stopped unexpectedly.": "ani 连接检测意外停止。",
++  "{host}: reachable ({elapsed} ms)": "{host}：可连接（{elapsed} 毫秒）",
++  "{host}: connection failed ({elapsed} ms)": "{host}：连接失败（{elapsed} 毫秒）",
++  "Anisette servers reachable: {reachable}/{count}": "可连接的 ani 服务器：{reachable}/{count}",
++  "Connection timed out after 12 seconds.": "连接超过 12 秒未响应。",
++  "This server advertises Android ADI; Apple developer sign-in may reject it.": "此服务器使用 Android ADI，Apple 开发者登录可能拒绝它。",
++  "No anisette server could be reached. Check the DNS, proxy and certificate errors above.": "所有 ani 服务器均无法连接。请查看上方的 DNS、代理或证书错误。"
 +}
 diff --git a/minis/src/account.rs b/minis/src/account.rs
-index b778e40..5e8b429 100644
+index b778e40..f065f52 100644
 --- a/minis/src/account.rs
 +++ b/minis/src/account.rs
 @@ -15,10 +15,11 @@ use isideload::sideload::sideloader::Sideloader;
@@ -1836,7 +1892,7 @@ index b778e40..5e8b429 100644
  
  /// Anisette servers on Apple's macOS ADI library, in the order SideInstaller's
  /// Auto tries them (`AnisetteServer.macADIOrder`), then its Windows-library one.
-@@ -41,13 +42,89 @@ pub struct Session {
+@@ -41,13 +42,142 @@ pub struct Session {
      pub sideloader: Sideloader,
      /// The developer team signing for it, as "name (ID)".
      pub team: String,
@@ -1853,18 +1909,36 @@ index b778e40..5e8b429 100644
 +    }
 +}
 +
-+enum LoginChoice { Saved(vault::SavedLogin, bool), Manual, Once }
++enum LoginChoice {
++    Saved(vault::SavedLogin, bool),
++    Manual,
++    Once,
++}
 +
 +fn saved_login(args: &Args) -> Result<LoginChoice> {
-+    if !vault::path(&args.home).exists() { return Ok(LoginChoice::Manual); }
++    if !vault::path(&args.home).exists() {
++        return Ok(LoginChoice::Manual);
++    }
 +    loop {
-+        let choices = ["Unlock saved Apple Account login", "Unlock and update saved password", "Use another Apple Account once", "Forget saved login"]
-+            .map(str::to_string);
++        let choices = [
++            "Unlock saved Apple Account login",
++            "Unlock and update saved password",
++            "Use another Apple Account once",
++            "Forget saved login",
++        ]
++        .map(str::to_string);
 +        match ui::choose("Apple Account login", &choices) {
 +            Some(index @ (0 | 1)) => {
-+                let phrase = Zeroizing::new(ui::ask_secret("Unlock saved login", "Unlock passphrase", "your local storage passphrase", "Unlock passphrase: ")
++                let phrase = Zeroizing::new(
++                    ui::ask_secret(
++                        "Unlock saved login",
++                        "Unlock passphrase",
++                        "your local storage passphrase",
++                        "Unlock passphrase: ",
++                    )
 +                    .map_err(|_| Fail::known("Couldn't read the unlock passphrase."))?
-+                    .ok_or_else(|| Fail::by_user("Unlock cancelled."))?);
++                    .ok_or_else(|| Fail::by_user("Unlock cancelled."))?,
++                );
 +                match vault::unlock(&args.home, &phrase) {
 +                    Ok(saved) => return Ok(LoginChoice::Saved(saved, index == 1)),
 +                    Err(_) => ui::warn("Couldn't unlock the saved login. Check the passphrase; Apple has not been contacted."),
@@ -1874,7 +1948,8 @@ index b778e40..5e8b429 100644
 +            Some(3) => {
 +                ui::note("This removes the saved login and encrypted local signing data. It does not revoke Apple's certificate.");
 +                if ui::confirm("forget the saved login and local signing data?", false) {
-+                    vault::forget(&args.home).map_err(|_| Fail::known("Couldn't delete the saved login."))?;
++                    vault::forget(&args.home)
++                        .map_err(|_| Fail::known("Couldn't delete the saved login."))?;
 +                    return Ok(LoginChoice::Manual);
 +                }
 +            }
@@ -1887,29 +1962,60 @@ index b778e40..5e8b429 100644
 +    #[cfg(not(target_os = "wasi"))]
 +    use std::io::IsTerminal;
 +    #[cfg(not(target_os = "wasi"))]
-+    if crate::web::page().is_none() && !std::io::stdin().is_terminal() { return Ok(None); }
-+    if !ui::confirm("save this Apple Account login securely on this device?", false) { return Ok(None); }
++    if crate::web::page().is_none() && !std::io::stdin().is_terminal() {
++        return Ok(None);
++    }
++    if !ui::confirm(
++        "save this Apple Account login securely on this device?",
++        false,
++    ) {
++        return Ok(None);
++    }
 +    ui::note("Choose a separate unlock passphrase of at least 12 characters. It unlocks your saved login each time and is never saved.");
 +    loop {
-+        let read = |label, prompt| ui::ask_secret("Encrypt the saved login", label, "at least 12 characters", prompt)
-+            .map_err(|_| Fail::known("Couldn't read the unlock passphrase."));
-+        let Some(first) = read("New unlock passphrase", "New unlock passphrase: ")? else { return Ok(None) };
++        let read = |label, prompt| {
++            ui::ask_secret(
++                "Encrypt the saved login",
++                label,
++                "at least 12 characters",
++                prompt,
++            )
++            .map_err(|_| Fail::known("Couldn't read the unlock passphrase."))
++        };
++        let Some(first) = read("New unlock passphrase", "New unlock passphrase: ")? else {
++            return Ok(None);
++        };
 +        let first = Zeroizing::new(first);
 +        if first.chars().count() < 12 || first.as_str() == password {
 +            ui::warn("Use a separate unlock passphrase of at least 12 characters.");
 +            continue;
 +        }
-+        let Some(second) = read("Confirm unlock passphrase", "Confirm unlock passphrase: ")? else { return Ok(None) };
++        let Some(second) = read("Confirm unlock passphrase", "Confirm unlock passphrase: ")? else {
++            return Ok(None);
++        };
 +        let second = Zeroizing::new(second);
-+        if *first != *second { ui::warn("The unlock passphrases didn't match."); continue; }
-+        return vault::create(&args.home, vault::Credentials { apple_id: apple_id.into(), password: password.into() }, &first)
-+            .map(Some).map_err(|_| Fail::known("Couldn't save the encrypted login."));
++        if *first != *second {
++            ui::warn("The unlock passphrases didn't match.");
++            continue;
++        }
++        return vault::create(
++            &args.home,
++            vault::Credentials {
++                apple_id: apple_id.into(),
++                password: password.into(),
++            },
++            &first,
++        )
++        .map(Some)
++        .map_err(|_| Fail::known("Couldn't save the encrypted login."));
 +    }
 +}
 +
 +#[allow(dead_code)] // Retained for the archived caller; Minis holds it for the full workflow.
  pub async fn sign_in(args: &Args) -> Result<Session> {
-+    let lock = std::sync::Arc::new(vault::Lock::acquire(&args.home).map_err(|_| Fail::known("Another siboot run is using this login storage, or it could not be locked."))?);
++    let lock = std::sync::Arc::new(vault::Lock::acquire(&args.home).map_err(|_| {
++        Fail::known("Another siboot run is using this login storage, or it could not be locked.")
++    })?);
 +    sign_in_locked(args, lock).await
 +}
 +
@@ -1917,7 +2023,10 @@ index b778e40..5e8b429 100644
 +    let choice = saved_login(args)?;
 +    let once = matches!(&choice, LoginChoice::Once);
 +    let edit_password = matches!(&choice, LoginChoice::Saved(_, true));
-+    let mut saved = match choice { LoginChoice::Saved(saved, _) => Some(saved), _ => None };
++    let mut saved = match choice {
++        LoginChoice::Saved(saved, _) => Some(saved),
++        _ => None,
++    };
      let apple_id = match args
          .apple_id
          .clone()
@@ -1926,32 +2035,62 @@ index b778e40..5e8b429 100644
      {
          Some(id) => id,
          None => ui::ask_text(
-@@ -67,8 +144,10 @@ pub async fn sign_in(args: &Args) -> Result<Session> {
+@@ -67,46 +197,104 @@ pub async fn sign_in(args: &Args) -> Result<Session> {
      if apple_id.is_empty() {
          return Err(Fail::by_user("No Apple Account given."));
      }
 -    let password = match std::env::var("SIBOOT_PASSWORD") {
 -        Ok(p) if !p.is_empty() => p,
-+    let password = Zeroizing::new(match std::env::var("SIBOOT_PASSWORD").ok()
-+        .filter(|p| !p.is_empty()).or_else(|| saved.as_ref()
-+            .filter(|s| !edit_password && s.credentials.apple_id == apple_id).map(|s| s.credentials.password.clone())) {
-+        Some(p) => p,
-         _ => ui::ask_secret(
-             "sign in to your Apple Account",
-             "Password",
-@@ -82,31 +161,55 @@ pub async fn sign_in(args: &Args) -> Result<Session> {
+-        _ => ui::ask_secret(
+-            "sign in to your Apple Account",
+-            "Password",
+-            "it goes only to Apple",
+-            "Password (not shown; it goes only to Apple): ",
+-        )
+-        .map_err(|e| {
+-            Fail::new(
+-                "Couldn't read the password from the terminal.",
+-                e.to_string(),
++    let password = Zeroizing::new(
++        match std::env::var("SIBOOT_PASSWORD")
++            .ok()
++            .filter(|p| !p.is_empty())
++            .or_else(|| {
++                saved
++                    .as_ref()
++                    .filter(|s| !edit_password && s.credentials.apple_id == apple_id)
++                    .map(|s| s.credentials.password.clone())
++            }) {
++            Some(p) => p,
++            _ => ui::ask_secret(
++                "sign in to your Apple Account",
++                "Password",
++                "it goes only to Apple",
++                "Password (not shown; it goes only to Apple): ",
              )
-         })?
-         .unwrap_or_default(),
+-        })?
+-        .unwrap_or_default(),
 -    };
-+    });
++            .map_err(|e| {
++                Fail::new(
++                    "Couldn't read the password from the terminal.",
++                    e.to_string(),
++                )
++            })?
++            .unwrap_or_default(),
++        },
++    );
      if password.is_empty() {
          return Err(Fail::by_user("No password given."));
      }
  
 -    let storage = args.home.join("isideload");
 -    std::fs::create_dir_all(&storage).map_err(|e| {
-+    let storage = if once { args.home.join(format!("oneoff-{}", uuid::Uuid::new_v4())) } else { args.home.join("isideload") };
++    let storage = if once {
++        args.home.join(format!("oneoff-{}", uuid::Uuid::new_v4()))
++    } else {
++        args.home.join("isideload")
++    };
 +    let temporary = once.then(|| OneOffStore(storage.clone()));
 +    vault::private_directory(&storage).map_err(|e| {
          Fail::new(
@@ -1961,21 +2100,35 @@ index b778e40..5e8b429 100644
      })?;
      adopt_folder_typed_as(&storage, &typed, &apple_id);
 +    if once {
-+        std::sync::Arc::new(vault::Cipher::random()).activate(&storage)
++        std::sync::Arc::new(vault::Cipher::random())
++            .activate(&storage)
 +            .map_err(|_| Fail::known("Couldn't protect this run's temporary signing data."))?;
 +    } else if let Some(saved) = &saved {
-+        saved.cipher.activate(&storage).map_err(|_| Fail::known("Couldn't decrypt the saved signing data."))?;
++        saved
++            .cipher
++            .activate(&storage)
++            .map_err(|_| Fail::known("Couldn't decrypt the saved signing data."))?;
 +    }
  
      let servers = candidates(args.anisette.as_deref(), last_server(&args.home).as_deref());
-+    let refresh_login = edit_password || saved.as_ref().is_some_and(|s|
-+        s.credentials.apple_id != apple_id || s.credentials.password.as_str() != password.as_str());
-     let mut last_error = String::new();
+-    let mut last_error = String::new();
++    let refresh_login = edit_password
++        || saved.as_ref().is_some_and(|s| {
++            s.credentials.apple_id != apple_id
++                || s.credentials.password.as_str() != password.as_str()
++        });
++    let mut server_errors = Vec::new();
      for server in &servers {
          ui::status(&format!("signing in through {}", host_of(server)));
          match apple_session::open(
 -            &apple_id, &password, server, &storage, true, two_factor, "Apple ID",
-+            &apple_id, &password, server, &storage, saved.is_some() && !refresh_login, two_factor, "Apple ID",
++            &apple_id,
++            &password,
++            server,
++            &storage,
++            saved.is_some() && !refresh_login,
++            two_factor,
++            "Apple ID",
          )
          .await
          {
@@ -1984,37 +2137,172 @@ index b778e40..5e8b429 100644
 +                if saved.is_none() && !once {
 +                    saved = save_login(args, &apple_id, &password)?;
 +                    if let Some(login) = &saved {
-+                        login.cipher.activate(&storage).map_err(|_| Fail::known("Couldn't encrypt the signing data."))?;
++                        login
++                            .cipher
++                            .activate(&storage)
++                            .map_err(|_| Fail::known("Couldn't encrypt the signing data."))?;
 +                    }
 +                }
 +                if let Some(login) = saved.as_mut() {
 +                    login.credentials.apple_id.clone_from(&apple_id);
 +                    login.credentials.password.zeroize();
 +                    login.credentials.password = password.to_string();
-+                    login.persist(&args.home).map_err(|_| Fail::known("Couldn't update the encrypted login."))?;
++                    login
++                        .persist(&args.home)
++                        .map_err(|_| Fail::known("Couldn't update the encrypted login."))?;
 +                    apple_session::remember_developer_session(&storage, &apple_id, &developer)
-+                        .map_err(|_| Fail::known("Couldn't save the encrypted developer session."))?;
++                        .map_err(|_| {
++                            Fail::known("Couldn't save the encrypted developer session.")
++                        })?;
 +                    ui::ok("login and signing session saved with authenticated encryption");
 +                }
                  let mut sideloader = SideloaderBuilder::new(developer, apple_id.clone())
                      .team_selection(TeamSelection::First)
                      .max_certs_behavior(MaxCertsBehavior::Prompt(Box::new(
-@@ -130,7 +233,7 @@ pub async fn sign_in(args: &Args) -> Result<Session> {
+@@ -130,7 +318,12 @@ pub async fn sign_in(args: &Args) -> Result<Session> {
                      team.team_id
                  );
                  ui::ok(&format!("signed in — team {team}"));
 -                return Ok(Session { sideloader, team });
-+                return Ok(Session { sideloader, team, _temporary: temporary, _lock: lock });
++                return Ok(Session {
++                    sideloader,
++                    team,
++                    _temporary: temporary,
++                    _lock: lock,
++                });
              }
              Err(e) => {
                  if let Some(advice) = stops_sign_in(&e) {
-@@ -451,13 +554,21 @@ fn parse_two_factor(line: &str) -> Option<TwoFactorCallbackResponse> {
+@@ -143,7 +336,7 @@ pub async fn sign_in(args: &Args) -> Result<Session> {
+                     host_of(server),
+                     first_line(&e)
+                 ));
+-                last_error = e;
++                server_errors.push(format!("{}: {e}", host_of(server)));
+             }
+         }
+     }
+@@ -152,10 +345,88 @@ pub async fn sign_in(args: &Args) -> Result<Session> {
+             "Couldn't sign in through any of {} anisette servers. Try again later.",
+             servers.len()
+         ),
+-        last_error,
++        server_errors.join("\n\n"),
+     ))
+ }
+ 
++/// Only read public client metadata. No credentials, provisioning or device tunnel.
++pub async fn check_servers(args: &Args) -> Result<()> {
++    use isideload::anisette::{remote_v3::RemoteV3AnisetteProvider, AnisetteProvider};
++    use isideload::util::storage::InMemoryStorage;
++    use std::time::{Duration, Instant};
++    let servers = candidates(args.anisette.as_deref(), last_server(&args.home).as_deref());
++    ui::note("Checking anisette client info only; Apple login and provisioning are not tested.");
++    let permits = std::sync::Arc::new(tokio::sync::Semaphore::new(3));
++    let mut tasks = tokio::task::JoinSet::new();
++    for (index, server) in servers.iter().cloned().enumerate() {
++        let permits = permits.clone();
++        tasks.spawn(async move {
++            let _permit = permits
++                .acquire_owned()
++                .await
++                .expect("probe semaphore stays open");
++            let started = Instant::now();
++            let measured = crate::perf::span("anisette.client_info", &[("index", index as u64)]);
++            let response = tokio::time::timeout(Duration::from_secs(12), async {
++                let provider = RemoteV3AnisetteProvider::new(
++                    &server,
++                    Box::new(InMemoryStorage::new()),
++                    "0".into(),
++                )
++                .map_err(|error| crate::error_text::report_text(&error))?;
++                provider
++                    .get_client_info()
++                    .await
++                    .map_err(|error| crate::error_text::report_text(&error))?;
++                Ok::<_, String>(provider.runs_android_adi())
++            })
++            .await
++            .unwrap_or_else(|_| Err("Connection timed out after 12 seconds.".into()));
++            measured.finish(
++                if response.is_ok() {
++                    crate::perf::Outcome::Ok
++                } else {
++                    crate::perf::Outcome::Error
++                },
++                &[],
++            );
++            (server, started.elapsed().as_millis(), response)
++        });
++    }
++    let mut reachable = 0;
++    let mut errors = Vec::new();
++    while let Some(result) = tasks.join_next().await {
++        let (server, elapsed, response) = result.map_err(|error| {
++            Fail::new("Anisette check stopped unexpectedly.", error.to_string())
++        })?;
++        match response {
++            Ok(android) => {
++                reachable += 1;
++                ui::ok(&format!("{}: reachable ({elapsed} ms)", host_of(&server)));
++                if android {
++                    ui::warn("This server advertises Android ADI; Apple developer sign-in may reject it.");
++                }
++            }
++            Err(error) => {
++                ui::warn(&format!(
++                    "{}: connection failed ({elapsed} ms)",
++                    host_of(&server)
++                ));
++                ui::note(&error);
++                errors.push(format!("{}: {error}", host_of(&server)));
++            }
++        }
++    }
++    ui::note(&format!(
++        "Anisette servers reachable: {reachable}/{}",
++        servers.len()
++    ));
++    if reachable == 0 {
++        return Err(Fail::new("No anisette server could be reached. Check the DNS, proxy and certificate errors above.", errors.join("\n\n")));
++    }
++    Ok(())
++}
++
+ /// `pick` alone when given; otherwise the last server that worked, then the
+ /// rest of `SERVERS`.
+ fn candidates(pick: Option<&str>, last: Option<&str>) -> Vec<String> {
+@@ -203,7 +474,17 @@ fn stops_sign_in(error: &str) -> Option<&'static str> {
+              you're sure they're right, Apple may be limiting sign-ins: wait a while first.",
+         );
+     }
+-    if error.contains("429") || error.to_ascii_lowercase().contains("too many") {
++    let anisette_failure = [
++        "anisette server",
++        "anisette provider",
++        "/v3/",
++        "provisioning socket",
++    ]
++    .iter()
++    .any(|context| error.to_ascii_lowercase().contains(context));
++    if !anisette_failure
++        && (error.contains("429") || error.to_ascii_lowercase().contains("too many"))
++    {
+         return Some(
+             "Apple is limiting sign-in attempts for now. Wait a while, then run siboot again.",
+         );
+@@ -451,13 +732,26 @@ fn parse_two_factor(line: &str) -> Option<TwoFactorCallbackResponse> {
      }
  }
  
 +fn blocking_prompt<T>(read: impl FnOnce() -> T) -> T {
 +    #[cfg(not(target_os = "wasi"))]
-+    if tokio::runtime::Handle::try_current().is_ok_and(|handle| matches!(handle.runtime_flavor(), tokio::runtime::RuntimeFlavor::MultiThread)) {
++    if tokio::runtime::Handle::try_current().is_ok_and(|handle| {
++        matches!(
++            handle.runtime_flavor(),
++            tokio::runtime::RuntimeFlavor::MultiThread
++        )
++    }) {
 +        return tokio::task::block_in_place(read);
 +    }
 +    read()
@@ -2031,6 +2319,17 @@ index b778e40..5e8b429 100644
          if !ui::interactive() {
              return choose_certificates_plain(certs);
          }
+@@ -566,6 +860,10 @@ mod tests {
+         assert!(stops_sign_in("login failed: HTTP 429").is_some());
+         assert!(stops_sign_in("login failed: No 2FA code provided, aborting").is_some());
+         assert!(stops_sign_in("anisette provider: error sending request").is_none());
++        assert!(stops_sign_in(
++            "The anisette server answered /v3/client_info with HTTP 429 Too Many Requests"
++        )
++        .is_none());
+         assert!(stops_sign_in(apple_session::ANDROID_ADI_SKIP).is_none());
+     }
+ 
 diff --git a/minis/src/i18n.js b/minis/src/i18n.js
 new file mode 100644
 index 0000000..29bfa52
@@ -3078,7 +3377,7 @@ index 0000000..3ee57cc
 +    }
 +}
 diff --git a/minis/src/main.rs b/minis/src/main.rs
-index c61bcfe..fbfc453 100644
+index c61bcfe..239ad93 100644
 --- a/minis/src/main.rs
 +++ b/minis/src/main.rs
 @@ -1,22 +1,20 @@
@@ -3154,7 +3453,7 @@ index c61bcfe..fbfc453 100644
      /// Step 1 only.
      Check,
      /// Steps 1-3: pair, or take the pairing, and prove the tunnel works with it.
-@@ -84,20 +94,25 @@ pub enum Command {
+@@ -84,20 +94,26 @@ pub enum Command {
      DeveloperMode,
  }
  
@@ -3165,6 +3464,7 @@ index c61bcfe..fbfc453 100644
      pub turn_on: bool,
      pub verbose: bool,
 +    pub perf_log: bool,
++    pub check_anisette: bool,
 +    /// Limit signing parallelism under Minis's user-mode emulation.
 +    pub jobs: usize,
      /// Plain lines, not the live screen.
@@ -3181,7 +3481,7 @@ index c61bcfe..fbfc453 100644
      pub apple_id: Option<String>,
      pub ipa: Option<String>,
      pub anisette: Option<String>,
-@@ -105,14 +120,14 @@ pub struct Args {
+@@ -105,14 +121,14 @@ pub struct Args {
  
  impl Args {
      pub fn pairing_path(&self) -> PathBuf {
@@ -3200,11 +3500,12 @@ index c61bcfe..fbfc453 100644
      home.join(".siboot")
  }
  
-@@ -127,11 +142,14 @@ fn parse_args(argv: impl IntoIterator<Item = String>) -> std::result::Result<Par
+@@ -127,11 +143,15 @@ fn parse_args(argv: impl IntoIterator<Item = String>) -> std::result::Result<Par
          command: Command::All,
          turn_on: false,
          verbose: false,
 +        perf_log: false,
++        check_anisette: false,
 +        jobs: 1,
          plain: false,
          web: None,
@@ -3215,11 +3516,12 @@ index c61bcfe..fbfc453 100644
          apple_id: None,
          ipa: None,
          anisette: None,
-@@ -144,6 +162,22 @@ fn parse_args(argv: impl IntoIterator<Item = String>) -> std::result::Result<Par
+@@ -144,6 +164,23 @@ fn parse_args(argv: impl IntoIterator<Item = String>) -> std::result::Result<Par
              "-h" | "--help" | "help" => return Ok(Parsed::Help),
              "-V" | "--version" => return Ok(Parsed::Version),
              "-v" | "--verbose" => args.verbose = true,
 +            "--perf-log" => args.perf_log = true,
++            "--check-anisette" => args.check_anisette = true,
 +            "--jobs" => {
 +                args.jobs = value("--jobs")?
 +                    .parse()
@@ -3238,7 +3540,7 @@ index c61bcfe..fbfc453 100644
              "--plain" => args.plain = true,
              "--web" => args.web = Some(true),
              "--terminal" => args.web = Some(false),
-@@ -165,9 +199,10 @@ fn parse_args(argv: impl IntoIterator<Item = String>) -> std::result::Result<Par
+@@ -165,9 +202,10 @@ fn parse_args(argv: impl IntoIterator<Item = String>) -> std::result::Result<Par
              "--ipa" => args.ipa = Some(value("--ipa")?),
              "--anisette" => args.anisette = Some(value("--anisette")?),
              "--turn-on" => args.turn_on = true,
@@ -3250,7 +3552,7 @@ index c61bcfe..fbfc453 100644
                      "check" => Command::Check,
                      "connect" => Command::Connect,
                      _ => Command::DeveloperMode,
-@@ -176,6 +211,9 @@ fn parse_args(argv: impl IntoIterator<Item = String>) -> std::result::Result<Par
+@@ -176,23 +214,89 @@ fn parse_args(argv: impl IntoIterator<Item = String>) -> std::result::Result<Par
              other => return Err(format!("unrecognised argument `{other}`")),
          }
      }
@@ -3260,7 +3562,14 @@ index c61bcfe..fbfc453 100644
      if args.turn_on && args.command != Command::DeveloperMode {
          return Err("--turn-on goes with `siboot developer-mode`".into());
      }
-@@ -184,15 +222,71 @@ fn parse_args(argv: impl IntoIterator<Item = String>) -> std::result::Result<Par
++    if args.check_anisette && (args.command != Command::All || args.ipa.is_some() || args.turn_on) {
++        return Err(
++            "--check-anisette is a standalone connection check; omit other commands and --ipa"
++                .into(),
++        );
++    }
+     Ok(Parsed::Run(args))
+ }
  
  /// Kept narrow: Minis's terminal is an iPhone's, about 45 columns upright.
  fn usage() {
@@ -3285,6 +3594,7 @@ index c61bcfe..fbfc453 100644
 +  --apple-id EMAIL   Apple 账号，也可在界面输入
 +  --home DIR         登录与签名缓存目录，默认 ~/.siboot
 +  --anisette URL     指定 anisette 服务
++  --check-anisette   并行检测 ani 服务，无需登录或配对
 +  --device-ip IP     iPhone 地址，默认 {DEFAULT_DEVICE_IP}
 +  --port PORT        RPPairing 端口，默认 {DEFAULT_RP_PORT}
 +  --web              使用网页界面
@@ -3336,7 +3646,7 @@ index c61bcfe..fbfc453 100644
  
  {usage}
    siboot [command] [options]
-@@ -200,10 +294,12 @@ Open Minis, with your own Apple Account.
+@@ -200,10 +304,12 @@ Open Minis, with your own Apple Account.
    With no command, every step runs: check,
    pair this iPhone with siboot (in Settings,
    the first time), connect, sign in, sign
@@ -3351,7 +3661,7 @@ index c61bcfe..fbfc453 100644
    {check}
        Only check that LocalDevVPN, this iPhone
        and the internet are ready.
-@@ -226,8 +322,9 @@ Open Minis, with your own Apple Account.
+@@ -226,10 +332,14 @@ Open Minis, with your own Apple Account.
        password comes from SIBOOT_PASSWORD or a
        prompt that shows only dots.
    {ipa}
@@ -3362,8 +3672,13 @@ index c61bcfe..fbfc453 100644
 +      the page or enter a path in the terminal.
    {anisette}
        Sign in through this anisette server only.
++  --check-anisette
++      Check ani endpoints without signing in or
++      pairing. Use --anisette URL for one server.
    {turn_on}
-@@ -239,10 +336,15 @@ Open Minis, with your own Apple Account.
+       With developer-mode: turn it on, not only
+       show it.
+@@ -239,10 +349,15 @@ Open Minis, with your own Apple Account.
    {port}
        The iPhone's RPPairing port (default {rp}).
    {pairing_file}
@@ -3382,7 +3697,7 @@ index c61bcfe..fbfc453 100644
    {terminal}
        Answer here in the terminal, not on the
        page in Minis's browser.
-@@ -252,6 +354,12 @@ Open Minis, with your own Apple Account.
+@@ -252,6 +367,12 @@ Open Minis, with your own Apple Account.
    {web}
        The page even outside Minis: siboot
        prints its address.
@@ -3395,7 +3710,7 @@ index c61bcfe..fbfc453 100644
    {verbose}
        Show the underlying protocol and library
        errors (plain lines, too).
-@@ -261,8 +369,12 @@ Open Minis, with your own Apple Account.
+@@ -261,8 +382,12 @@ Open Minis, with your own Apple Account.
  {needs}
    iOS 27 or later, Developer Mode on, Wi-Fi,
    LocalDevVPN (App Store) connected, and
@@ -3410,7 +3725,7 @@ index c61bcfe..fbfc453 100644
          name = head("siboot"),
          usage = head("USAGE"),
          commands = head("COMMANDS"),
-@@ -272,7 +384,7 @@ Open Minis, with your own Apple Account.
+@@ -272,7 +397,7 @@ Open Minis, with your own Apple Account.
          connect = flag("connect"),
          devmode = flag("developer-mode"),
          apple_id = flag("--apple-id EMAIL"),
@@ -3419,7 +3734,7 @@ index c61bcfe..fbfc453 100644
          anisette = flag("--anisette URL"),
          turn_on = flag("--turn-on"),
          device_ip = flag("--device-ip IP"),
-@@ -290,6 +402,10 @@ Open Minis, with your own Apple Account.
+@@ -290,6 +415,10 @@ Open Minis, with your own Apple Account.
  }
  
  fn main() -> ExitCode {
@@ -3430,7 +3745,7 @@ index c61bcfe..fbfc453 100644
      let parsed = match parse_args(std::env::args().skip(1)) {
          Ok(p) => p,
          Err(problem) => {
-@@ -304,12 +420,60 @@ fn main() -> ExitCode {
+@@ -304,14 +433,69 @@ fn main() -> ExitCode {
              return ExitCode::SUCCESS;
          }
          Parsed::Version => {
@@ -3457,12 +3772,16 @@ index c61bcfe..fbfc453 100644
 +        match perf::start(
 +            &directory,
 +            VERSION,
-+            match args.command {
-+                Command::All => "install",
-+                Command::Renew => "renew",
-+                Command::Check => "check",
-+                Command::Connect => "connect",
-+                Command::DeveloperMode => "developer_mode",
++            if args.check_anisette {
++                "anisette_check"
++            } else {
++                match args.command {
++                    Command::All => "install",
++                    Command::Renew => "renew",
++                    Command::Check => "check",
++                    Command::Connect => "connect",
++                    Command::DeveloperMode => "developer_mode",
++                }
 +            },
 +        ) {
 +            Ok(session) => {
@@ -3490,10 +3809,22 @@ index c61bcfe..fbfc453 100644
 +    );
 +
      // Served before anything is shown, so the page gets every event.
-     let page = if args.web.unwrap_or_else(web::available) {
+-    let page = if args.web.unwrap_or_else(web::available) {
++    let page = if args
++        .web
++        .unwrap_or_else(|| !args.check_anisette && web::available())
++    {
          match web::start() {
-@@ -329,7 +493,7 @@ fn main() -> ExitCode {
-         if args.command == Command::DeveloperMode {
+             Ok(url) => Some(url),
+             Err(e) => {
+@@ -326,10 +510,12 @@ fn main() -> ExitCode {
+     init_logging(args.verbose);
+     ui::header(
+         VERSION,
+-        if args.command == Command::DeveloperMode {
++        if args.check_anisette {
++            "Checks anisette servers without Apple login or device pairing."
++        } else if args.command == Command::DeveloperMode {
              "Shows Developer Mode, or turns it on."
          } else {
 -            "Installs SideInstaller on this iPhone."
@@ -3501,7 +3832,7 @@ index c61bcfe..fbfc453 100644
          },
      );
      if let Some(url) = &page {
-@@ -337,9 +501,10 @@ fn main() -> ExitCode {
+@@ -337,9 +523,10 @@ fn main() -> ExitCode {
      }
  
      // Two workers: the software TCP stack inside the tunnel keeps moving while
@@ -3513,7 +3844,7 @@ index c61bcfe..fbfc453 100644
          .enable_all()
          .build()
      {
-@@ -366,6 +531,11 @@ fn main() -> ExitCode {
+@@ -366,6 +553,11 @@ fn main() -> ExitCode {
              _ = tokio::signal::ctrl_c() => Err(Fail::by_user("Stopped with Ctrl-C.")),
          }
      });
@@ -3525,7 +3856,7 @@ index c61bcfe..fbfc453 100644
      let code = match outcome {
          Ok(()) => ExitCode::SUCCESS,
          Err(f) => {
-@@ -375,6 +545,14 @@ fn main() -> ExitCode {
+@@ -375,6 +567,14 @@ fn main() -> ExitCode {
          }
      };
      ui::close();
@@ -3540,7 +3871,7 @@ index c61bcfe..fbfc453 100644
      code
  }
  
-@@ -384,10 +562,16 @@ fn main() -> ExitCode {
+@@ -384,10 +584,16 @@ fn main() -> ExitCode {
  fn show_page(url: &str) {
      web::on_stop(|| ui::stop_now("Stopped from the page."));
      if web::show(url) {
@@ -3561,7 +3892,7 @@ index c61bcfe..fbfc453 100644
          let url = url.to_string();
          std::thread::spawn(move || {
              use std::io::BufRead;
-@@ -399,8 +583,11 @@ fn show_page(url: &str) {
+@@ -399,8 +605,11 @@ fn show_page(url: &str) {
              }
          });
      } else {
@@ -3575,7 +3906,7 @@ index c61bcfe..fbfc453 100644
          println!("      {url}");
      }
  }
-@@ -417,9 +604,19 @@ fn init_logging(verbose: bool) {
+@@ -417,9 +626,19 @@ fn init_logging(verbose: bool) {
      use tracing_subscriber::filter::{LevelFilter, Targets};
      use tracing_subscriber::prelude::*;
  
@@ -3598,7 +3929,7 @@ index c61bcfe..fbfc453 100644
      // On the live screen, above its live area, so a warning doesn't tear it.
      if ui::is_live() {
          let fmt = tracing_subscriber::fmt::layer()
-@@ -428,14 +625,20 @@ fn init_logging(verbose: bool) {
+@@ -428,14 +647,20 @@ fn init_logging(verbose: bool) {
              .with_target(false)
              .without_time()
              .with_filter(filter);
@@ -3621,12 +3952,15 @@ index c61bcfe..fbfc453 100644
      }
  }
  
-@@ -459,12 +662,31 @@ where
+@@ -459,12 +684,34 @@ where
  }
  
  async fn pipeline(args: &Args) -> Result<()> {
 -    std::fs::create_dir_all(&args.home)
 -        .map_err(|e| Fail::new(format!("Couldn't create {}.", args.home.display()), e.to_string()))?;
++    if args.check_anisette {
++        return account::check_servers(args).await;
++    }
 +    vault::private_directory(&args.home).map_err(|e| {
 +        Fail::new(
 +            format!("Couldn't create {}.", args.home.display()),
@@ -3656,7 +3990,7 @@ index c61bcfe..fbfc453 100644
          Command::Check => ui::plan(&STEP_NAMES[..1], STAGES),
          Command::Connect => ui::plan(&STEP_NAMES[..3], STAGES),
          Command::DeveloperMode => {
-@@ -475,32 +697,61 @@ async fn pipeline(args: &Args) -> Result<()> {
+@@ -475,32 +722,61 @@ async fn pipeline(args: &Args) -> Result<()> {
      }
      // Before the request, a failure also says what siboot can't do without the
      // tunnel.
@@ -3732,7 +4066,7 @@ index c61bcfe..fbfc453 100644
      ui::ok(&format!(
          "{} — {} on iOS {}",
          device.name, device.product_type, device.ios_version
-@@ -508,55 +759,246 @@ async fn pipeline(args: &Args) -> Result<()> {
+@@ -508,55 +784,246 @@ async fn pipeline(args: &Args) -> Result<()> {
      ui::detail(&format!("UDID {}", device.udid));
      ui::done(&format!("{} · iOS {}", device.name, device.ios_version));
      if args.command == Command::Connect {
@@ -3997,18 +4331,19 @@ index c61bcfe..fbfc453 100644
      let confirm = || ui::confirm("turn it on now?", false);
      let outcome = devmode::run(connection, request, confirm).await?;
      let unlock = "Once you unlock it, tap Turn On.";
-@@ -627,7 +1069,9 @@ mod tests {
+@@ -627,7 +1094,10 @@ mod tests {
          let args = parse("");
          assert_eq!(args.command, Command::All);
          assert_eq!(args.device.to_string(), "10.7.0.1:49152");
 -        assert!(args.pairing_path().ends_with(".siboot/rp_pairing_file.plist"));
 +        assert_eq!(args.jobs, 1);
 +        assert!(!args.perf_log);
++        assert!(!args.check_anisette);
 +        assert_eq!(args.pairing_path(), pairing_files::default_path());
      }
  
      #[test]
-@@ -637,12 +1081,15 @@ mod tests {
+@@ -637,12 +1107,16 @@ mod tests {
          assert_eq!(args.device.to_string(), "192.168.1.20:50000");
          assert!(args.verbose);
          assert_eq!(parse("check").command, Command::Check);
@@ -4021,13 +4356,16 @@ index c61bcfe..fbfc453 100644
          assert_eq!(parse("--plain").web, None);
 +        assert_eq!(parse("--jobs 4 --perf-log").jobs, 4);
 +        assert!(parse("--perf-log").perf_log);
++        assert!(parse("--check-anisette --terminal").check_anisette);
          assert_eq!(parse("").web, None);
      }
  
-@@ -660,15 +1107,25 @@ mod tests {
+@@ -660,15 +1134,27 @@ mod tests {
          for line in [
              "--device-ip",
              "--device-ip nope",
++            "--check-anisette renew",
++            "--check-anisette --ipa App.ipa",
 +            "--jobs 0",
 +            "--jobs 5",
 +            "--jobs -1",

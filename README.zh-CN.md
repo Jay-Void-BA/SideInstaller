@@ -2,7 +2,7 @@
 <p align="center">在 Minis 中签名、安装和续签本地 IPA。</p>
 <p align="center"><a href="README.md">English</a> · <strong>简体中文</strong></p>
 <p align="center">
-  <a href="https://github.com/Jay-Void-BA/SideInstaller/releases/tag/siboot-v0.22.0"><img src="https://img.shields.io/badge/release-0.22.0-blue" alt="版本"></a>
+  <a href="https://github.com/Jay-Void-BA/SideInstaller/releases/tag/siboot-v0.22.1"><img src="https://img.shields.io/badge/release-0.22.1-blue" alt="版本"></a>
   <a href="https://github.com/Jay-Void-BA/SideInstaller/actions/workflows/checks.yml"><img src="https://github.com/Jay-Void-BA/SideInstaller/actions/workflows/checks.yml/badge.svg?branch=main" alt="检查"></a>
   <a href="LICENSE.md"><img src="https://img.shields.io/badge/license-Custom-lightgrey" alt="许可证"></a>
 </p>
@@ -46,8 +46,8 @@ siboot 在 iPhone 或 iPad 上完成本地 IPA 导入、设备配对、Apple 登
 
 ```sh
 uname -m
-apk add --no-cache curl
-curl -fL --retry 3 -o install-minis.sh.part https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.22.0/install-minis.sh &&
+apk add --no-cache curl ca-certificates
+curl -fL --retry 3 -o install-minis.sh.part https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.22.1/install-minis.sh &&
 mv install-minis.sh.part install-minis.sh &&
 sh install-minis.sh
 ```
@@ -59,7 +59,7 @@ sh install-minis.sh --verify
 "$HOME/.siboot/bin/siboot" --version
 ```
 
-输出应包含 `siboot 0.22.0`、`Jay-Void-BA` 和 `FrizzleM`。[SHA256SUMS](https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.22.0/SHA256SUMS) 提供全部发布文件的摘要。分片损坏或服务器拒绝续传时，使用 `sh install-minis.sh --restart`。脚本不会自动启动程序。
+输出应包含 `siboot 0.22.1`、`Jay-Void-BA` 和 `FrizzleM`。[SHA256SUMS](https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.22.1/SHA256SUMS) 提供全部发布文件的摘要。分片损坏或服务器拒绝续传时，使用 `sh install-minis.sh --restart`。脚本不会自动启动程序。
 
 也可手动下载 `siboot-aarch64` 和 `install-minis.sh`，放入同一目录，验证后运行：
 
@@ -103,6 +103,7 @@ chmod +x ./siboot-aarch64
 | `siboot --pairing-file /home/phone.plist` | 验证并导入 RPPairing 文件 |
 | `siboot --lang en` / `siboot --lang zh-CN` | 选择英文／简体中文 |
 | `siboot --terminal` / `siboot --web` | 选择实时终端／Minis 页面 |
+| `siboot --check-anisette` | 无需 IPA、Apple 登录或 VPN，检测默认 ani 服务 |
 | `siboot --perf-log` | 输出详细性能测量 |
 | `siboot --jobs 2` | 使用两个签名线程，可选范围为 1–4 |
 | `siboot --help` | 查看全部参数 |
@@ -122,6 +123,19 @@ Minis 通过模拟运行 Linux 程序。完整签名需要散列可执行页与�
 默认使用**一个签名线程**，适合模拟环境。可用同一 IPA 对比 `--jobs 2`；更多线程可能更慢或增加内存。0.22.0 缓冲解压写入、缓存目录创建、隔离签名工作目录，将重型签名移出异步设备线程，并避免续签重复拷贝 IPA。完整资源封印与逐文件上传检查继续保留。这些改动经过离线验证，实际速度取决于 IPA、Minis 和 iOS；不宣称已经取得真机性能数据。
 
 普通错误报告位于 `$HOME/.siboot/siboot.log`，分享前请检查内容。独立性能日志采用更严格的数据限制。
+
+## ani 连接诊断
+
+0.22.1 为独立程序内置 Mozilla 公共 CA 证书，并继续支持系统及私有 CA。此前，精简 Minis 文件系统没有 CA 证书时，Apple 检查可因内置 Apple 根证书而通过，但全部 ani HTTP 客户端都会创建失败。
+
+```sh
+"$HOME/.siboot/bin/siboot" --check-anisette --terminal
+"$HOME/.siboot/bin/siboot" --check-anisette --anisette https://ani.iloader.app --terminal
+```
+
+检测最多并发三个请求，每台服务器限时 12 秒，只请求 `/v3/client_info`，逐项显示 DNS、TLS、超时或 HTTP 错误。不打开登录保险库，不配对、不配置身份、不登录 Apple。检测通过仅代表客户端信息接口可达，后续身份配置或 Apple 认证仍可能单独失败。可加 `--perf-log` 记录数值计时。
+
+旧版本及 Minis 中其他网络工具可通过 `apk add --no-cache ca-certificates` 和 `update-ca-certificates` 修复系统证书。自定义代理使用私有 CA 时，还需将该 CA 安装到 Minis；iOS 的证书库与 Minis 独立。ani 服务自身的 HTTP 429 会转试其他节点；Apple 账户限流仍会停止登录尝试。
 
 ## 文件与迁移
 

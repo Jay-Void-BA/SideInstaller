@@ -16,6 +16,7 @@ install = ["dep:idevice"]
 keyring-storage = ["dep:keyring"]
 fs-storage = []
 performance = ["apple-codesign-quick/performance"]
+bundled-roots = ["dep:webpki-root-certs"]
 
 # Unfortunately, dependencies are kinda a mess rn, since this requires a beta version of the srp crate.
 # Once that becomes stable, hopefuly duplicate dependencies should clean up.\
@@ -58,6 +59,7 @@ sha1 = "0.11.0"
 reqwest = { version = "0.13.2", features = ["json", "gzip", "native-tls"] }
 
 [target.'cfg(not(target_os = "wasi"))'.dependencies]
+webpki-root-certs = { version = "1", optional = true }
 reqwest = { version = "0.13.2", features = ["json", "gzip"] }
 tokio-tungstenite = { version = "0.29.0", features = ["rustls-tls-webpki-roots"] }
 rcgen = { version = "0.14.7", default-features = false, features = ["aws_lc_rs", "pem"] }

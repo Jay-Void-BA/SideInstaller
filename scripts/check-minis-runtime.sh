@@ -36,7 +36,9 @@ if grep -q 'Waiting for Minis\|Starting pairing\|Signing in to Apple' "$WORK/inv
     exit 1
 fi
 python3 "$ROOT/scripts/make_signing_fixture.py" "$WORK/fixture" --large-directory
-timeout 120 "$PROBE" "$WORK/fixture" | tee "$WORK/probe.txt"
+mkdir "$WORK/empty-ca"
+touch "$WORK/empty-ca.pem"
+SSL_CERT_FILE="$WORK/empty-ca.pem" SSL_CERT_DIR="$WORK/empty-ca" timeout 120 "$PROBE" "$WORK/fixture" | tee "$WORK/probe.txt"
 grep -q 'NATIVE_OFFLINE_PROBE_OK' "$WORK/probe.txt"
 python3 - "$WORK" <<'PY'
 import json, pathlib, stat, sys
@@ -60,3 +62,4 @@ for path in logs:
                        for row in rows), operation
 print('PASS static ARM64 startup, complete CMS/resource signing, links, vault, renewal and private logs')
 PY
+python3 "$ROOT/scripts/check-minis-network.py" "$SIBOOT"
