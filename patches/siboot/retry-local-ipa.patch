@@ -4662,7 +4662,7 @@ index 0000000..dd71412
 +    Ok(())
 +}
 diff --git a/minis/src/pairing.rs b/minis/src/pairing.rs
-index 048e534..b6c0f23 100644
+index 048e534..d59e312 100644
 --- a/minis/src/pairing.rs
 +++ b/minis/src/pairing.rs
 @@ -17,24 +17,28 @@
@@ -5262,7 +5262,30 @@ index 048e534..b6c0f23 100644
          assert!(ready < code, "{calls}");
      }
  
-@@ -1165,7 +1283,10 @@ mod tests {
+@@ -1127,9 +1245,19 @@ mod tests {
+                 .count()
+         };
+         let phone = async {
+-            while plays(&log) < 1 {
+-                tokio::time::sleep(Duration::from_millis(50)).await;
+-            }
++            // The stub logs `play` before clearing its closed marker. Wait
++            // for the host's first status check so startup has completed;
++            // otherwise that startup can erase the close simulated here.
++            tokio::time::timeout(Duration::from_secs(10), async {
++                while !std::fs::read_to_string(&log)
++                    .unwrap_or_default()
++                    .contains("apple-player status")
++                {
++                    tokio::time::sleep(Duration::from_millis(50)).await;
++                }
++            })
++            .await
++            .expect("the started player was checked");
+             std::fs::write(home.join("minis-player-closed"), b"").unwrap();
+             for _ in 0..100 {
+                 if plays(&log) >= 2 {
+@@ -1165,7 +1293,10 @@ mod tests {
          let (host, (first, second)) = tokio::join!(host, phones);
          assert!(first.is_err(), "the first phone typed a wrong code");
          second.expect("the second try paired");
@@ -5274,7 +5297,7 @@ index 048e534..b6c0f23 100644
          assert!(out.exists());
      }
  
-@@ -1186,7 +1307,11 @@ mod tests {
+@@ -1186,7 +1317,11 @@ mod tests {
          };
          let (host, ()) = tokio::join!(host, phones);
          let failure = host.err().expect("host should give up");
@@ -5287,7 +5310,7 @@ index 048e534..b6c0f23 100644
          assert!(!out.exists(), "no pairing file for a failed pairing");
      }
  
-@@ -1204,7 +1329,10 @@ mod tests {
+@@ -1204,7 +1339,10 @@ mod tests {
          let host = run_host(listener, setup, identity, &out, &home);
          let phone = fake_iphone::pair(addr, async move { pin_rx.recv().await.unwrap() });
          let (host, phone) = tokio::join!(host, phone);
@@ -5299,7 +5322,7 @@ index 048e534..b6c0f23 100644
          phone.expect("phone paired");
          assert!(out.exists());
      }
-@@ -1217,8 +1345,15 @@ mod tests {
+@@ -1217,8 +1355,15 @@ mod tests {
          let mut setup = test_setup(Bridge::default(), false, None);
          setup.limits.device = Duration::from_millis(200);
          let identity = Identity::load(&out, &home).await;
@@ -5317,7 +5340,7 @@ index 048e534..b6c0f23 100644
      }
  
      #[tokio::test]
-@@ -1241,7 +1376,10 @@ mod tests {
+@@ -1241,7 +1386,10 @@ mod tests {
          assert_eq!(spoken(LIMITS.device), "10 minutes");
          assert_eq!(spoken(LIMITS.code_request), "30 seconds");
          assert_eq!(spoken(Duration::from_secs(60)), "1 minute");
@@ -5329,7 +5352,7 @@ index 048e534..b6c0f23 100644
          assert!(parse_alt_irk("0011").is_none());
          assert!(parse_alt_irk("zz112233445566778899aabbccddeeff").is_none());
      }
-@@ -1261,9 +1399,14 @@ mod tests {
+@@ -1261,9 +1409,14 @@ mod tests {
              loop {
                  let (mut conn, _) = listener.accept().await.unwrap();
                  let mut asked = String::new();
@@ -5346,7 +5369,7 @@ index 048e534..b6c0f23 100644
                      conn.write_all(&file).await.unwrap();
                      return;
                  }
-@@ -1284,12 +1427,20 @@ mod tests {
+@@ -1284,12 +1437,20 @@ mod tests {
          let path = home.join("rp_pairing_file.plist");
          let file = a_pairing_file();
          let offer = rootshell_offering("481516", file.clone()).await;
@@ -5369,7 +5392,7 @@ index 048e534..b6c0f23 100644
          }
      }
  
-@@ -1298,7 +1449,9 @@ mod tests {
+@@ -1298,7 +1459,9 @@ mod tests {
          let home = temp_home("retry");
          let path = home.join("rp_pairing_file.plist");
          let offer = rootshell_offering("481516", a_pairing_file()).await;
@@ -5380,7 +5403,7 @@ index 048e534..b6c0f23 100644
          assert_eq!(taken, Taken::File);
          assert!(path.exists());
      }
-@@ -1309,8 +1462,15 @@ mod tests {
+@@ -1309,8 +1472,15 @@ mod tests {
          let path = home.join("rp_pairing_file.plist");
          std::fs::write(&path, b"the old file").unwrap();
          let offer = rootshell_offering("481516", a_pairing_file()).await;
@@ -5398,7 +5421,7 @@ index 048e534..b6c0f23 100644
          assert_eq!(std::fs::read(&path).unwrap(), b"the old file");
      }
  
-@@ -1319,8 +1479,15 @@ mod tests {
+@@ -1319,8 +1489,15 @@ mod tests {
          let home = temp_home("junk");
          let path = home.join("rp_pairing_file.plist");
          let offer = rootshell_offering("481516", b"not a plist".to_vec()).await;
@@ -5416,7 +5439,7 @@ index 048e534..b6c0f23 100644
          assert!(!path.exists());
      }
  
-@@ -1338,12 +1505,20 @@ mod tests {
+@@ -1338,12 +1515,20 @@ mod tests {
              drop(conn);
          });
          let started = std::time::Instant::now();
@@ -5442,7 +5465,7 @@ index 048e534..b6c0f23 100644
          assert!(!path.exists());
          held.abort();
      }
-@@ -1356,7 +1531,10 @@ mod tests {
+@@ -1356,7 +1541,10 @@ mod tests {
              let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
              listener.local_addr().unwrap()
          };
@@ -5454,7 +5477,7 @@ index 048e534..b6c0f23 100644
          assert!(!path.exists());
      }
  
-@@ -1366,7 +1544,10 @@ mod tests {
+@@ -1366,7 +1554,10 @@ mod tests {
          let home = temp_home("cancel");
          let path = home.join("rp_pairing_file.plist");
          let offer = rootshell_offering("481516", a_pairing_file()).await;
