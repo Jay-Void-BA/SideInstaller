@@ -1,14 +1,14 @@
 diff --git a/README.md b/README.md
-index 683de33..3ea9a30 100644
+index 683de33..073642f 100644
 --- a/README.md
 +++ b/README.md
-@@ -1,3 +1,177 @@
+@@ -1,3 +1,187 @@
 -To use it, follow the following instructions: https://sideinstaller.net/install.html
 +<h1 align="center">siboot</h1>
 +<p align="center">Sign, install, and renew local IPA files in Minis.</p>
 +<p align="center"><strong>English</strong> · <a href="README.zh-CN.md">简体中文</a></p>
 +<p align="center">
-+  <a href="https://github.com/Jay-Void-BA/SideInstaller/releases/tag/siboot-v0.22.1"><img src="https://img.shields.io/badge/release-0.22.1-blue" alt="Release"></a>
++  <a href="https://github.com/Jay-Void-BA/SideInstaller/releases/tag/siboot-v0.22.2"><img src="https://img.shields.io/badge/release-0.22.2-blue" alt="Release"></a>
 +  <a href="https://github.com/Jay-Void-BA/SideInstaller/actions/workflows/checks.yml"><img src="https://github.com/Jay-Void-BA/SideInstaller/actions/workflows/checks.yml/badge.svg?branch=main" alt="Checks"></a>
 +  <a href="SideInstaller/LICENSE.md"><img src="https://img.shields.io/badge/license-Custom-lightgrey" alt="License"></a>
 +</p>
@@ -54,7 +54,7 @@ index 683de33..3ea9a30 100644
 +```sh
 +uname -m
 +apk add --no-cache curl ca-certificates
-+curl -fL --retry 3 -o install-minis.sh.part https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.22.1/install-minis.sh &&
++curl -fL --retry 3 -o install-minis.sh.part https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.22.2/install-minis.sh &&
 +mv install-minis.sh.part install-minis.sh &&
 +sh install-minis.sh
 +```
@@ -66,7 +66,7 @@ index 683de33..3ea9a30 100644
 +"$HOME/.siboot/bin/siboot" --version
 +```
 +
-+The output must include `siboot 0.22.1`, `Jay-Void-BA` and `FrizzleM`. All asset digests are in [SHA256SUMS](https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.22.1/SHA256SUMS). If a partial download is corrupt or the server refuses resuming, use `sh install-minis.sh --restart`. The script never launches the program automatically.
++The output must include `siboot 0.22.2`, `Jay-Void-BA` and `FrizzleM`. All asset digests are in [SHA256SUMS](https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.22.2/SHA256SUMS). If a partial download is corrupt or the server refuses resuming, use `sh install-minis.sh --restart`. The script never launches the program automatically.
 +
 +For a manual download, save `siboot-aarch64` and `install-minis.sh` together, then verify before running:
 +
@@ -144,6 +144,16 @@ index 683de33..3ea9a30 100644
 +
 +For older versions or other tools in Minis, restore the system bundle with `apk add --no-cache ca-certificates` and `update-ca-certificates`. When a custom proxy uses its own CA, install that CA in Minis as well; iOS's trust store is separate. A server-specific HTTP 429 is tried on another endpoint; an Apple account rate limit still stops login attempts.
 +
++## Apple sign-in compatibility
++
++Version 0.22.2 incorporates [FrizzleM's sign-in fix](https://github.com/FrizzleM/SideInstaller/commit/8c13fceefebe8fec7475555a9ea50a7df0c372d8) for Apple's November 20 change. The built-in macOS-ADI client and the Apple fallback now report the compatible Catalina `Mac OS X` identity, replacing the `macOS;26.6` / `macOS;27.0` identities associated with HTTP 503. Existing modern-Mac anisette identities remain usable; no login or pairing data needs to be deleted.
++
++The default fallback list includes `anisette.lillq.me`. When another server cannot use that pool's identity, the installer tries a compatible stored identity or provisions a separate one. Failed sign-in setup, HTTP status errors and Apple authentication codes are shown distinctly; HTTP failures from the Apple URL-bag request are checked before XML parsing.
++
++**Check the program you actually run.** Download this release's new install script, then run `"$HOME/.siboot/bin/siboot" --version`. It must show **0.22.2**. A command such as `./siboot-aarch64` may still launch a separately downloaded 0.20.0 file. Each install script is pinned to one release. Upgrading preserves the default encrypted data directory; pairing imports remain available if you move the executable.
++
++A log that says login succeeded and then reports **developer error 1100 while signing** records an expired developer session, rather than a failed password check. Restart the current program and sign in again; do not delete the vault or signing keys. The old **Directory not empty** retry failure used a shared extraction directory and is addressed by private per-attempt workspaces in 0.22.0 and later. A successful `--check-anisette` only proves the metadata endpoint is reachable; it does not test Apple authentication.
++
 +## Files and migration
 +
 +| Location | Contents |
@@ -184,15 +194,15 @@ index 683de33..3ea9a30 100644
 +The inherited SideInstaller code remains under [LICENSE.md](SideInstaller/LICENSE.md); dependency licenses also apply. This repository contains inherited implementation and is **not a clean-room rewrite**, so it is not relabeled as MIT. See the license for its terms.
 diff --git a/README.zh-CN.md b/README.zh-CN.md
 new file mode 100644
-index 0000000..76677e0
+index 0000000..96d7dd9
 --- /dev/null
 +++ b/README.zh-CN.md
-@@ -0,0 +1,177 @@
+@@ -0,0 +1,187 @@
 +<h1 align="center">siboot</h1>
 +<p align="center">在 Minis 中签名、安装和续签本地 IPA。</p>
 +<p align="center"><a href="README.md">English</a> · <strong>简体中文</strong></p>
 +<p align="center">
-+  <a href="https://github.com/Jay-Void-BA/SideInstaller/releases/tag/siboot-v0.22.1"><img src="https://img.shields.io/badge/release-0.22.1-blue" alt="版本"></a>
++  <a href="https://github.com/Jay-Void-BA/SideInstaller/releases/tag/siboot-v0.22.2"><img src="https://img.shields.io/badge/release-0.22.2-blue" alt="版本"></a>
 +  <a href="https://github.com/Jay-Void-BA/SideInstaller/actions/workflows/checks.yml"><img src="https://github.com/Jay-Void-BA/SideInstaller/actions/workflows/checks.yml/badge.svg?branch=main" alt="检查"></a>
 +  <a href="SideInstaller/LICENSE.md"><img src="https://img.shields.io/badge/license-Custom-lightgrey" alt="许可证"></a>
 +</p>
@@ -237,7 +247,7 @@ index 0000000..76677e0
 +```sh
 +uname -m
 +apk add --no-cache curl ca-certificates
-+curl -fL --retry 3 -o install-minis.sh.part https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.22.1/install-minis.sh &&
++curl -fL --retry 3 -o install-minis.sh.part https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.22.2/install-minis.sh &&
 +mv install-minis.sh.part install-minis.sh &&
 +sh install-minis.sh
 +```
@@ -249,7 +259,7 @@ index 0000000..76677e0
 +"$HOME/.siboot/bin/siboot" --version
 +```
 +
-+输出应包含 `siboot 0.22.1`、`Jay-Void-BA` 和 `FrizzleM`。[SHA256SUMS](https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.22.1/SHA256SUMS) 提供全部发布文件的摘要。分片损坏或服务器拒绝续传时，使用 `sh install-minis.sh --restart`。脚本不会自动启动程序。
++输出应包含 `siboot 0.22.2`、`Jay-Void-BA` 和 `FrizzleM`。[SHA256SUMS](https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.22.2/SHA256SUMS) 提供全部发布文件的摘要。分片损坏或服务器拒绝续传时，使用 `sh install-minis.sh --restart`。脚本不会自动启动程序。
 +
 +也可手动下载 `siboot-aarch64` 和 `install-minis.sh`，放入同一目录，验证后运行：
 +
@@ -327,6 +337,16 @@ index 0000000..76677e0
 +
 +旧版本及 Minis 中其他网络工具可通过 `apk add --no-cache ca-certificates` 和 `update-ca-certificates` 修复系统证书。自定义代理使用私有 CA 时，还需将该 CA 安装到 Minis；iOS 的证书库与 Minis 独立。ani 服务自身的 HTTP 429 会转试其他节点；Apple 账户限流仍会停止登录尝试。
 +
++## Apple 登录兼容性
++
++0.22.2 移植了 [FrizzleM 的登录修复](https://github.com/FrizzleM/SideInstaller/commit/8c13fceefebe8fec7475555a9ea50a7df0c372d8)，适配 Apple 自 11 月 20 日起的变化。内置 macOS-ADI 客户端与 Apple 回退请求统一使用兼容的 Catalina `Mac OS X` 标识，替换会遇到 HTTP 503 的 `macOS;26.6` / `macOS;27.0` 标识。此前以较新 Mac 身份配置的数据仍可复用，无需删除登录或配对记录。
++
++默认备用列表加入 `anisette.lillq.me`。其他节点不能使用该池的身份时，会继续选择兼容的已存身份或单独配置。现在会区分登录初始化、HTTP 状态码与 Apple 认证错误；Apple URL-bag 返回 HTTP 错误时先报告状态码，不再误报 XML 解析失败。
++
++**确认实际启动的程序。** 重新下载本版本的新安装脚本，运行后执行 `"$HOME/.siboot/bin/siboot" --version`，应显示 **0.22.2**。`./siboot-aarch64` 可能仍是单独下载的 0.20.0 旧文件。每份安装脚本固定对应一个版本。升级保留默认加密数据目录；移动程序时仍可导入原配对记录。
++
++日志若已显示登录成功，随后在签名阶段出现 **Developer error 1100**，表示开发者会话过期，而非密码验证失败。请重新启动当前版本并登录，无需删除保险库或签名密钥。旧版重试时的 **Directory not empty** 源于共用解压目录，0.22.0 起改为每次尝试独立的私有目录。`--check-anisette` 成功仅代表客户端信息接口可达，不代表 Apple 认证已通过。
++
 +## 文件与迁移
 +
 +| 位置 | 内容 |
@@ -366,7 +386,7 @@ index 0000000..76677e0
 +
 +继承的 SideInstaller 代码继续遵循 [LICENSE.md](SideInstaller/LICENSE.md)，依赖另遵循各自许可。仓库包含继承实现，**并非净室重写**，因此不能整体改标为 MIT；具体权利以许可证为准。
 diff --git a/minis/Cargo.lock b/minis/Cargo.lock
-index 3254ab0..80ccc98 100644
+index 3254ab0..2526ba4 100644
 --- a/minis/Cargo.lock
 +++ b/minis/Cargo.lock
 @@ -76,10 +76,12 @@ dependencies = [
@@ -456,7 +476,7 @@ index 3254ab0..80ccc98 100644
  [[package]]
  name = "siboot"
 -version = "0.18.1"
-+version = "0.22.1"
++version = "0.22.2"
  dependencies = [
 + "apple-codesign-quick",
   "base64 0.22.1",
@@ -495,14 +515,14 @@ index 3254ab0..80ccc98 100644
  
  [[package]]
 diff --git a/minis/Cargo.toml b/minis/Cargo.toml
-index 38ec01e..b6c7e2d 100644
+index 38ec01e..0e323ed 100644
 --- a/minis/Cargo.toml
 +++ b/minis/Cargo.toml
 @@ -1,8 +1,8 @@
  [package]
  name = "siboot"
 -version = "0.18.1"
-+version = "0.22.1"
++version = "0.22.2"
  edition = "2021"
 -description = "PC-free bootstrap that pairs and installs SideInstaller onto the iPhone it runs on, from Open Minis's Linux shell"
 +description = "Local IPA signing and installation in Minis by Jay-Void-BA, based on FrizzleM/siboot"
@@ -1876,10 +1896,10 @@ index 0000000..3405359
 +  "No anisette server could be reached. Check the DNS, proxy and certificate errors above.": "所有 ani 服务器均无法连接。请查看上方的 DNS、代理或证书错误。"
 +}
 diff --git a/minis/src/account.rs b/minis/src/account.rs
-index b778e40..f065f52 100644
+index b778e40..0d576e5 100644
 --- a/minis/src/account.rs
 +++ b/minis/src/account.rs
-@@ -15,10 +15,11 @@ use isideload::sideload::sideloader::Sideloader;
+@@ -15,16 +15,18 @@ use isideload::sideload::sideloader::Sideloader;
  use isideload::sideload::{SideloaderBuilder, TeamSelection};
  use isideload::util::fs_storage::FsStorage;
  use rootcause::Report;
@@ -1892,7 +1912,14 @@ index b778e40..f065f52 100644
  
  /// Anisette servers on Apple's macOS ADI library, in the order SideInstaller's
  /// Auto tries them (`AnisetteServer.macADIOrder`), then its Windows-library one.
-@@ -41,13 +42,142 @@ pub struct Session {
+ /// Android-library servers are left out, as there: Apple refuses the token they
+ /// lead to (-80046) after the password and code have gone through.
+ pub const SERVERS: &[&str] = &[
++    "https://anisette.lillq.me",
+     "https://new.ani.sidestore.io",
+     "https://mac-ani.jkcoxson.com",
+     "https://ani.iloader.app",
+@@ -41,13 +43,142 @@ pub struct Session {
      pub sideloader: Sideloader,
      /// The developer team signing for it, as "name (ID)".
      pub team: String,
@@ -2035,7 +2062,7 @@ index b778e40..f065f52 100644
      {
          Some(id) => id,
          None => ui::ask_text(
-@@ -67,46 +197,104 @@ pub async fn sign_in(args: &Args) -> Result<Session> {
+@@ -67,46 +198,104 @@ pub async fn sign_in(args: &Args) -> Result<Session> {
      if apple_id.is_empty() {
          return Err(Fail::by_user("No Apple Account given."));
      }
@@ -2159,7 +2186,7 @@ index b778e40..f065f52 100644
                  let mut sideloader = SideloaderBuilder::new(developer, apple_id.clone())
                      .team_selection(TeamSelection::First)
                      .max_certs_behavior(MaxCertsBehavior::Prompt(Box::new(
-@@ -130,7 +318,12 @@ pub async fn sign_in(args: &Args) -> Result<Session> {
+@@ -130,7 +319,12 @@ pub async fn sign_in(args: &Args) -> Result<Session> {
                      team.team_id
                  );
                  ui::ok(&format!("signed in — team {team}"));
@@ -2173,7 +2200,7 @@ index b778e40..f065f52 100644
              }
              Err(e) => {
                  if let Some(advice) = stops_sign_in(&e) {
-@@ -143,7 +336,7 @@ pub async fn sign_in(args: &Args) -> Result<Session> {
+@@ -143,7 +337,7 @@ pub async fn sign_in(args: &Args) -> Result<Session> {
                      host_of(server),
                      first_line(&e)
                  ));
@@ -2182,7 +2209,7 @@ index b778e40..f065f52 100644
              }
          }
      }
-@@ -152,10 +345,88 @@ pub async fn sign_in(args: &Args) -> Result<Session> {
+@@ -152,10 +346,88 @@ pub async fn sign_in(args: &Args) -> Result<Session> {
              "Couldn't sign in through any of {} anisette servers. Try again later.",
              servers.len()
          ),
@@ -2272,7 +2299,7 @@ index b778e40..f065f52 100644
  /// `pick` alone when given; otherwise the last server that worked, then the
  /// rest of `SERVERS`.
  fn candidates(pick: Option<&str>, last: Option<&str>) -> Vec<String> {
-@@ -203,7 +474,17 @@ fn stops_sign_in(error: &str) -> Option<&'static str> {
+@@ -203,7 +475,17 @@ fn stops_sign_in(error: &str) -> Option<&'static str> {
               you're sure they're right, Apple may be limiting sign-ins: wait a while first.",
          );
      }
@@ -2291,7 +2318,18 @@ index b778e40..f065f52 100644
          return Some(
              "Apple is limiting sign-in attempts for now. Wait a while, then run siboot again.",
          );
-@@ -451,13 +732,26 @@ fn parse_two_factor(line: &str) -> Option<TwoFactorCallbackResponse> {
+@@ -235,8 +517,8 @@ fn host_of(url: &str) -> &str {
+         .trim_end_matches('/')
+ }
+ 
+-fn first_line(text: &str) -> &str {
+-    text.lines().next().unwrap_or(text)
++fn first_line(text: &str) -> String {
++    crate::error_text::summary(text)
+ }
+ 
+ /// isideload's two-factor callback: the prompt runs on a blocking thread, since
+@@ -451,13 +733,26 @@ fn parse_two_factor(line: &str) -> Option<TwoFactorCallbackResponse> {
      }
  }
  
@@ -2319,7 +2357,7 @@ index b778e40..f065f52 100644
          if !ui::interactive() {
              return choose_certificates_plain(certs);
          }
-@@ -566,6 +860,10 @@ mod tests {
+@@ -566,6 +861,10 @@ mod tests {
          assert!(stops_sign_in("login failed: HTTP 429").is_some());
          assert!(stops_sign_in("login failed: No 2FA code provided, aborting").is_some());
          assert!(stops_sign_in("anisette provider: error sending request").is_none());

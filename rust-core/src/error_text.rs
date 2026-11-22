@@ -9,6 +9,33 @@ use std::error::Error;
 
 use rootcause::Report;
 
+/// Keep the actionable code or cause visible even when a report starts with
+/// a generic stage label. Report locations and attachments are not summaries.
+pub(crate) fn summary(text: &str) -> String {
+    let lines: Vec<&str> = text.lines().map(str::trim).collect();
+    let explicit = ["Auth error ", "Developer error ", "HTTP status "]
+        .into_iter()
+        .find_map(|prefix| {
+            lines
+                .iter()
+                .find_map(|line| line.find(prefix).map(|at| &line[at..]))
+        });
+    let cause = lines.iter().find_map(|line| line.strip_prefix("↳ cause: "));
+    let context = lines
+        .iter()
+        .find_map(|line| line.strip_prefix('●').map(str::trim));
+    let chosen = explicit
+        .or(cause)
+        .or(context)
+        .or_else(|| lines.iter().copied().find(|line| !line.is_empty()))
+        .unwrap_or("Unknown error");
+    let mut shown: String = chosen.chars().take(240).collect();
+    if chosen.chars().count() > 240 {
+        shown.push('…');
+    }
+    shown
+}
+
 /// `report` as rootcause prints it, then a `cause:` line for each error in it
 /// that has a source chain.
 pub(crate) fn report_text(report: &Report) -> String {
@@ -55,6 +82,20 @@ mod tests {
     use super::*;
     use rootcause::prelude::*;
     use std::fmt;
+
+    #[test]
+    fn login_summaries_expose_the_cause_instead_of_the_wrapper() {
+        assert_eq!(summary("login failed: \n ● Failed to log in\n ├ src/auth.rs:12\n │\n ● Auth error -80046: Cannot complete this action\n ╰ src/request.rs:55"),
+                   "Auth error -80046: Cannot complete this action");
+        assert_eq!(summary("sign-in setup failed: \n ● Failed to fetch URL bag\n ● HTTP status server error (503 Service Unavailable)\n ╰ src/client.rs:9"),
+                   "HTTP status server error (503 Service Unavailable)");
+        assert_eq!(summary("login failed: \n ● Request failed\n ↳ cause: invalid peer certificate: UnknownIssuer"),
+                   "invalid peer certificate: UnknownIssuer");
+        assert_eq!(
+            summary("\n ● Developer error 1100: session expired\n ├ src/dev.rs:1"),
+            "Developer error 1100: session expired"
+        );
+    }
 
     /// An error wrapping another, as reqwest wraps hyper's and hyper the OS's.
     #[derive(Debug)]
@@ -119,7 +160,10 @@ mod tests {
     #[test]
     fn an_error_lists_its_chain_once() {
         let inner = Wrapper("connection refused", None);
-        let outer = Wrapper("tcp connect error: connection refused", Some(Box::new(inner)));
+        let outer = Wrapper(
+            "tcp connect error: connection refused",
+            Some(Box::new(inner)),
+        );
         assert_eq!(error_text(&outer), "tcp connect error: connection refused");
         assert_eq!(
             error_text(&send_error()),

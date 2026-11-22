@@ -2,7 +2,7 @@
 <p align="center">在 Minis 中签名、安装和续签本地 IPA。</p>
 <p align="center"><a href="README.md">English</a> · <strong>简体中文</strong></p>
 <p align="center">
-  <a href="https://github.com/Jay-Void-BA/SideInstaller/releases/tag/siboot-v0.22.1"><img src="https://img.shields.io/badge/release-0.22.1-blue" alt="版本"></a>
+  <a href="https://github.com/Jay-Void-BA/SideInstaller/releases/tag/siboot-v0.22.2"><img src="https://img.shields.io/badge/release-0.22.2-blue" alt="版本"></a>
   <a href="https://github.com/Jay-Void-BA/SideInstaller/actions/workflows/checks.yml"><img src="https://github.com/Jay-Void-BA/SideInstaller/actions/workflows/checks.yml/badge.svg?branch=main" alt="检查"></a>
   <a href="LICENSE.md"><img src="https://img.shields.io/badge/license-Custom-lightgrey" alt="许可证"></a>
 </p>
@@ -47,7 +47,7 @@ siboot 在 iPhone 或 iPad 上完成本地 IPA 导入、设备配对、Apple 登
 ```sh
 uname -m
 apk add --no-cache curl ca-certificates
-curl -fL --retry 3 -o install-minis.sh.part https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.22.1/install-minis.sh &&
+curl -fL --retry 3 -o install-minis.sh.part https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.22.2/install-minis.sh &&
 mv install-minis.sh.part install-minis.sh &&
 sh install-minis.sh
 ```
@@ -59,7 +59,7 @@ sh install-minis.sh --verify
 "$HOME/.siboot/bin/siboot" --version
 ```
 
-输出应包含 `siboot 0.22.1`、`Jay-Void-BA` 和 `FrizzleM`。[SHA256SUMS](https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.22.1/SHA256SUMS) 提供全部发布文件的摘要。分片损坏或服务器拒绝续传时，使用 `sh install-minis.sh --restart`。脚本不会自动启动程序。
+输出应包含 `siboot 0.22.2`、`Jay-Void-BA` 和 `FrizzleM`。[SHA256SUMS](https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.22.2/SHA256SUMS) 提供全部发布文件的摘要。分片损坏或服务器拒绝续传时，使用 `sh install-minis.sh --restart`。脚本不会自动启动程序。
 
 也可手动下载 `siboot-aarch64` 和 `install-minis.sh`，放入同一目录，验证后运行：
 
@@ -136,6 +136,16 @@ Minis 通过模拟运行 Linux 程序。完整签名需要散列可执行页与�
 检测最多并发三个请求，每台服务器限时 12 秒，只请求 `/v3/client_info`，逐项显示 DNS、TLS、超时或 HTTP 错误。不打开登录保险库，不配对、不配置身份、不登录 Apple。检测通过仅代表客户端信息接口可达，后续身份配置或 Apple 认证仍可能单独失败。可加 `--perf-log` 记录数值计时。
 
 旧版本及 Minis 中其他网络工具可通过 `apk add --no-cache ca-certificates` 和 `update-ca-certificates` 修复系统证书。自定义代理使用私有 CA 时，还需将该 CA 安装到 Minis；iOS 的证书库与 Minis 独立。ani 服务自身的 HTTP 429 会转试其他节点；Apple 账户限流仍会停止登录尝试。
+
+## Apple 登录兼容性
+
+0.22.2 移植了 [FrizzleM 的登录修复](https://github.com/FrizzleM/SideInstaller/commit/8c13fceefebe8fec7475555a9ea50a7df0c372d8)，适配 Apple 自 11 月 20 日起的变化。内置 macOS-ADI 客户端与 Apple 回退请求统一使用兼容的 Catalina `Mac OS X` 标识，替换会遇到 HTTP 503 的 `macOS;26.6` / `macOS;27.0` 标识。此前以较新 Mac 身份配置的数据仍可复用，无需删除登录或配对记录。
+
+默认备用列表加入 `anisette.lillq.me`。其他节点不能使用该池的身份时，会继续选择兼容的已存身份或单独配置。现在会区分登录初始化、HTTP 状态码与 Apple 认证错误；Apple URL-bag 返回 HTTP 错误时先报告状态码，不再误报 XML 解析失败。
+
+**确认实际启动的程序。** 重新下载本版本的新安装脚本，运行后执行 `"$HOME/.siboot/bin/siboot" --version`，应显示 **0.22.2**。`./siboot-aarch64` 可能仍是单独下载的 0.20.0 旧文件。每份安装脚本固定对应一个版本。升级保留默认加密数据目录；移动程序时仍可导入原配对记录。
+
+日志若已显示登录成功，随后在签名阶段出现 **Developer error 1100**，表示开发者会话过期，而非密码验证失败。请重新启动当前版本并登录，无需删除保险库或签名密钥。旧版重试时的 **Directory not empty** 源于共用解压目录，0.22.0 起改为每次尝试独立的私有目录。`--check-anisette` 成功仅代表客户端信息接口可达，不代表 Apple 认证已通过。
 
 ## 文件与迁移
 

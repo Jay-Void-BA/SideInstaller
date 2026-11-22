@@ -2,7 +2,7 @@
 <p align="center">Sign, install, and renew local IPA files in Minis.</p>
 <p align="center"><strong>English</strong> · <a href="README.zh-CN.md">简体中文</a></p>
 <p align="center">
-  <a href="https://github.com/Jay-Void-BA/SideInstaller/releases/tag/siboot-v0.22.1"><img src="https://img.shields.io/badge/release-0.22.1-blue" alt="Release"></a>
+  <a href="https://github.com/Jay-Void-BA/SideInstaller/releases/tag/siboot-v0.22.2"><img src="https://img.shields.io/badge/release-0.22.2-blue" alt="Release"></a>
   <a href="https://github.com/Jay-Void-BA/SideInstaller/actions/workflows/checks.yml"><img src="https://github.com/Jay-Void-BA/SideInstaller/actions/workflows/checks.yml/badge.svg?branch=main" alt="Checks"></a>
   <a href="LICENSE.md"><img src="https://img.shields.io/badge/license-Custom-lightgrey" alt="License"></a>
 </p>
@@ -47,7 +47,7 @@ In the **Minis Linux terminal**, run:
 ```sh
 uname -m
 apk add --no-cache curl ca-certificates
-curl -fL --retry 3 -o install-minis.sh.part https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.22.1/install-minis.sh &&
+curl -fL --retry 3 -o install-minis.sh.part https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.22.2/install-minis.sh &&
 mv install-minis.sh.part install-minis.sh &&
 sh install-minis.sh
 ```
@@ -59,7 +59,7 @@ sh install-minis.sh --verify
 "$HOME/.siboot/bin/siboot" --version
 ```
 
-The output must include `siboot 0.22.1`, `Jay-Void-BA` and `FrizzleM`. All asset digests are in [SHA256SUMS](https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.22.1/SHA256SUMS). If a partial download is corrupt or the server refuses resuming, use `sh install-minis.sh --restart`. The script never launches the program automatically.
+The output must include `siboot 0.22.2`, `Jay-Void-BA` and `FrizzleM`. All asset digests are in [SHA256SUMS](https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.22.2/SHA256SUMS). If a partial download is corrupt or the server refuses resuming, use `sh install-minis.sh --restart`. The script never launches the program automatically.
 
 For a manual download, save `siboot-aarch64` and `install-minis.sh` together, then verify before running:
 
@@ -136,6 +136,16 @@ Version 0.22.1 includes Mozilla public CA certificates for the standalone instal
 The check probes `/v3/client_info` with at most three concurrent requests and a 12-second limit per server. It prints each endpoint's DNS, TLS, timeout or HTTP error, without opening the login vault, pairing, provisioning an identity or signing in to Apple. A successful check proves metadata connectivity; provisioning and Apple authentication can still fail separately. `--perf-log` records numeric timings for these probes.
 
 For older versions or other tools in Minis, restore the system bundle with `apk add --no-cache ca-certificates` and `update-ca-certificates`. When a custom proxy uses its own CA, install that CA in Minis as well; iOS's trust store is separate. A server-specific HTTP 429 is tried on another endpoint; an Apple account rate limit still stops login attempts.
+
+## Apple sign-in compatibility
+
+Version 0.22.2 incorporates [FrizzleM's sign-in fix](https://github.com/FrizzleM/SideInstaller/commit/8c13fceefebe8fec7475555a9ea50a7df0c372d8) for Apple's November 20 change. The built-in macOS-ADI client and the Apple fallback now report the compatible Catalina `Mac OS X` identity, replacing the `macOS;26.6` / `macOS;27.0` identities associated with HTTP 503. Existing modern-Mac anisette identities remain usable; no login or pairing data needs to be deleted.
+
+The default fallback list includes `anisette.lillq.me`. When another server cannot use that pool's identity, the installer tries a compatible stored identity or provisions a separate one. Failed sign-in setup, HTTP status errors and Apple authentication codes are shown distinctly; HTTP failures from the Apple URL-bag request are checked before XML parsing.
+
+**Check the program you actually run.** Download this release's new install script, then run `"$HOME/.siboot/bin/siboot" --version`. It must show **0.22.2**. A command such as `./siboot-aarch64` may still launch a separately downloaded 0.20.0 file. Each install script is pinned to one release. Upgrading preserves the default encrypted data directory; pairing imports remain available if you move the executable.
+
+A log that says login succeeded and then reports **developer error 1100 while signing** records an expired developer session, rather than a failed password check. Restart the current program and sign in again; do not delete the vault or signing keys. The old **Directory not empty** retry failure used a shared extraction directory and is addressed by private per-attempt workspaces in 0.22.0 and later. A successful `--check-anisette` only proves the metadata endpoint is reachable; it does not test Apple authentication.
 
 ## Files and migration
 

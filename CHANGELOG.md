@@ -1,3 +1,7 @@
+## siboot 0.22.2
+
+Incorporate FrizzleM's Apple sign-in compatibility repair: Catalina client identifiers, a pool fallback and compatible identity reuse. Expose real authentication/HTTP errors and distinguish URL-bag status failures from XML parsing. Document running the correct installed version and interpreting historical session/temporary-directory failures. See [release notes](release-notes/siboot-v0.22.2.md).
+
 ## siboot 0.22.1
 
 Fix anisette HTTP client creation without system CA certificates in Minis. Bundle public TLS roots alongside system trust, add credential-free `--check-anisette` diagnostics, retain all server errors and distinguish ani rate limits from Apple account limits. Verify missing-CA startup, unknown-issuer rejection, private CA trust and HTTP errors on the actual ARM64 release. See [release notes](release-notes/siboot-v0.22.1.md).

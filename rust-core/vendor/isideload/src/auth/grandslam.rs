@@ -32,8 +32,12 @@ const URL_BAG: &str = "https://gsa.apple.com/grandslam/GsService2/lookup";
 ///   one client for a whole sign-in is what Apple's own clients send, and a
 ///   Mac on those pages alone is a mix Apple can close. `AppleAccount` falls
 ///   back to the Mac on a bare 403.
-const MAC_CLIENT_INFO: &str =
-    "<Mac15,7> <macOS;27.0;26A5378j> <com.apple.AuthKit/1 (com.apple.akd/1.0)>";
+///
+/// It's the Mac the macOS-ADI servers' sign-ins report: since 2026-11-20
+/// Apple's edge answers a client that names its OS `macOS` with HTTP 503,
+/// which the `<Mac15,7> <macOS;27.0;26A5378j>` used until then does (see
+/// `CURRENT_MAC_CLIENT_INFO`).
+const MAC_CLIENT_INFO: &str = crate::anisette::remote_v3::CURRENT_MAC_CLIENT_INFO;
 
 /// The URL-bag entries this crate uses.
 const BAG_KEYS: [&str; 5] = [
@@ -101,13 +105,23 @@ impl GrandSlam {
         client: &reqwest::Client,
         base_headers: HeaderMap,
     ) -> Result<Dictionary, Report> {
+        Self::fetch_url_bag_at(client, base_headers, URL_BAG).await
+    }
+
+    async fn fetch_url_bag_at(
+        client: &reqwest::Client,
+        base_headers: HeaderMap,
+        url: &str,
+    ) -> Result<Dictionary, Report> {
         debug!("Fetching URL bag from GrandSlam");
         let resp = client
-            .get(URL_BAG)
+            .get(url)
             .headers(base_headers)
             .send()
             .await
             .context("Failed to fetch URL Bag")?
+            .error_for_status()
+            .context("Apple rejected the URL bag request")?
             .text()
             .await
             .context("Failed to read URL Bag response text")?;
@@ -348,6 +362,27 @@ mod client_info_tests {
 
     const WINDOWS: &str =
         "<PC> <Windows;6.2(0,0);9200> <com.apple.AuthKit/1 (com.apple.iTunes/12.12.4.1)>";
+
+    #[tokio::test]
+    async fn lookup_reports_http_failure_instead_of_an_xml_parse_error() {
+        use tokio::io::{AsyncReadExt, AsyncWriteExt};
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let address = listener.local_addr().unwrap();
+        let server = tokio::spawn(async move {
+            let (mut stream, _) = listener.accept().await.unwrap();
+            let mut request = [0; 2048];
+            assert!(stream.read(&mut request).await.unwrap() > 0);
+            stream.write_all(b"HTTP/1.1 503 Service Unavailable\r\nContent-Length: 4\r\nConnection: close\r\n\r\nbusy").await.unwrap();
+        });
+        let client = GrandSlam::build_reqwest_client(false).unwrap();
+        let error = GrandSlam::fetch_url_bag_at(
+            &client, reqwest::header::HeaderMap::new(), &format!("http://{address}/lookup"),
+        ).await.unwrap_err();
+        server.await.unwrap();
+        let message = error.to_string();
+        assert!(message.contains("503"), "{message}");
+        assert!(!message.contains("Failed to parse"), "{message}");
+    }
 
     fn said(request: reqwest::RequestBuilder) -> String {
         let request = request.build().unwrap();

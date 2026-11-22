@@ -779,3 +779,7 @@ here; this file replaces it, and `readme` in `Cargo.toml` points at it.
 Maintained by Jay-Void-BA, based on FrizzleM/siboot and this dependency's credited upstream authors. WASI HTTP/WebSocket requests use rootshell-http over the host TLS ABI with certificate validation. RSA/SHA-256 CSR generation uses RustCrypto; native targets retain rcgen. WASI extraction streams files and records link metadata, and avoids unsupported std::env::temp_dir and blocking thread pools. Native targets keep their original transports and scheduling.
 
 The offline release gate runs the pinned original rootshell Worker and checks full CMS signing, links, encrypted storage, HTTP/WebSocket, and software TCP transport. Real Apple Account and iPhone end-to-end installation is not covered by this gate.
+
+### Minis 0.22.2 sign-in compatibility
+
+Ported the Rust changes from FrizzleM/SideInstaller commit `8c13fceefebe8fec7475555a9ea50a7df0c372d8`: compatible Catalina client information and user agent, the corresponding GrandSlam Mac fallback, and `adi_pb too large` as an incompatible stored identity. Upstream attributes the change to Apple's November 20 refusal of clients whose OS token is `macOS`. Tests retain old modern-Mac identities and pass over pool identities that another server cannot use. The parent installer adds clear HTTP/authentication summaries and checks URL-bag HTTP status before parsing. No real Apple Account was used by this repository's automated tests.

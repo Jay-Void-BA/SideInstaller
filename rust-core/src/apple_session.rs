@@ -178,11 +178,8 @@ fn is_account_refusal(error: &str) -> bool {
     e.contains("developer error 1102") || e.contains("developer error 2160")
 }
 
-fn first_line(text: &str) -> &str {
-    text.lines()
-        .map(|line| line.trim_start_matches([' ', '●']).trim())
-        .find(|line| !line.is_empty())
-        .unwrap_or(text)
+fn first_line(text: &str) -> String {
+    crate::error_text::summary(text)
 }
 
 fn unix_now() -> u64 {
@@ -244,7 +241,7 @@ where
         .anisette_provider(anisette)
         .build()
         .await
-        .map_err(|e| format!("login failed: {}", report_text(&e)))?;
+        .map_err(|e| format!("sign-in setup failed: {}", report_text(&e)))?;
 
     if let Some(saved) = saved {
         if saved.usable_for(apple_id, now) {

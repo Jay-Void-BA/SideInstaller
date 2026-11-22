@@ -25,3 +25,7 @@ See the [English guide](../../README.md) or [中文配置与迁移](../../README
 The standalone Minis manifest opts into `isideload/bundled-roots`, merging Mozilla public roots with system/private CAs. This fixes HTTP client construction when the Linux filesystem has no CA bundle; native application builds retain platform trust by default. `--check-anisette` probes public client metadata without opening login storage or contacting Apple authentication. It bounds concurrent work and reports each server's full failure. Server HTTP 429 failures fall back; Apple account limits still stop sign-in.
 
 The ARM64 release is checked with empty certificate paths and a local TLS fixture that rejects unknown issuers, accepts a configured private CA and reports HTTP failures. Complete signing tests continue under the empty-CA environment.
+
+## Apple sign-in compatibility (0.22.2)
+
+Ports FrizzleM's compatible Catalina client and pool-identity handling, adds the pool to Minis's fallback list, and displays the actual HTTP/authentication failure instead of only `login failed`. Existing encrypted data is preserved. The English/Chinese guides distinguish old executable paths, expired developer sessions and the legacy shared-directory retry failure.
