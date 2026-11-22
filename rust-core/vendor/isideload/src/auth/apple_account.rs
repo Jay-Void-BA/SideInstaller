@@ -3,8 +3,7 @@ use std::{future::Future, sync::Arc};
 use crate::{
     SideloadError,
     anisette::{
-        AnisetteClientInfo, AnisetteData, AnisetteDataGenerator,
-        remote_v3::WINDOWS_CLIENT_INFO,
+        AnisetteClientInfo, AnisetteData, AnisetteDataGenerator, remote_v3::WINDOWS_CLIENT_INFO,
     },
     auth::{
         builder::AppleAccountBuilder,
@@ -31,9 +30,9 @@ use tracing::{debug, info, warn};
 
 /// The second-factor prompt's error when Apple refused to send a code by text
 /// or call and the trusted devices are asked instead. SideInstaller shows it
-/// in the app's language, so keep the wording in step with `TwoFactorPrompt`.
-pub const PHONE_CODE_REFUSED: &str =
-    "Apple won't send a code by text or call to this sign-in, so it was sent to your Apple devices.";
+/// in the app's language, so keep this legacy localization key in step with
+/// `TwoFactorPrompt`. Minis replaces it with wording that does not claim delivery.
+pub const PHONE_CODE_REFUSED: &str = "Apple won't send a code by text or call to this sign-in, so it was sent to your Apple devices.";
 
 /// The second-factor prompt's error when Apple refused to confirm sending a
 /// code to the trusted devices, and the code is asked for anyway.
@@ -133,6 +132,13 @@ pub struct SMSTwoFactorError {
 enum SmsSendOutcome {
     Sent,
     ActiveChallenge,
+    ServiceError(SMSTwoFactorError),
+}
+
+#[derive(Debug)]
+enum DeviceSendOutcome {
+    Requested,
+    Unconfirmed,
     ServiceError(SMSTwoFactorError),
 }
 
@@ -428,7 +434,10 @@ impl AppleAccount {
     /// `secondaryAuth` names no number, so that flow starts from id 1 as upstream
     /// does; switch to a real trusted number when 1 isn't one.
     fn resolve_number_id(&self, id: u32) -> u32 {
-        Self::pick_number_id(self.trusted_phone_numbers.as_deref().unwrap_or_default(), id)
+        Self::pick_number_id(
+            self.trusted_phone_numbers.as_deref().unwrap_or_default(),
+            id,
+        )
     }
 
     fn pick_number_id(numbers: &[TrustedNumber], id: u32) -> u32 {
@@ -453,28 +462,76 @@ impl AppleAccount {
 
         let headers = self.build_2fa_headers(&anisette_data).await?;
         let (status, text) = self
-            .send_auth(reqwest::Method::GET, &request_code_url, false, headers, None)
+            .send_auth(
+                reqwest::Method::GET,
+                &request_code_url,
+                false,
+                headers,
+                None,
+            )
             .await
             .context("Failed to request trusted device 2fa")?;
-        if Self::refuses_client(status.as_u16(), &text) {
-            // Apple may have pushed a code at the password proof anyway (it
-            // did to the Android and Windows clients), and `validateCode`,
-            // outside /auth, takes it; with none, the user can pick another way.
-            warn!("Apple turned the trusted-device code request away (bare 403); asking for a code anyway");
-            self.last_error = Some(DEVICE_CODE_UNCONFIRMED.to_string());
-            return Ok(());
+        info!(
+            "Trusted-device verification request returned HTTP {}",
+            status.as_u16()
+        );
+        match Self::classify_device_send_response(status.as_u16(), &text)? {
+            DeviceSendOutcome::Requested => {
+                info!("Trusted-device verification request accepted; delivery is not confirmed")
+            }
+            DeviceSendOutcome::Unconfirmed => {
+                warn!("Apple did not confirm the trusted-device code request");
+                self.last_error = Some(DEVICE_CODE_UNCONFIRMED.to_string());
+            }
+            DeviceSendOutcome::ServiceError(error) => {
+                warn!(
+                    "Trusted-device verification request rejected ({})",
+                    error.code
+                );
+                self.last_error = Some(format!("{} - {}", error.code, error.message));
+            }
         }
-        if !status.is_success() {
+        Ok(())
+    }
+
+    fn classify_device_send_response(status: u16, text: &str) -> Result<DeviceSendOutcome, Report> {
+        if let Some(error) = Self::parse_sms_service_error(text) {
+            return Ok(DeviceSendOutcome::ServiceError(error));
+        }
+        let plist = plist::from_bytes::<Dictionary>(text.as_bytes()).ok();
+        let apple_status = plist.as_ref().map(|body| {
+            body.get("Status")
+                .and_then(plist::Value::as_dictionary)
+                .unwrap_or(body)
+        });
+        let code = apple_status
+            .and_then(|body| body.get("ec"))
+            .and_then(plist::Value::as_signed_integer);
+        if let Some(code) = code.filter(|code| *code != 0) {
+            return Ok(DeviceSendOutcome::ServiceError(SMSTwoFactorError {
+                code: code.to_string(),
+                title: "Trusted-device verification request rejected".into(),
+                message: apple_status
+                    .and_then(|body| body.get("em"))
+                    .and_then(plist::Value::as_string)
+                    .unwrap_or("Apple rejected the verification-code request.")
+                    .to_string(),
+            }));
+        }
+        if Self::refuses_client(status, text) {
+            return Ok(DeviceSendOutcome::Unconfirmed);
+        }
+        if !(200..300).contains(&status) {
             bail!(
-                "Trusted device 2FA request failed with http status {}: {}",
-                status.as_u16(),
-                text
+                "Trusted device 2FA request failed with http status {}",
+                status
             );
         }
-
-        info!("Trusted device 2FA request sent");
-
-        Ok(())
+        if text.trim().is_empty() || code == Some(0) {
+            Ok(DeviceSendOutcome::Requested)
+        } else {
+            Ok(DeviceSendOutcome::Unconfirmed)
+        }
     }
 
     async fn verify_trusted_device_2fa(&mut self, code: String) -> Result<LoginState, Report> {
@@ -554,13 +611,19 @@ impl AppleAccount {
             )
             .await
             .context("Failed to request phone 2FA code")?;
+        info!(
+            "Phone verification request returned HTTP {}",
+            status.as_u16()
+        );
 
         // A bare 403 here even as a Mac: Apple asked for a code by text and
         // then refused to send one, as it did through the macOS-ADI servers on
         // 2026-10-16. The trusted devices are tried instead, as SideStore lets
         // the user pick them whatever Apple asked for.
         if Self::refuses_client(status.as_u16(), &text) {
-            warn!("Apple turned the phone-code request away (bare 403); sending the code to the trusted devices instead");
+            warn!(
+                "Apple turned the phone-code request away (bare 403); requesting a code from trusted devices instead"
+            );
             self.last_error = Some(PHONE_CODE_REFUSED.to_string());
             return Ok(LoginState::NeedsDevice2FA);
         }
@@ -647,12 +710,12 @@ impl AppleAccount {
         requested_number_id: u32,
         requested_mode: PhoneCodeMode,
     ) -> Result<SmsSendOutcome, Report> {
-        if (200..300).contains(&status) {
-            return Ok(SmsSendOutcome::Sent);
-        }
-
         if let Some(error) = Self::parse_sms_service_error(text) {
             return Ok(SmsSendOutcome::ServiceError(error));
+        }
+
+        if (200..300).contains(&status) {
+            return Ok(SmsSendOutcome::Sent);
         }
 
         if status == 412
@@ -738,6 +801,11 @@ impl AppleAccount {
         {
             let numbers: Vec<TrustedNumber> = serde_json::from_value(numbers.clone())
                 .context("Failed to parse trusted phone numbers")?;
+            info!(
+                "Retrieved {} trusted phone numbers (HTTP {})",
+                numbers.len(),
+                status
+            );
             debug!(
                 "Retrieved {} trusted phone numbers (status {}): {:?}",
                 numbers.len(),
@@ -795,7 +863,10 @@ impl AppleAccount {
             }
             let response = request.send().await?;
             let status = response.status();
-            let text = response.text().await.context("Failed to read the response")?;
+            let text = response
+                .text()
+                .await
+                .context("Failed to read the response")?;
             if Self::refuses_client(status.as_u16(), &text)
                 && !self.auth_as_mac
                 && !self.grandslam_client.is_mac()
@@ -1046,7 +1117,7 @@ impl AppleAccount {
         // isn't needed, `validateCode` takes that one. Taken for a finished
         // sign-in, the app token request after it fails with -22411.
         if status.get("hsc").and_then(|v| v.as_signed_integer()) == Some(409) {
-            info!("Apple has sent a 2FA code to the trusted devices");
+            info!("Apple requires trusted-device verification (hsc 409)");
             return LoginState::NeedsDevice2FAVerification;
         }
 
@@ -1224,6 +1295,99 @@ impl AppleAccount {
 }
 
 #[cfg(test)]
+mod device_send_response_tests {
+    use super::{AppleAccount, DeviceSendOutcome};
+    use plist_macro::plist;
+
+    fn response(code: i64, nested: bool) -> String {
+        let status = plist!(dict {
+            "ec": code,
+            "em": "Verification request rejected"
+        });
+        let body = if nested {
+            plist!(dict { "Status": status })
+        } else {
+            status
+        };
+        let mut bytes = Vec::new();
+        plist::to_writer_xml(&mut bytes, &body).unwrap();
+        String::from_utf8(bytes).unwrap()
+    }
+
+    #[test]
+    fn only_acknowledges_empty_success_or_explicit_zero_status() {
+        for (status, body) in [
+            (200, String::new()),
+            (204, String::new()),
+            (200, response(0, true)),
+        ] {
+            assert!(matches!(
+                AppleAccount::classify_device_send_response(status, &body).unwrap(),
+                DeviceSendOutcome::Requested
+            ));
+        }
+        for body in [
+            "<html>Sign in again</html>",
+            "{}",
+            r#"{"serviceErrors":[]}"#,
+        ] {
+            assert!(matches!(
+                AppleAccount::classify_device_send_response(200, body).unwrap(),
+                DeviceSendOutcome::Unconfirmed
+            ));
+        }
+    }
+
+    #[test]
+    fn preserves_plist_errors_even_when_http_succeeds() {
+        for nested in [true, false] {
+            for status in [200, 403] {
+                let outcome =
+                    AppleAccount::classify_device_send_response(status, &response(-21668, nested))
+                        .unwrap();
+                let DeviceSendOutcome::ServiceError(error) = outcome else {
+                    panic!("Apple's error must not become a successful code request");
+                };
+                assert_eq!(error.code, "-21668");
+                assert_eq!(error.message, "Verification request rejected");
+            }
+        }
+    }
+
+    #[test]
+    fn preserves_json_service_errors_even_when_http_succeeds() {
+        let body = r#"{"serviceErrors":[{"code":"-28248","message":"Please select a different verification method."}]}"#;
+        let outcome = AppleAccount::classify_device_send_response(200, body).unwrap();
+        let DeviceSendOutcome::ServiceError(error) = outcome else {
+            panic!("Apple's error must not become a successful code request");
+        };
+        assert_eq!(error.code, "-28248");
+        assert_eq!(
+            error.message,
+            "Please select a different verification method."
+        );
+    }
+
+    #[test]
+    fn an_unexplained_403_does_not_confirm_delivery() {
+        assert!(matches!(
+            AppleAccount::classify_device_send_response(403, "Forbidden").unwrap(),
+            DeviceSendOutcome::Unconfirmed
+        ));
+    }
+
+    #[test]
+    fn http_errors_report_status_without_dumping_the_response() {
+        let error = AppleAccount::classify_device_send_response(503, "private response data")
+            .unwrap_err()
+            .to_string();
+        assert!(error.contains("http status 503"));
+        assert!(!error.contains("private response data"));
+        assert!(AppleAccount::classify_device_send_response(503, &response(0, true)).is_err());
+    }
+}
+
+#[cfg(test)]
 mod sms_send_response_tests {
     // Upstream's contract tests from f560857 (dropped from its branch in c7e1bc4),
     // with the request mode added, plus the call and number-fallback cases.
@@ -1267,6 +1431,17 @@ mod sms_send_response_tests {
             AppleAccount::classify_sms_send_response(200, "", 2, PhoneCodeMode::Sms).unwrap();
 
         assert!(matches!(outcome, SmsSendOutcome::Sent));
+    }
+
+    #[test]
+    fn a_successful_http_status_does_not_hide_a_phone_service_error() {
+        let body = r#"{"serviceErrors":[{"code":"-28248","message":"Please select a different verification method."}]}"#;
+        let outcome =
+            AppleAccount::classify_sms_send_response(200, body, 2, PhoneCodeMode::Sms).unwrap();
+        let SmsSendOutcome::ServiceError(error) = outcome else {
+            panic!("Apple's error must not become a successful code request");
+        };
+        assert_eq!(error.code, "-28248");
     }
 
     #[test]
@@ -1389,7 +1564,11 @@ mod sms_send_response_tests {
         let outcome =
             AppleAccount::classify_sms_send_response(412, &body, 2, PhoneCodeMode::Voice).unwrap();
         assert!(matches!(outcome, SmsSendOutcome::ActiveChallenge));
-        assert!(classify(412, &body, 2).to_string().contains("http status 412"));
+        assert!(
+            classify(412, &body, 2)
+                .to_string()
+                .contains("http status 412")
+        );
     }
 
     #[test]
@@ -1557,7 +1736,11 @@ mod unreachable_tests {
     impl reqwest::dns::Resolve for MissingHost {
         fn resolve(&self, _: reqwest::dns::Name) -> reqwest::dns::Resolving {
             Box::pin(async {
-                Err(std::io::Error::new(std::io::ErrorKind::NotFound, "test host has no DNS record").into())
+                Err(std::io::Error::new(
+                    std::io::ErrorKind::NotFound,
+                    "test host has no DNS record",
+                )
+                .into())
             })
         }
     }
@@ -1587,10 +1770,20 @@ mod unreachable_tests {
 
     #[test]
     fn a_closed_port_or_unknown_host_is_unreachable() {
-        let port = std::net::TcpListener::bind("127.0.0.1:0").unwrap().local_addr().unwrap().port();
-        assert!(is_unreachable(&get(&format!("http://127.0.0.1:{port}/v3/client_info"))));
-        assert!(is_unreachable(&get("http://no-such-host.invalid/v3/client_info")));
-        assert!(!is_unreachable(&report!("Failed to read the anisette server's client info").into()));
+        let port = std::net::TcpListener::bind("127.0.0.1:0")
+            .unwrap()
+            .local_addr()
+            .unwrap()
+            .port();
+        assert!(is_unreachable(&get(&format!(
+            "http://127.0.0.1:{port}/v3/client_info"
+        ))));
+        assert!(is_unreachable(&get(
+            "http://no-such-host.invalid/v3/client_info"
+        )));
+        assert!(!is_unreachable(
+            &report!("Failed to read the anisette server's client info").into()
+        ));
     }
 }
 

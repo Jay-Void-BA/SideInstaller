@@ -1,16 +1,16 @@
 diff --git a/README.md b/README.md
-index 683de33..073642f 100644
+index 683de33..6e451f7 100644
 --- a/README.md
 +++ b/README.md
-@@ -1,3 +1,187 @@
+@@ -1,3 +1,195 @@
 -To use it, follow the following instructions: https://sideinstaller.net/install.html
 +<h1 align="center">siboot</h1>
 +<p align="center">Sign, install, and renew local IPA files in Minis.</p>
 +<p align="center"><strong>English</strong> · <a href="README.zh-CN.md">简体中文</a></p>
 +<p align="center">
-+  <a href="https://github.com/Jay-Void-BA/SideInstaller/releases/tag/siboot-v0.22.2"><img src="https://img.shields.io/badge/release-0.22.2-blue" alt="Release"></a>
++  <a href="https://github.com/Jay-Void-BA/SideInstaller/releases/tag/siboot-v0.22.3"><img src="https://img.shields.io/badge/release-0.22.3-blue" alt="Release"></a>
 +  <a href="https://github.com/Jay-Void-BA/SideInstaller/actions/workflows/checks.yml"><img src="https://github.com/Jay-Void-BA/SideInstaller/actions/workflows/checks.yml/badge.svg?branch=main" alt="Checks"></a>
-+  <a href="SideInstaller/LICENSE.md"><img src="https://img.shields.io/badge/license-Custom-lightgrey" alt="License"></a>
++  <a href="LICENSE.md"><img src="https://img.shields.io/badge/license-Custom-lightgrey" alt="License"></a>
 +</p>
 +<p align="center">Maintained by <a href="https://github.com/Jay-Void-BA">Jay-Void-BA</a> · Original concept and code by <a href="https://github.com/FrizzleM">FrizzleM</a></p>
  
@@ -54,7 +54,7 @@ index 683de33..073642f 100644
 +```sh
 +uname -m
 +apk add --no-cache curl ca-certificates
-+curl -fL --retry 3 -o install-minis.sh.part https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.22.2/install-minis.sh &&
++curl -fL --retry 3 -o install-minis.sh.part https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.22.3/install-minis.sh &&
 +mv install-minis.sh.part install-minis.sh &&
 +sh install-minis.sh
 +```
@@ -66,7 +66,7 @@ index 683de33..073642f 100644
 +"$HOME/.siboot/bin/siboot" --version
 +```
 +
-+The output must include `siboot 0.22.2`, `Jay-Void-BA` and `FrizzleM`. All asset digests are in [SHA256SUMS](https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.22.2/SHA256SUMS). If a partial download is corrupt or the server refuses resuming, use `sh install-minis.sh --restart`. The script never launches the program automatically.
++The output must include `siboot 0.22.3`, `Jay-Void-BA` and `FrizzleM`. All asset digests are in [SHA256SUMS](https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.22.3/SHA256SUMS). If a partial download is corrupt or the server refuses resuming, use `sh install-minis.sh --restart`. The script never launches the program automatically.
 +
 +For a manual download, save `siboot-aarch64` and `install-minis.sh` together, then verify before running:
 +
@@ -150,9 +150,17 @@ index 683de33..073642f 100644
 +
 +The default fallback list includes `anisette.lillq.me`. When another server cannot use that pool's identity, the installer tries a compatible stored identity or provisions a separate one. Failed sign-in setup, HTTP status errors and Apple authentication codes are shown distinctly; HTTP failures from the Apple URL-bag request are checked before XML parsing.
 +
-+**Check the program you actually run.** Download this release's new install script, then run `"$HOME/.siboot/bin/siboot" --version`. It must show **0.22.2**. A command such as `./siboot-aarch64` may still launch a separately downloaded 0.20.0 file. Each install script is pinned to one release. Upgrading preserves the default encrypted data directory; pairing imports remain available if you move the executable.
++**Check the program you actually run.** Download this release's new install script, then run `"$HOME/.siboot/bin/siboot" --version`. It must show **0.22.3**. A command such as `./siboot-aarch64` may still launch a separately downloaded 0.20.0 file. Each install script is pinned to one release. Upgrading preserves the default encrypted data directory; pairing imports remain available if you move the executable.
 +
 +A log that says login succeeded and then reports **developer error 1100 while signing** records an expired developer session, rather than a failed password check. Restart the current program and sign in again; do not delete the vault or signing keys. The old **Directory not empty** retry failure used a shared extraction directory and is addressed by private per-attempt workspaces in 0.22.0 and later. A successful `--check-anisette` only proves the metadata endpoint is reachable; it does not test Apple authentication.
++
++## No verification code arrives
++
++A code request does not prove delivery. Since 0.22.3, the Minis prompt no longer claims a device received a code after Apple refused a text or call. Trusted-device requests check both HTTP status and Apple plist/JSON errors; phone requests also preserve service errors returned with HTTP 200. Logs include the request status and any Apple error code without recording the verification code.
++
++Check that the trusted device is signed in to the **same Apple Account** you entered in siboot. Choose **Other ways** to request a text or call to a listed trusted number. If Apple does not provide phone numbers for this session, those options are unavailable and the prompt explains why. Opening or leaving the menu does not resend a code. Avoid repeated requests when Apple reports a limit.
++
++You can cancel and choose an anisette endpoint explicitly, for example `"$HOME/.siboot/bin/siboot" --anisette https://new.ani.sidestore.io`. A working metadata probe or an accepted code request does not guarantee Apple will deliver a code. See [Apple’s verification-code guidance](https://support.apple.com/en-us/102606). Never share your password or verification code in an issue or chat.
 +
 +## Files and migration
 +
@@ -191,20 +199,20 @@ index 683de33..073642f 100644
 +
 +Maintained by **Jay-Void-BA**. Original concept and implementation: **[siboot by FrizzleM](https://github.com/FrizzleM/siboot)**. Shared signing and device code derives from **[SideInstaller by FrizzleM](https://github.com/FrizzleM/SideInstaller)** and its credited dependencies.
 +
-+The inherited SideInstaller code remains under [LICENSE.md](SideInstaller/LICENSE.md); dependency licenses also apply. This repository contains inherited implementation and is **not a clean-room rewrite**, so it is not relabeled as MIT. See the license for its terms.
++The inherited SideInstaller code remains under [LICENSE.md](LICENSE.md); dependency licenses also apply. This repository contains inherited implementation and is **not a clean-room rewrite**, so it is not relabeled as MIT. See the license for its terms.
 diff --git a/README.zh-CN.md b/README.zh-CN.md
 new file mode 100644
-index 0000000..96d7dd9
+index 0000000..0d32996
 --- /dev/null
 +++ b/README.zh-CN.md
-@@ -0,0 +1,187 @@
+@@ -0,0 +1,195 @@
 +<h1 align="center">siboot</h1>
 +<p align="center">在 Minis 中签名、安装和续签本地 IPA。</p>
 +<p align="center"><a href="README.md">English</a> · <strong>简体中文</strong></p>
 +<p align="center">
-+  <a href="https://github.com/Jay-Void-BA/SideInstaller/releases/tag/siboot-v0.22.2"><img src="https://img.shields.io/badge/release-0.22.2-blue" alt="版本"></a>
++  <a href="https://github.com/Jay-Void-BA/SideInstaller/releases/tag/siboot-v0.22.3"><img src="https://img.shields.io/badge/release-0.22.3-blue" alt="版本"></a>
 +  <a href="https://github.com/Jay-Void-BA/SideInstaller/actions/workflows/checks.yml"><img src="https://github.com/Jay-Void-BA/SideInstaller/actions/workflows/checks.yml/badge.svg?branch=main" alt="检查"></a>
-+  <a href="SideInstaller/LICENSE.md"><img src="https://img.shields.io/badge/license-Custom-lightgrey" alt="许可证"></a>
++  <a href="LICENSE.md"><img src="https://img.shields.io/badge/license-Custom-lightgrey" alt="许可证"></a>
 +</p>
 +<p align="center">维护：<a href="https://github.com/Jay-Void-BA">Jay-Void-BA</a> · 原始思路与代码：<a href="https://github.com/FrizzleM">FrizzleM</a></p>
 +
@@ -247,7 +255,7 @@ index 0000000..96d7dd9
 +```sh
 +uname -m
 +apk add --no-cache curl ca-certificates
-+curl -fL --retry 3 -o install-minis.sh.part https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.22.2/install-minis.sh &&
++curl -fL --retry 3 -o install-minis.sh.part https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.22.3/install-minis.sh &&
 +mv install-minis.sh.part install-minis.sh &&
 +sh install-minis.sh
 +```
@@ -259,7 +267,7 @@ index 0000000..96d7dd9
 +"$HOME/.siboot/bin/siboot" --version
 +```
 +
-+输出应包含 `siboot 0.22.2`、`Jay-Void-BA` 和 `FrizzleM`。[SHA256SUMS](https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.22.2/SHA256SUMS) 提供全部发布文件的摘要。分片损坏或服务器拒绝续传时，使用 `sh install-minis.sh --restart`。脚本不会自动启动程序。
++输出应包含 `siboot 0.22.3`、`Jay-Void-BA` 和 `FrizzleM`。[SHA256SUMS](https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.22.3/SHA256SUMS) 提供全部发布文件的摘要。分片损坏或服务器拒绝续传时，使用 `sh install-minis.sh --restart`。脚本不会自动启动程序。
 +
 +也可手动下载 `siboot-aarch64` 和 `install-minis.sh`，放入同一目录，验证后运行：
 +
@@ -343,9 +351,17 @@ index 0000000..96d7dd9
 +
 +默认备用列表加入 `anisette.lillq.me`。其他节点不能使用该池的身份时，会继续选择兼容的已存身份或单独配置。现在会区分登录初始化、HTTP 状态码与 Apple 认证错误；Apple URL-bag 返回 HTTP 错误时先报告状态码，不再误报 XML 解析失败。
 +
-+**确认实际启动的程序。** 重新下载本版本的新安装脚本，运行后执行 `"$HOME/.siboot/bin/siboot" --version`，应显示 **0.22.2**。`./siboot-aarch64` 可能仍是单独下载的 0.20.0 旧文件。每份安装脚本固定对应一个版本。升级保留默认加密数据目录；移动程序时仍可导入原配对记录。
++**确认实际启动的程序。** 重新下载本版本的新安装脚本，运行后执行 `"$HOME/.siboot/bin/siboot" --version`，应显示 **0.22.3**。`./siboot-aarch64` 可能仍是单独下载的 0.20.0 旧文件。每份安装脚本固定对应一个版本。升级保留默认加密数据目录；移动程序时仍可导入原配对记录。
 +
 +日志若已显示登录成功，随后在签名阶段出现 **Developer error 1100**，表示开发者会话过期，而非密码验证失败。请重新启动当前版本并登录，无需删除保险库或签名密钥。旧版重试时的 **Directory not empty** 源于共用解压目录，0.22.0 起改为每次尝试独立的私有目录。`--check-anisette` 成功仅代表客户端信息接口可达，不代表 Apple 认证已通过。
++
++## 收不到验证码
++
++验证码请求不代表验证码已经送达。0.22.3 起，Minis 不再在短信或电话被拒绝后宣称设备已收到验证码。受信任设备请求同时检查 HTTP 状态和 Apple plist／JSON 错误；短信、电话请求也会保留 HTTP 200 正文里的业务错误。日志记录请求状态及 Apple 错误码，不记录验证码。
++
++确认受信任设备登录的是你在 siboot 输入的**同一 Apple 账号**。点**其他方式**，选择向列表中的受信任号码发送短信或拨打电话。如果 Apple 未向本次登录提供号码，页面会解释短信与电话选项为何不可用。打开菜单或返回输入框不会重新发送验证码；Apple 提示限流时请勿反复请求。
++
++可以取消后明确指定节点，例如 `"$HOME/.siboot/bin/siboot" --anisette https://new.ani.sidestore.io`。客户端信息检测通过、验证码请求被接受，都不能保证 Apple 会送达验证码。参阅 [Apple 验证码帮助](https://support.apple.com/zh-cn/102606)。不要在问题报告或聊天中分享密码或验证码。
 +
 +## 文件与迁移
 +
@@ -384,9 +400,9 @@ index 0000000..96d7dd9
 +
 +维护：**Jay-Void-BA**。原始思路与实现：**[FrizzleM 的 siboot](https://github.com/FrizzleM/siboot)**。共享签名与设备实现源自 **[SideInstaller by FrizzleM](https://github.com/FrizzleM/SideInstaller)** 及其中注明的依赖。
 +
-+继承的 SideInstaller 代码继续遵循 [LICENSE.md](SideInstaller/LICENSE.md)，依赖另遵循各自许可。仓库包含继承实现，**并非净室重写**，因此不能整体改标为 MIT；具体权利以许可证为准。
++继承的 SideInstaller 代码继续遵循 [LICENSE.md](LICENSE.md)，依赖另遵循各自许可。仓库包含继承实现，**并非净室重写**，因此不能整体改标为 MIT；具体权利以许可证为准。
 diff --git a/minis/Cargo.lock b/minis/Cargo.lock
-index 3254ab0..2526ba4 100644
+index 3254ab0..7d3a2aa 100644
 --- a/minis/Cargo.lock
 +++ b/minis/Cargo.lock
 @@ -76,10 +76,12 @@ dependencies = [
@@ -476,7 +492,7 @@ index 3254ab0..2526ba4 100644
  [[package]]
  name = "siboot"
 -version = "0.18.1"
-+version = "0.22.2"
++version = "0.22.3"
  dependencies = [
 + "apple-codesign-quick",
   "base64 0.22.1",
@@ -515,14 +531,14 @@ index 3254ab0..2526ba4 100644
  
  [[package]]
 diff --git a/minis/Cargo.toml b/minis/Cargo.toml
-index 38ec01e..0e323ed 100644
+index 38ec01e..c9fd24c 100644
 --- a/minis/Cargo.toml
 +++ b/minis/Cargo.toml
 @@ -1,8 +1,8 @@
  [package]
  name = "siboot"
 -version = "0.18.1"
-+version = "0.22.2"
++version = "0.22.3"
  edition = "2021"
 -description = "PC-free bootstrap that pairs and installs SideInstaller onto the iPhone it runs on, from Open Minis's Linux shell"
 +description = "Local IPA signing and installation in Minis by Jay-Void-BA, based on FrizzleM/siboot"
@@ -1406,26 +1422,33 @@ index 160bcfa..9d3490c 100644
              "reaching Apple's sign-in server",
 diff --git a/minis/locales/zh-CN.json b/minis/locales/zh-CN.json
 new file mode 100644
-index 0000000..3405359
+index 0000000..caf4d58
 --- /dev/null
 +++ b/minis/locales/zh-CN.json
-@@ -0,0 +1,485 @@
+@@ -0,0 +1,493 @@
 +{
 +  "1. Open Files > Browse > On My iPhone / iPad > rootshell.": "1. 打开“文件”>“浏览”>“我的 iPhone／iPad”>“rootshell”。",
 +  "2. Copy your .ipa into the rootshell folder. A file in iCloud Drive or Downloads must be copied here first.": "2. 将 .ipa 复制到 rootshell 文件夹。位于 iCloud 云盘或“下载”中的文件也需要先复制到这里。",
 +  "3. Return to rootshell and choose the IPA. If the program is in a subfolder, use 0 to go up or enter the file path.": "3. 返回 rootshell 并选择 IPA。如果程序在子文件夹中，可输入 0 返回上级，或直接输入文件路径。",
 +  "6-digit code; m for other methods; q to cancel:": "输入六位验证码；输入 m 选择其他方式，q 取消：",
 +  "6-digit code; m for other methods; q to cancel: ": "输入六位验证码；输入 m 选择其他方式，q 取消：",
++  "A text was requested for {number}": "已请求向 {number} 发送短信，请确认是否收到",
++  "A verification call was requested for {number}": "已请求拨打 {number} 告知验证码，请确认是否来电",
++  "Anisette check stopped unexpectedly.": "ani 连接检测意外停止。",
++  "Anisette servers reachable: {reachable}/{count}": "可连接的 ani 服务器：{reachable}/{count}",
 +  "Announcing \"Pair with {name}\" {dots}": "正在广播“与 {name} 配对” {dots}",
 +  "Another siboot run is using this login storage, or it could not be locked.": "另一个 siboot 正在使用登录存储，或无法锁定存储。",
 +  "Apple Account email:": "Apple 账号邮箱：",
 +  "Apple Account login": "Apple 账号登录",
 +  "Apple Account or custom anisette server": "Apple 账户或自定义 anisette 服务器",
 +  "Apple ID": "Apple 账号",
++  "Apple didn't confirm sending a code to your Apple devices. If one arrived, enter it; if not, try another way.": "Apple 未确认向受信任设备发送验证码。若已收到可继续输入，否则请选择其他方式。",
++  "Apple didn't provide a trusted phone number for this session. Text and call options are unavailable.": "Apple 未向本次登录提供受信任号码，暂时无法选择短信或电话验证。",
 +  "Apple is calling {number}": "Apple 正在拨打 {number}",
 +  "Apple is calling {number} with a verification code.": "Apple 正在拨打 {number} 告知验证码。",
 +  "Apple is limiting sign-in attempts for now. Wait a while, then run siboot again.": "Apple 暂时限制了登录尝试，请稍后重试。",
 +  "Apple rejected the Apple Account or password. Check them and run siboot again. If you're sure they're right, Apple may be limiting sign-ins: wait a while first.": "Apple 拒绝了账号或密码，请核对后重试。若确认无误，可能是 Apple 暂时限制登录，请稍后重试。",
++  "Apple rejected the text or call request. A code was requested from your trusted devices; delivery is not confirmed.": "Apple 拒绝了短信或电话验证请求。已尝试向受信任设备请求验证码，但无法确认是否送达。",
 +  "Apple sent a verification code to your other Apple devices.": "Apple 已向其他受信任设备发送验证码。",
 +  "Apple texted a verification code to {number}.": "Apple 已向 {number} 发送短信验证码。",
 +  "Apple won't issue a signing certificate: it says one already exists (error 7460).": "Apple 无法签发签名证书：已存在证书（错误 7460）。",
@@ -1439,8 +1462,11 @@ index 0000000..3405359
 +  "Cancel": "取消",
 +  "Cancel the sign-in": "取消登录",
 +  "Check": "检查",
++  "Check the Apple devices signed in to this account for a code": "请在已登录同一 Apple 账号的受信任设备上查看验证码",
 +  "Checking LocalDevVPN and this iPhone": "检查 LocalDevVPN 和 iPhone",
 +  "Checking LocalDevVPN, this iPhone and the internet": "检查 LocalDevVPN、iPhone 和网络",
++  "Checking anisette client info only; Apple login and provisioning are not tested.": "仅检测 ani 客户端信息接口，不执行 Apple 登录或身份配置。",
++  "Checks anisette servers without Apple login or device pairing.": "检测 ani 服务器，无需 Apple 登录或设备配对。",
 +  "Choose a complete .ipa file smaller than 4 GB.": "请选择小于 4 GB 的完整 IPA 文件。",
 +  "Choose a file from Minis's Linux filesystem. The verified copy is saved to {path}": "选择 Minis 内的文件。验证通过后副本会保存到 {path}",
 +  "Choose a local .ipa from Files": "从“文件”选择本地 IPA",
@@ -1462,11 +1488,14 @@ index 0000000..3405359
 +  "Connect": "连接",
 +  "Connecting to siboot…": "正在连接 siboot…",
 +  "Connecting to this iPhone through LocalDevVPN": "通过 LocalDevVPN 连接 iPhone",
++  "Connection timed out after 12 seconds.": "连接超过 12 秒未响应。",
 +  "Continue": "继续",
++  "Continue to choose an IPA?": "继续选择 IPA？",
 +  "Copied the log ({count} lines). Paste it where you ask for help.": "已复制日志（{count} 行），可以粘贴以寻求帮助。",
 +  "Couldn't accept the iPhone's connection.": "无法接受 iPhone 的配对连接。",
 +  "Couldn't clean up this upload's staging directory.": "无法清理本次上传的暂存目录。",
 +  "Couldn't copy the log: {reason}.": "无法复制日志：{reason}。",
++  "Couldn't create a private signing workspace.": "无法创建私有签名工作目录。",
 +  "Couldn't create a private upload staging directory.": "无法创建本次上传的独立暂存目录。",
 +  "Couldn't create the performance log.": "无法创建性能日志。",
 +  "Couldn't create the siboot storage directory.": "无法创建 siboot 数据目录。",
@@ -1490,6 +1519,7 @@ index 0000000..3405359
 +  "Couldn't reach siboot. It runs in Minis's terminal: is Minis still open?": "无法连接 siboot，请保持 Minis 终端运行。",
 +  "Couldn't reach this iPhone at {addr}. Connect LocalDevVPN, and check Wi-Fi is on.": "无法通过 {addr} 连接 iPhone，请连接 LocalDevVPN 并开启 Wi-Fi。",
 +  "Couldn't reach this iPhone. Connect LocalDevVPN and keep Wi-Fi on.": "无法连接本机。请连接 LocalDevVPN 并保持 Wi-Fi 开启。",
++  "Couldn't read the pairing file at {path}. Pair again in Minis or import a working RPPairing file, then run siboot again.": "无法读取 {path} 的配对文件。请在 Minis 中重新配对或导入有效的 RPPairing 文件，然后再次运行 siboot。",
 +  "Couldn't read the pairing file at {path}. Pair again in rootshell (`./siboot-pair.wasm`), then run siboot again.": "无法读取 {path} 的配对文件。请重新配对或选择有效的 RPPairing 文件后重试。",
 +  "Couldn't read the password from the terminal.": "无法从终端读取密码。",
 +  "Couldn't read the selected pairing file.": "无法读取所选配对文件。",
@@ -1541,9 +1571,11 @@ index 0000000..3405359
 +  "IPA imported.": "IPA 已导入。",
 +  "IPA path": "IPA 路径",
 +  "IPA path:": "IPA 路径：",
++  "Import a local IPA in Minis": "在 Minis 中导入本地 IPA",
 +  "Import an IPA from Files": "从“文件”导入 IPA",
 +  "Import an existing RPPairing file; verify before replacing the saved file": "导入已有 RPPairing 文件，验证后再替换已保存的文件",
 +  "Importing {name}… {percent}%": "正在导入 {name}… {percent}%",
++  "In the terminal, enter a Linux path inside Minis. A path from another iOS app is not a Minis path.": "在终端中输入 Minis 内的 Linux 路径。其他 iOS 应用中的路径不能直接在 Minis 中使用。",
 +  "Install": "安装",
 +  "Install a local IPA": "安装本地 IPA",
 +  "Installed successfully, but the quick-renew cache could not be saved.": "应用已安装成功，但无法保存快速续签缓存。",
@@ -1554,6 +1586,7 @@ index 0000000..3405359
 +  "Jay-Void-BA · based on FrizzleM/siboot": "Jay-Void-BA · 基于 FrizzleM/siboot",
 +  "Keep Location Diary on (rootshell › Settings › Location Diary Mode › Session Only): it keeps rootshell running while you're in Settings.": "请开启 rootshell › Settings › Location Diary Mode › Session Only，保证切换到系统设置进行配对时程序仍在运行。",
 +  "Keep Minis open until siboot is done: iOS pauses it in the background.": "完成前请保持 Minis 在前台，iOS 会暂停后台运行的 Minis。",
++  "Keep Minis open while importing, signing and installing.": "导入、签名和安装期间请保持 Minis 在前台。",
 +  "Language": "语言",
 +  "Local Discovery is off in Open Minis. Turn it on in Minis's Settings › Network, then start again.": "Open Minis 的本地发现已关闭，请在“Minis 设置 › 网络”中开启后重试。",
 +  "Local IPA and retry preview (no install).": "本地 IPA 与重试预览（不执行安装）。",
@@ -1565,8 +1598,10 @@ index 0000000..3405359
 +  "No": "否",
 +  "No Apple Account given.": "未输入 Apple 账号。",
 +  "No IPA selected.": "未选择 IPA。",
++  "No anisette server could be reached. Check the DNS, proxy and certificate errors above.": "所有 ani 服务器均无法连接。请查看上方的 DNS、代理或证书错误。",
 +  "No app is cached for quick renew. Install a local IPA first.": "还没有可续签的应用，请先安装一次本地 IPA。",
 +  "No app selected.": "未选择应用。",
++  "No code? Choose Other ways to request a text or call to a trusted number.": "未收到验证码？点“其他方式”，选择向受信任号码发送短信或拨打电话。",
 +  "No device or Apple contact. The generated preview files will be removed.": "未联系设备或 Apple，生成的预览文件将被删除。",
 +  "No pairing file given.": "未提供配对文件。",
 +  "No pairing file selected.": "未选择配对文件。",
@@ -1581,6 +1616,7 @@ index 0000000..3405359
 +  "Number (empty to cancel):": "输入序号，直接回车取消：",
 +  "Number (empty to cancel): ": "输入序号，直接回车取消：",
 +  "Number to revoke (empty to stop):": "要撤销的证书序号（留空取消）：",
++  "On the page, choose your IPA from Files. Download an iCloud file to this iPhone first, then select it. Siboot imports it into Minis's Linux filesystem.": "在页面中从“文件”选择 IPA。iCloud 文件请先下载到此 iPhone，再选择。siboot 会将其导入 Minis 的 Linux 文件系统。",
 +  "Once you unlock it, tap Turn On.": "解锁 iPhone 后，点击“开启”。",
 +  "Only the first 256 matching entries are shown. Enter a full path to choose another file.": "仅显示前 256 个匹配项，选择其他文件时请输入完整路径。",
 +  "Open Minis can pair this iPhone": "Open Minis 可以与这台 iPhone 配对",
@@ -1730,6 +1766,7 @@ index 0000000..3405359
 +  "This iPhone accepts the pairing file, and the tunnel opens with it.": "iPhone 已接受配对文件，隧道已成功建立。",
 +  "This iPhone already has 3 apps signed with a free Apple Account. Delete one, then run siboot again.": "这台 iPhone 已安装 3 个由免费账号签名的应用，请先删除一个再重试。",
 +  "This iPhone didn't say its UDID, which signing needs.": "iPhone 未返回签名所需的 UDID。",
++  "This iPhone doesn't accept the pairing file (it was removed in Settings, or the iPhone was reset). Pair again in Minis or import a working RPPairing file, then run siboot again.": "此 iPhone 不接受该配对文件（可能已在设置中移除，或设备已重置）。请在 Minis 中重新配对或导入有效的 RPPairing 文件，然后再次运行 siboot。",
 +  "This iPhone doesn't accept the pairing file (it was removed in Settings, or the iPhone was reset). Pair again in rootshell (`./siboot-pair.wasm`), then run siboot again.": "iPhone 不接受此配对文件，可能已在设置中移除配对或设备已重置。请重新配对或导入有效文件后重试。",
 +  "This iPhone doesn't accept the saved pairing file, so siboot pairs again.": "iPhone 不接受已保存的配对文件，将重新配对。",
 +  "This iPhone restarts now, and rootshell stops with it.": "iPhone 即将重启，rootshell 也会随之停止。",
@@ -1737,6 +1774,7 @@ index 0000000..3405359
 +  "This isn't a complete IPA. Choose another file.": "IPA 文件不完整，请重新选择。",
 +  "This removes the saved login and encrypted local signing data. It does not revoke Apple's certificate.": "将删除已保存的登录及本地加密签名数据，不会撤销 Apple 证书。",
 +  "This rootshell build lacks socket receive-timeout support. Pairing and connection checks are available; full installation and renewal require a newer rootshell build or the receive-timeout backport.": "此 rootshell 版本缺少 socket 接收超时接口。可使用配对和连接检查；完整安装及续签需要更新 rootshell，或自行编译接收超时回移补丁。",
++  "This server advertises Android ADI; Apple developer sign-in may reject it.": "此服务器使用 Android ADI，Apple 开发者登录可能拒绝它。",
 +  "Timed out while {action}.": "{action}时超时。",
 +  "To type here instead, stop with Ctrl-C": "若要改用终端输入，请按 Ctrl-C 停止，",
 +  "Transfer code shown in rootshell:": "rootshell 显示的传输码：",
@@ -1785,6 +1823,7 @@ index 0000000..3405359
 +  "connecting to the tunnel listener": "正在连接隧道端口",
 +  "copy the log to the clipboard?": "将日志复制到剪贴板？",
 +  "dummy login and cache encrypted": "测试登录与缓存已加密",
++  "enter a verification code you received": "输入你收到的验证码",
 +  "enter the code Apple sent": "输入 Apple 发送的验证码",
 +  "file verification took {seconds} s": "文件核对耗时 {seconds} 秒",
 +  "forget the saved login and local signing data?": "删除已保存的登录和本地签名数据？",
@@ -1871,32 +1910,17 @@ index 0000000..3405359
 +  "your local storage passphrase": "本地存储的解锁口令",
 +  "your trusted number": "受信任的电话号码",
 +  "{count} files didn't arrive whole on the iPhone. Run siboot again.": "有 {count} 个文件未完整上传到 iPhone，请重试。",
++  "{host}: connection failed ({elapsed} ms)": "{host}：连接失败（{elapsed} 毫秒）",
++  "{host}: reachable ({elapsed} ms)": "{host}：可连接（{elapsed} 毫秒）",
 +  "{name} installed ({id})": "{name} 已安装（{id}）",
 +  "{name} is installed": "{name} 已安装",
 +  "{name} signed": "{name} 已签名",
 +  "{name} {version} signed": "{name} {version} 已签名",
 +  "{path} isn't an IPA that can be read. Pick a complete .ipa file, or download it again.": "无法读取 {path}，请选择完整的 IPA 文件，或重新下载后再选择。",
-+  "{server} didn't work: {reason}": "{server} 登录失败：{reason}",
-+  "Import a local IPA in Minis": "在 Minis 中导入本地 IPA",
-+  "On the page, choose your IPA from Files. Download an iCloud file to this iPhone first, then select it. Siboot imports it into Minis's Linux filesystem.": "在页面中从“文件”选择 IPA。iCloud 文件请先下载到此 iPhone，再选择。siboot 会将其导入 Minis 的 Linux 文件系统。",
-+  "In the terminal, enter a Linux path inside Minis. A path from another iOS app is not a Minis path.": "在终端中输入 Minis 内的 Linux 路径。其他 iOS 应用中的路径不能直接在 Minis 中使用。",
-+  "Keep Minis open while importing, signing and installing.": "导入、签名和安装期间请保持 Minis 在前台。",
-+  "Continue to choose an IPA?": "继续选择 IPA？",
-+  "Couldn't create a private signing workspace.": "无法创建私有签名工作目录。",
-+  "Couldn't read the pairing file at {path}. Pair again in Minis or import a working RPPairing file, then run siboot again.": "无法读取 {path} 的配对文件。请在 Minis 中重新配对或导入有效的 RPPairing 文件，然后再次运行 siboot。",
-+  "This iPhone doesn't accept the pairing file (it was removed in Settings, or the iPhone was reset). Pair again in Minis or import a working RPPairing file, then run siboot again.": "此 iPhone 不接受该配对文件（可能已在设置中移除，或设备已重置）。请在 Minis 中重新配对或导入有效的 RPPairing 文件，然后再次运行 siboot。",
-+  "Checks anisette servers without Apple login or device pairing.": "检测 ani 服务器，无需 Apple 登录或设备配对。",
-+  "Checking anisette client info only; Apple login and provisioning are not tested.": "仅检测 ani 客户端信息接口，不执行 Apple 登录或身份配置。",
-+  "Anisette check stopped unexpectedly.": "ani 连接检测意外停止。",
-+  "{host}: reachable ({elapsed} ms)": "{host}：可连接（{elapsed} 毫秒）",
-+  "{host}: connection failed ({elapsed} ms)": "{host}：连接失败（{elapsed} 毫秒）",
-+  "Anisette servers reachable: {reachable}/{count}": "可连接的 ani 服务器：{reachable}/{count}",
-+  "Connection timed out after 12 seconds.": "连接超过 12 秒未响应。",
-+  "This server advertises Android ADI; Apple developer sign-in may reject it.": "此服务器使用 Android ADI，Apple 开发者登录可能拒绝它。",
-+  "No anisette server could be reached. Check the DNS, proxy and certificate errors above.": "所有 ani 服务器均无法连接。请查看上方的 DNS、代理或证书错误。"
++  "{server} didn't work: {reason}": "{server} 登录失败：{reason}"
 +}
 diff --git a/minis/src/account.rs b/minis/src/account.rs
-index b778e40..0d576e5 100644
+index b778e40..e4a8f91 100644
 --- a/minis/src/account.rs
 +++ b/minis/src/account.rs
 @@ -15,16 +15,18 @@ use isideload::sideload::sideloader::Sideloader;
@@ -2329,7 +2353,130 @@ index b778e40..0d576e5 100644
  }
  
  /// isideload's two-factor callback: the prompt runs on a blocking thread, since
-@@ -451,13 +733,26 @@ fn parse_two_factor(line: &str) -> Option<TwoFactorCallbackResponse> {
+@@ -256,7 +538,7 @@ fn two_factor(
+ 
+ /// What Apple is waiting for, owned so it can cross to the prompt's thread.
+ struct Prompt {
+-    /// Where the pending code went.
++    /// The requested verification method; it does not confirm code delivery.
+     method: Method,
+     selected: Option<u32>,
+     last_error: Option<String>,
+@@ -286,7 +568,11 @@ impl From<&TwoFactorCallbackParams> for Prompt {
+         Self {
+             method,
+             selected: p.selected_number_id,
+-            last_error: p.last_error.clone(),
++            last_error: p.last_error.as_deref().map(|message| {
++                if message == isideload::auth::apple_account::PHONE_CODE_REFUSED {
++                    "Apple rejected the text or call request. A code was requested from your trusted devices; delivery is not confirmed.".to_string()
++                } else { message.to_string() }
++            }),
+             numbers: p
+                 .numbers
+                 .iter()
+@@ -306,6 +592,23 @@ fn ask_two_factor(prompt: &Prompt) -> TwoFactorCallbackResponse {
+ }
+ 
+ impl Prompt {
++    fn code_hint(&self) -> Option<String> {
++        match self.method {
++            Method::Devices => {
++                Some("Check the Apple devices signed in to this account for a code".to_string())
++            }
++            Method::Sms => Some(format!(
++                "A text was requested for {}",
++                self.number(self.selected)
++            )),
++            Method::Voice => Some(format!(
++                "A verification call was requested for {}",
++                self.number(self.selected)
++            )),
++            Method::Choose => None,
++        }
++    }
++
+     fn number(&self, id: Option<u32>) -> String {
+         self.numbers
+             .iter()
+@@ -352,24 +655,26 @@ impl Prompt {
+ /// The code in boxes, and a menu of other ways to get it. None when the
+ /// screen can't read keys after all.
+ fn ask_two_factor_live(prompt: &Prompt) -> Option<TwoFactorCallbackResponse> {
+-    let sent = match prompt.method {
+-        Method::Devices => Some("sent to your Apple devices".to_string()),
+-        Method::Sms => Some(format!("texted to {}", prompt.number(prompt.selected))),
+-        Method::Voice => Some(format!(
+-            "Apple is calling {}",
+-            prompt.number(prompt.selected)
+-        )),
+-        Method::Choose => None,
+-    };
+-    let mut warning = prompt.last_error.as_ref().map(|e| format!("Apple: {e}"));
++    let hint = prompt.code_hint();
++    let warning = prompt.last_error.as_ref().map(|e| format!("Apple: {e}"));
+     loop {
+-        if let Some(sent) = &sent {
++        if let Some(hint) = &hint {
+             let mut hints = Vec::new();
+-            if let Some(warning) = warning.take() {
+-                hints.push(ui::Hint::Warning(warning));
++            if let Some(warning) = &warning {
++                hints.push(ui::Hint::Warning(warning.clone()));
++            }
++            hints.push(ui::Hint::Plain(hint.clone()));
++            if prompt.method == Method::Devices {
++                if prompt.numbers.is_empty() {
++                    hints.push(ui::Hint::Warning("Apple didn't provide a trusted phone number for this session. Text and call options are unavailable.".into()));
++                } else {
++                    hints.push(ui::Hint::Plain(
++                        "No code? Choose Other ways to request a text or call to a trusted number."
++                            .into(),
++                    ));
++                }
+             }
+-            hints.push(ui::Hint::Plain(sent.clone()));
+-            match ui::ask_code_or_more("enter the code Apple sent", "Code", &hints)? {
++            match ui::ask_code_or_more("enter a verification code you received", "Code", &hints)? {
+                 ui::CodeAnswer::Code(code) => {
+                     return Some(TwoFactorCallbackResponse::SubmitCode(code))
+                 }
+@@ -381,8 +686,8 @@ fn ask_two_factor_live(prompt: &Prompt) -> Option<TwoFactorCallbackResponse> {
+         let labels: Vec<String> = ways.iter().map(|(label, _)| label.clone()).collect();
+         match ui::choose("how should Apple send the code?", &labels) {
+             Some(i) => return ways.into_iter().nth(i).map(|(_, answer)| answer),
+-            // Back to the boxes, when a code is on its way.
+-            None if sent.is_some() => continue,
++            // Back to the boxes without requesting another code.
++            None if hint.is_some() => continue,
+             None => return Some(TwoFactorCallbackResponse::Abort),
+         }
+     }
+@@ -393,19 +698,10 @@ fn ask_two_factor_plain(prompt: &Prompt) -> TwoFactorCallbackResponse {
+     if let Some(error) = &prompt.last_error {
+         ui::warn(&format!("Apple: {error}"));
+     }
+-    match prompt.method {
+-        Method::Devices => {
+-            ui::status("Apple sent a verification code to your other Apple devices.")
+-        }
+-        Method::Sms => ui::status(&format!(
+-            "Apple texted a verification code to {}.",
+-            prompt.number(prompt.selected)
+-        )),
+-        Method::Voice => ui::status(&format!(
+-            "Apple is calling {} with a verification code.",
+-            prompt.number(prompt.selected)
+-        )),
+-        Method::Choose => ui::status("Choose how Apple should send the verification code."),
++    if let Some(hint) = prompt.code_hint() {
++        ui::status(&hint);
++    } else {
++        ui::status("Choose how Apple should send the verification code.");
+     }
+     for (id, number, mode) in &prompt.numbers {
+         let how = if mode == "voice" { " (calls only)" } else { "" };
+@@ -451,13 +747,26 @@ fn parse_two_factor(line: &str) -> Option<TwoFactorCallbackResponse> {
      }
  }
  
@@ -2357,7 +2504,46 @@ index b778e40..0d576e5 100644
          if !ui::interactive() {
              return choose_certificates_plain(certs);
          }
-@@ -566,6 +861,10 @@ mod tests {
+@@ -517,6 +826,38 @@ mod tests {
+         format!("{answer:?}") == expected
+     }
+ 
++    #[test]
++    fn a_refused_phone_request_does_not_claim_a_device_received_the_code() {
++        let mut params = TwoFactorCallbackParams {
++            last_error: Some(isideload::auth::apple_account::PHONE_CODE_REFUSED.into()),
++            unknown: false,
++            sms: false,
++            voice: false,
++            numbers: Vec::new(),
++            selected_number_id: None,
++        };
++        let prompt = Prompt::from(&params);
++        assert_eq!(prompt.method, Method::Devices);
++        assert!(prompt
++            .last_error
++            .as_deref()
++            .unwrap()
++            .contains("delivery is not confirmed"));
++        assert!(!prompt.last_error.as_deref().unwrap().contains("was sent"));
++        assert!(!prompt.code_hint().unwrap().contains("sent"));
++        assert!(prompt
++            .ways()
++            .iter()
++            .any(|(_, answer)| matches!(answer, TwoFactorCallbackResponse::SendToDevices)));
++        assert!(prompt.ways().iter().all(|(_, answer)| !matches!(
++            answer,
++            TwoFactorCallbackResponse::SendSms(_) | TwoFactorCallbackResponse::CallNumber(_)
++        )));
++
++        params.last_error = Some("-21668 - Verification request rejected".into());
++        assert_eq!(Prompt::from(&params).last_error, params.last_error);
++    }
++
+     #[test]
+     fn two_factor_answers_parse() {
+         assert!(is(
+@@ -566,6 +907,10 @@ mod tests {
          assert!(stops_sign_in("login failed: HTTP 429").is_some());
          assert!(stops_sign_in("login failed: No 2FA code provided, aborting").is_some());
          assert!(stops_sign_in("anisette provider: error sending request").is_none());
@@ -2370,7 +2556,7 @@ index b778e40..0d576e5 100644
  
 diff --git a/minis/src/i18n.js b/minis/src/i18n.js
 new file mode 100644
-index 0000000..29bfa52
+index 0000000..b998f8f
 --- /dev/null
 +++ b/minis/src/i18n.js
 @@ -0,0 +1,84 @@
@@ -2399,7 +2585,7 @@ index 0000000..29bfa52
 +      ? value.charAt(0).toLowerCase() + value.slice(1) : value.charAt(0).toUpperCase() + value.slice(1);
 +    let translated = chinese[value] || chinese[alternate];
 +    if (!translated) {
-+      const decorated = value.match(/^([✓✔✕✗▲?]\s+)(.+)$/s);
++      const decorated = value.match(/^([✓✔✕✗▲?]\s+|Apple:\s+)(.+)$/s);
 +      if (decorated) {
 +        const inner = translate(decorated[2]);
 +        if (inner !== decorated[2]) translated = decorated[1] + inner;
@@ -2460,10 +2646,10 @@ index 0000000..29bfa52
 +})();
 diff --git a/minis/src/i18n.rs b/minis/src/i18n.rs
 new file mode 100644
-index 0000000..288eaf2
+index 0000000..04266c9
 --- /dev/null
 +++ b/minis/src/i18n.rs
-@@ -0,0 +1,167 @@
+@@ -0,0 +1,181 @@
 +//! Shared English/Chinese messages. Raw protocol details and input values stay unchanged.
 +use std::borrow::Cow;
 +use std::collections::BTreeMap;
@@ -2560,21 +2746,27 @@ index 0000000..288eaf2
 +    if trimmed.is_empty() {
 +        return Cow::Borrowed(text);
 +    }
-+    let translated = lookup(trimmed).map(str::to_owned).or_else(|| {
-+        static TEMPLATES: OnceLock<Vec<(&'static str, &'static str)>> = OnceLock::new();
-+        let templates = TEMPLATES.get_or_init(|| {
-+            let mut templates: Vec<_> = catalog()
-+                .iter()
-+                .filter(|(key, _)| key.contains('{'))
-+                .map(|(key, value)| (key.as_str(), value.as_str()))
-+                .collect();
-+            templates.sort_by_key(|(key, _)| std::cmp::Reverse(key.len()));
++    let translated = lookup(trimmed)
++        .map(str::to_owned)
++        .or_else(|| {
++            let message = trimmed.strip_prefix("Apple: ")?;
++            lookup(message).map(|translated| format!("Apple: {translated}"))
++        })
++        .or_else(|| {
++            static TEMPLATES: OnceLock<Vec<(&'static str, &'static str)>> = OnceLock::new();
++            let templates = TEMPLATES.get_or_init(|| {
++                let mut templates: Vec<_> = catalog()
++                    .iter()
++                    .filter(|(key, _)| key.contains('{'))
++                    .map(|(key, value)| (key.as_str(), value.as_str()))
++                    .collect();
++                templates.sort_by_key(|(key, _)| std::cmp::Reverse(key.len()));
++                templates
++            });
 +            templates
++                .iter()
++                .find_map(|(pattern, translated)| interpolate(pattern, translated, trimmed))
 +        });
-+        templates
-+            .iter()
-+            .find_map(|(pattern, translated)| interpolate(pattern, translated, trimmed))
-+    });
 +    match translated {
 +        Some(translated) => {
 +            let leading = text.len() - text.trim_start().len();
@@ -2606,6 +2798,14 @@ index 0000000..288eaf2
 +        assert_eq!(
 +            translate("rpc frame 0x1234 failed"),
 +            "rpc frame 0x1234 failed"
++        );
++        assert_eq!(
++            translate("Apple: Apple didn't confirm sending a code to your Apple devices. If one arrived, enter it; if not, try another way."),
++            "Apple: Apple 未确认向受信任设备发送验证码。若已收到可继续输入，否则请选择其他方式。"
++        );
++        assert_eq!(
++            translate("Apple: -21668 - unknown error details"),
++            "Apple: -21668 - unknown error details"
 +        );
 +        assert_eq!(
 +            interpolate("{name} signed", "{name} 已签名", "{path} signed").as_deref(),

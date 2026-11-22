@@ -2,7 +2,7 @@
 <p align="center">在 Minis 中签名、安装和续签本地 IPA。</p>
 <p align="center"><a href="README.md">English</a> · <strong>简体中文</strong></p>
 <p align="center">
-  <a href="https://github.com/Jay-Void-BA/SideInstaller/releases/tag/siboot-v0.22.2"><img src="https://img.shields.io/badge/release-0.22.2-blue" alt="版本"></a>
+  <a href="https://github.com/Jay-Void-BA/SideInstaller/releases/tag/siboot-v0.22.3"><img src="https://img.shields.io/badge/release-0.22.3-blue" alt="版本"></a>
   <a href="https://github.com/Jay-Void-BA/SideInstaller/actions/workflows/checks.yml"><img src="https://github.com/Jay-Void-BA/SideInstaller/actions/workflows/checks.yml/badge.svg?branch=main" alt="检查"></a>
   <a href="LICENSE.md"><img src="https://img.shields.io/badge/license-Custom-lightgrey" alt="许可证"></a>
 </p>
@@ -47,7 +47,7 @@ siboot 在 iPhone 或 iPad 上完成本地 IPA 导入、设备配对、Apple 登
 ```sh
 uname -m
 apk add --no-cache curl ca-certificates
-curl -fL --retry 3 -o install-minis.sh.part https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.22.2/install-minis.sh &&
+curl -fL --retry 3 -o install-minis.sh.part https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.22.3/install-minis.sh &&
 mv install-minis.sh.part install-minis.sh &&
 sh install-minis.sh
 ```
@@ -59,7 +59,7 @@ sh install-minis.sh --verify
 "$HOME/.siboot/bin/siboot" --version
 ```
 
-输出应包含 `siboot 0.22.2`、`Jay-Void-BA` 和 `FrizzleM`。[SHA256SUMS](https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.22.2/SHA256SUMS) 提供全部发布文件的摘要。分片损坏或服务器拒绝续传时，使用 `sh install-minis.sh --restart`。脚本不会自动启动程序。
+输出应包含 `siboot 0.22.3`、`Jay-Void-BA` 和 `FrizzleM`。[SHA256SUMS](https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.22.3/SHA256SUMS) 提供全部发布文件的摘要。分片损坏或服务器拒绝续传时，使用 `sh install-minis.sh --restart`。脚本不会自动启动程序。
 
 也可手动下载 `siboot-aarch64` 和 `install-minis.sh`，放入同一目录，验证后运行：
 
@@ -143,9 +143,17 @@ Minis 通过模拟运行 Linux 程序。完整签名需要散列可执行页与�
 
 默认备用列表加入 `anisette.lillq.me`。其他节点不能使用该池的身份时，会继续选择兼容的已存身份或单独配置。现在会区分登录初始化、HTTP 状态码与 Apple 认证错误；Apple URL-bag 返回 HTTP 错误时先报告状态码，不再误报 XML 解析失败。
 
-**确认实际启动的程序。** 重新下载本版本的新安装脚本，运行后执行 `"$HOME/.siboot/bin/siboot" --version`，应显示 **0.22.2**。`./siboot-aarch64` 可能仍是单独下载的 0.20.0 旧文件。每份安装脚本固定对应一个版本。升级保留默认加密数据目录；移动程序时仍可导入原配对记录。
+**确认实际启动的程序。** 重新下载本版本的新安装脚本，运行后执行 `"$HOME/.siboot/bin/siboot" --version`，应显示 **0.22.3**。`./siboot-aarch64` 可能仍是单独下载的 0.20.0 旧文件。每份安装脚本固定对应一个版本。升级保留默认加密数据目录；移动程序时仍可导入原配对记录。
 
 日志若已显示登录成功，随后在签名阶段出现 **Developer error 1100**，表示开发者会话过期，而非密码验证失败。请重新启动当前版本并登录，无需删除保险库或签名密钥。旧版重试时的 **Directory not empty** 源于共用解压目录，0.22.0 起改为每次尝试独立的私有目录。`--check-anisette` 成功仅代表客户端信息接口可达，不代表 Apple 认证已通过。
+
+## 收不到验证码
+
+验证码请求不代表验证码已经送达。0.22.3 起，Minis 不再在短信或电话被拒绝后宣称设备已收到验证码。受信任设备请求同时检查 HTTP 状态和 Apple plist／JSON 错误；短信、电话请求也会保留 HTTP 200 正文里的业务错误。日志记录请求状态及 Apple 错误码，不记录验证码。
+
+确认受信任设备登录的是你在 siboot 输入的**同一 Apple 账号**。点**其他方式**，选择向列表中的受信任号码发送短信或拨打电话。如果 Apple 未向本次登录提供号码，页面会解释短信与电话选项为何不可用。打开菜单或返回输入框不会重新发送验证码；Apple 提示限流时请勿反复请求。
+
+可以取消后明确指定节点，例如 `"$HOME/.siboot/bin/siboot" --anisette https://new.ani.sidestore.io`。客户端信息检测通过、验证码请求被接受，都不能保证 Apple 会送达验证码。参阅 [Apple 验证码帮助](https://support.apple.com/zh-cn/102606)。不要在问题报告或聊天中分享密码或验证码。
 
 ## 文件与迁移
 

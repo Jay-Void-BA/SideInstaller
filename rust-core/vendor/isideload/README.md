@@ -783,3 +783,7 @@ The offline release gate runs the pinned original rootshell Worker and checks fu
 ### Minis 0.22.2 sign-in compatibility
 
 Ported the Rust changes from FrizzleM/SideInstaller commit `8c13fceefebe8fec7475555a9ea50a7df0c372d8`: compatible Catalina client information and user agent, the corresponding GrandSlam Mac fallback, and `adi_pb too large` as an incompatible stored identity. Upstream attributes the change to Apple's November 20 refusal of clients whose OS token is `macOS`. Tests retain old modern-Mac identities and pass over pool identities that another server cannot use. The parent installer adds clear HTTP/authentication summaries and checks URL-bag HTTP status before parsing. No real Apple Account was used by this repository's automated tests.
+
+### Trusted-device request reporting (siboot 0.22.3)
+
+Trusted-device requests preserve plist `Status.ec` / `em` and JSON `serviceErrors`, including business errors delivered with HTTP 200. Empty successful responses acknowledge a request, not code delivery; bare 403 and unknown successful bodies remain unconfirmed. The callback keeps any error available while allowing an already received code or another verification method. Phone send responses also check service errors before accepting HTTP success. Request HTTP statuses and trusted-number counts are logged without verification codes or response bodies. Minis translates the shared legacy `PHONE_CODE_REFUSED` key into a warning that does not claim delivery.

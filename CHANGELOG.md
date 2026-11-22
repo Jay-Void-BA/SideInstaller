@@ -1,3 +1,7 @@
+## siboot 0.22.3
+
+Stop claiming verification-code delivery after a rejected phone request. Check trusted-device plist/JSON errors as well as HTTP status, preserve phone service errors on HTTP 200, add Chinese verification guidance and retain warnings when returning from Other ways. See [release notes](release-notes/siboot-v0.22.3.md).
+
 ## siboot 0.22.2
 
 Incorporate FrizzleM's Apple sign-in compatibility repair: Catalina client identifiers, a pool fallback and compatible identity reuse. Expose real authentication/HTTP errors and distinguish URL-bag status failures from XML parsing. Document running the correct installed version and interpreting historical session/temporary-directory failures. See [release notes](release-notes/siboot-v0.22.2.md).

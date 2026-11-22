@@ -29,3 +29,7 @@ The ARM64 release is checked with empty certificate paths and a local TLS fixtur
 ## Apple sign-in compatibility (0.22.2)
 
 Ports FrizzleM's compatible Catalina client and pool-identity handling, adds the pool to Minis's fallback list, and displays the actual HTTP/authentication failure instead of only `login failed`. Existing encrypted data is preserved. The English/Chinese guides distinguish old executable paths, expired developer sessions and the legacy shared-directory retry failure.
+
+## Verification-code reporting (0.22.3)
+
+The Minis prompt distinguishes a code request from delivery and renders the legacy shared phone-refusal localization key truthfully. Trusted-device requests classify HTTP status and plist/JSON errors; phone service errors are preserved even on HTTP 200. Chinese warnings, same-account guidance and available phone methods remain visible without automatic resends. Regression checks cover rejected/unknown responses, error codes and the misleading prompt. No real-account delivery is claimed by offline tests.

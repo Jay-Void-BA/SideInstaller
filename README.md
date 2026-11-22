@@ -2,7 +2,7 @@
 <p align="center">Sign, install, and renew local IPA files in Minis.</p>
 <p align="center"><strong>English</strong> · <a href="README.zh-CN.md">简体中文</a></p>
 <p align="center">
-  <a href="https://github.com/Jay-Void-BA/SideInstaller/releases/tag/siboot-v0.22.2"><img src="https://img.shields.io/badge/release-0.22.2-blue" alt="Release"></a>
+  <a href="https://github.com/Jay-Void-BA/SideInstaller/releases/tag/siboot-v0.22.3"><img src="https://img.shields.io/badge/release-0.22.3-blue" alt="Release"></a>
   <a href="https://github.com/Jay-Void-BA/SideInstaller/actions/workflows/checks.yml"><img src="https://github.com/Jay-Void-BA/SideInstaller/actions/workflows/checks.yml/badge.svg?branch=main" alt="Checks"></a>
   <a href="LICENSE.md"><img src="https://img.shields.io/badge/license-Custom-lightgrey" alt="License"></a>
 </p>
@@ -47,7 +47,7 @@ In the **Minis Linux terminal**, run:
 ```sh
 uname -m
 apk add --no-cache curl ca-certificates
-curl -fL --retry 3 -o install-minis.sh.part https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.22.2/install-minis.sh &&
+curl -fL --retry 3 -o install-minis.sh.part https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.22.3/install-minis.sh &&
 mv install-minis.sh.part install-minis.sh &&
 sh install-minis.sh
 ```
@@ -59,7 +59,7 @@ sh install-minis.sh --verify
 "$HOME/.siboot/bin/siboot" --version
 ```
 
-The output must include `siboot 0.22.2`, `Jay-Void-BA` and `FrizzleM`. All asset digests are in [SHA256SUMS](https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.22.2/SHA256SUMS). If a partial download is corrupt or the server refuses resuming, use `sh install-minis.sh --restart`. The script never launches the program automatically.
+The output must include `siboot 0.22.3`, `Jay-Void-BA` and `FrizzleM`. All asset digests are in [SHA256SUMS](https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.22.3/SHA256SUMS). If a partial download is corrupt or the server refuses resuming, use `sh install-minis.sh --restart`. The script never launches the program automatically.
 
 For a manual download, save `siboot-aarch64` and `install-minis.sh` together, then verify before running:
 
@@ -143,9 +143,17 @@ Version 0.22.2 incorporates [FrizzleM's sign-in fix](https://github.com/FrizzleM
 
 The default fallback list includes `anisette.lillq.me`. When another server cannot use that pool's identity, the installer tries a compatible stored identity or provisions a separate one. Failed sign-in setup, HTTP status errors and Apple authentication codes are shown distinctly; HTTP failures from the Apple URL-bag request are checked before XML parsing.
 
-**Check the program you actually run.** Download this release's new install script, then run `"$HOME/.siboot/bin/siboot" --version`. It must show **0.22.2**. A command such as `./siboot-aarch64` may still launch a separately downloaded 0.20.0 file. Each install script is pinned to one release. Upgrading preserves the default encrypted data directory; pairing imports remain available if you move the executable.
+**Check the program you actually run.** Download this release's new install script, then run `"$HOME/.siboot/bin/siboot" --version`. It must show **0.22.3**. A command such as `./siboot-aarch64` may still launch a separately downloaded 0.20.0 file. Each install script is pinned to one release. Upgrading preserves the default encrypted data directory; pairing imports remain available if you move the executable.
 
 A log that says login succeeded and then reports **developer error 1100 while signing** records an expired developer session, rather than a failed password check. Restart the current program and sign in again; do not delete the vault or signing keys. The old **Directory not empty** retry failure used a shared extraction directory and is addressed by private per-attempt workspaces in 0.22.0 and later. A successful `--check-anisette` only proves the metadata endpoint is reachable; it does not test Apple authentication.
+
+## No verification code arrives
+
+A code request does not prove delivery. Since 0.22.3, the Minis prompt no longer claims a device received a code after Apple refused a text or call. Trusted-device requests check both HTTP status and Apple plist/JSON errors; phone requests also preserve service errors returned with HTTP 200. Logs include the request status and any Apple error code without recording the verification code.
+
+Check that the trusted device is signed in to the **same Apple Account** you entered in siboot. Choose **Other ways** to request a text or call to a listed trusted number. If Apple does not provide phone numbers for this session, those options are unavailable and the prompt explains why. Opening or leaving the menu does not resend a code. Avoid repeated requests when Apple reports a limit.
+
+You can cancel and choose an anisette endpoint explicitly, for example `"$HOME/.siboot/bin/siboot" --anisette https://new.ani.sidestore.io`. A working metadata probe or an accepted code request does not guarantee Apple will deliver a code. See [Apple’s verification-code guidance](https://support.apple.com/en-us/102606). Never share your password or verification code in an issue or chat.
 
 ## Files and migration
 
