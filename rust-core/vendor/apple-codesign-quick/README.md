@@ -11,6 +11,14 @@ published. Licensed LGPL-2.1-or-later, like the original.
 Vendored so `[patch.crates-io]` in `rust-core/Cargo.toml` can redirect the
 dependency that `vendor/isideload` has on it, which is its signer.
 
+## How Minis uses this crate
+
+The native installer signs an extracted app through this crate. `src/bundle.rs` walks the nested bundles, signs libraries before hashing their final contents, seals resources in `_CodeSignature/CodeResources`, and verifies the resulting resource maps. Extensions under `PlugIns/` and `Extensions/` receive their own executable signature. The app's provisioned entitlements and profile come from the calling isideload workflow.
+
+Resource seals cover hidden files such as `.config`. Valid symlinks are sealed by their target, and their in-bundle code is signed at its actual location. The parent app seals each nested bundle's signed resources. The offline checks detect changes to resources after signing. Minis separately checks staged file sizes and link targets on the device before starting the install. [Minis signing and release checks](../../../patches/siboot/README.md)
+
+From the SideInstaller root, use `LOCKED=1 bash scripts/test-rust.sh` to run the vendored tests with the shared build's patches and features. For a focused signer test, run `cargo test --manifest-path rust-core/vendor/apple-codesign-quick/Cargo.toml --lib`. The Minis fixture also checks CMS signatures and resource sealing in a representative IPA without contacting a signing service.
+
 ## Local changes
 
 **1. `src/bundle.rs` signs the `.appex` bundles in `Extensions/`.**
@@ -75,8 +83,8 @@ upstream: tangled.org's rewrite (`src/macho/thin.rs`) still refuses a signature
 with data after it, so a release has to pass this copy's change 2 tests before
 it replaces this copy.
 
-## rootshell WASI port (siboot 0.21.0)
+## Historical rootshell WASI port
 
 Maintained by Jay-Void-BA, based on FrizzleM/siboot and this dependency's credited upstream authors. WASI uses sequential equivalents of Rayon operations and owned file bytes instead of mmap. A link-aware file adapter preserves ZIP symlinks through signing and resource verification; native platforms retain Rayon, mmap and OS links. Versioned-framework Resources/Info.plist does not become a second executable bundle.
 
-The offline release gate runs the pinned original rootshell Worker and checks full CMS signing, links, encrypted storage, HTTP/WebSocket, and software TCP transport. Real Apple Account and iPhone end-to-end installation is not covered by this gate.
+The 0.21.x rootshell checks exercised these paths in the pinned Worker. Current releases validate the native ARM64 implementation. [rootshell archive](../../../patches/rootshell/README.md)

@@ -8,14 +8,17 @@ API StikDebug ships; `rust-core/src/lib.rs` re-exports its `#[no_mangle]`
 symbols into SideInstaller's static library, and `DeviceConnection.swift` calls
 them directly.
 
-Upstream's README for this crate is a two-line note about maintenance; this file
-replaces it.
+## Consumers and validation
+
+The iOS app reaches the vendored device library through this C ABI. The Minis installer uses the Rust API directly and uses its own native tunnel setup. Keep the Rust and C copies on the same idevice revision when updating the shared code. [Rust integration](../idevice/README.md)
+
+`build.rs` uses cbindgen to generate this crate's `idevice.h`. For ABI changes, build the Rust core, review the generated declarations, and update the copy in `rust-core/include/idevice.h` used by Swift. Check both the Swift callers and ownership of any pointers or handles crossing the boundary.
+
+Run `LOCKED=1 bash scripts/test-rust.sh` from the project root for the shared Rust paths. Run `bash scripts/check-ios.sh` on a Mac with the CI's Xcode and available simulator to verify header imports, linking, and Swift tests. See the iOS job for tool versions. [iOS CI job](../../../.github/workflows/checks.yml)
 
 ## Local changes
 
-Three files differ from upstream (`Cargo.toml`, `build.rs`,
-`src/tunnel_provider.rs`), and `idevice.h` is generated here. To list them again:
-`diff -rq ~/.cargo/git/checkouts/idevice-*/7bd551c/ffi rust-core/vendor/idevice-ffi`.
+The changes below cover `Cargo.toml`, `build.rs`, and `src/tunnel_provider.rs` and the generated C header. Compare against the pinned upstream revision when updating the vendored code.
 
 **1. `Cargo.toml` — `crate-type = ["rlib"]`.**
 
@@ -25,8 +28,8 @@ the `rlib` that `rust-core` links into its own static library.
 
 **2. `Cargo.toml` — `idevice` comes from the pinned git revision.**
 
-Upstream points at `path = "../idevice"`, which doesn't exist in this layout. The
-git URL and revision match `rust-core/Cargo.toml`'s direct dependency, so the
+Upstream points at `path = "../idevice"` inside its workspace. This copy uses the
+git URL and revision from `rust-core/Cargo.toml`'s direct dependency, so the
 `[patch."https://github.com/jkcoxson/idevice.git"]` there redirects both to
 `vendor/idevice` and cargo builds one `idevice`.
 

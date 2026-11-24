@@ -1,195 +1,238 @@
-<h1 align="center">siboot</h1>
-<p align="center">Sign, install, and renew local IPA files in Minis.</p>
-<p align="center"><strong>English</strong> · <a href="README.zh-CN.md">简体中文</a></p>
-<p align="center">
-  <a href="https://github.com/Jay-Void-BA/SideInstaller/releases/tag/siboot-v0.22.3"><img src="https://img.shields.io/badge/release-0.22.3-blue" alt="Release"></a>
-  <a href="https://github.com/Jay-Void-BA/SideInstaller/actions/workflows/checks.yml"><img src="https://github.com/Jay-Void-BA/SideInstaller/actions/workflows/checks.yml/badge.svg?branch=main" alt="Checks"></a>
-  <a href="LICENSE.md"><img src="https://img.shields.io/badge/license-Custom-lightgrey" alt="License"></a>
-</p>
-<p align="center">Maintained by <a href="https://github.com/Jay-Void-BA">Jay-Void-BA</a> · Original concept and code by <a href="https://github.com/FrizzleM">FrizzleM</a></p>
+# siboot
 
-siboot runs the complete installation workflow on your iPhone or iPad: import a local IPA, pair the device, sign in to Apple, sign every executable, and install the app. The runtime is **Minis + `siboot-aarch64`**; device connectivity also requires LocalDevVPN.
+Sign, install, and renew local iPhone and iPad apps from Open Minis.
+
+**English** · [简体中文](README.zh-CN.md)
+
+[Download v0.22.4](https://github.com/Jay-Void-BA/SideInstaller/releases/tag/siboot-v0.22.4) · [Changelog](CHANGELOG.md) · [CI](https://github.com/Jay-Void-BA/SideInstaller/actions/workflows/checks.yml)
+
+siboot takes a local IPA, pairs with the device, signs with your Apple developer team, and installs the result. The Minis page can import from Files, verify an existing pairing record, and renew the last installed app. The terminal offers the same signing and installation workflow.
 
 > [!IMPORTANT]
-> **Minis ARM64 is the supported platform. rootshell is deprecated.** Version 0.22.0 returns to a static Linux ARM64 executable. No rootshell app, WASM module, or pairing relay is required. Ordinary x86 iSH cannot run this executable.
+> Use the ARM64 release with Open Minis. rootshell support ended with 0.21.4. To bring over an IPA or a pairing record, follow the [migration instructions](#data-and-migration).
 
-## Features
-
-- **Complete signing.** Recursively sign the app, extensions, frameworks, dylibs and other Mach-O files. Seal hidden resources, including `.config`, preserve valid symlinks, and verify resource seals before upload.
-- **Local IPA installation.** Select an IPA from Files in the Minis page, or supply a Linux path in the terminal. No bundled SideInstaller IPA download or automatic update check.
-- **Quick renewal.** Reuse the original IPA, saved pairing and encrypted account cache with `renew`. Renewal signs the complete app again.
-- **Encrypted login.** Protect the Apple Account, sessions and signing keys with an independent local passphrase. Reveal or hide passwords in the page and live terminal.
-- **Step retries.** Retry a failed step. An installation retry keeps the completed signed bundle available.
-- **Diagnostics.** Opt in to detailed performance logs beside the executable. English and Simplified Chinese interfaces are included.
+[Requirements](#requirements) · [Install siboot](#install-siboot) · [Install an IPA](#install-an-ipa) · [Apple sign-in](#apple-sign-in) · [Renew](#renew-an-app) · [Troubleshooting](#troubleshooting) · [Development](#development)
 
 ## Requirements
 
-| Component | Requirement |
+| Component | What you need |
 | --- | --- |
-| Device | iPhone or iPad on iOS / iPadOS 27+, with Developer Mode enabled |
-| Runtime | Open Minis 1.16+ with an ARM64 Linux environment (`uname -m` reports `aarch64`) |
-| Connection | [LocalDevVPN](https://apps.apple.com/app/id6755608044), connected; Wi-Fi enabled |
-| Account | Apple Account with access to its verification methods |
-| App | A local IPA and enough free space for the original IPA, extracted app and signing work |
+| Device | iPhone or iPad running iOS or iPadOS 27 or later. Turn on Developer Mode to run development-signed apps. |
+| Runtime | Open Minis with ARM64 Linux. Run `uname -m` in its terminal and look for `aarch64`. Open Minis 1.16 or later supports pairing on the device. Older Minis builds require an existing compatible pairing record. |
+| Connection | Wi-Fi enabled and LocalDevVPN connected on the device you are installing to. Internet access is needed for Apple sign-in and provisioning. |
+| Account | An Apple Account with permission to sign for a developer team and access to its Apple verification methods. A Personal Team can sign apps for personal testing. |
+| IPA and storage | A complete local IPA you can re-sign. Allow space for the downloaded IPA, the extracted bundle, and the renewal copy. Download items from iCloud Drive to the device before importing. |
 
-## Quick start
+Get [Open Minis](https://apps.apple.com/us/app/open-minis/id6759188481) and [LocalDevVPN](https://apps.apple.com/app/id6755608044) from the App Store.
 
-### 1. Configure Minis and the device
+1. Enable Wi-Fi, connect LocalDevVPN, and allow Open Minis to access the local network if iOS asks. Keep LocalDevVPN connected during pairing, installation, and renewal.
+2. In **Settings → Privacy & Security → Developer Mode**, turn on Developer Mode, restart, and confirm after unlocking. If the switch is missing, complete pairing and run the `developer-mode` command to request that iOS show it. [Apple's Developer Mode guide](https://developer.apple.com/documentation/xcode/enabling-developer-mode-on-a-device)
+3. Keep Open Minis open while a download, import, signature, or installation is in progress. The pairing flow tells you when to switch to Settings and return.
 
-Install Open Minis and LocalDevVPN on the device itself. In **Settings › Privacy & Security › Developer Mode**, enable Developer Mode, restart, and confirm if prompted. Enable Wi-Fi and connect LocalDevVPN. Keep it as the active VPN throughout installation and renewal.
+If your Apple Account uses iCloud Advanced Data Protection, start with [the sign-in instructions](#icloud-advanced-data-protection). They cover the updated login and when to try switching to standard data protection.
 
-Allow Minis to access the **Local Network** when requested. Keep Minis in the foreground during downloads, imports, signing and installation. Pairing uses Minis's Bonjour bridge and audio keepalive while you briefly switch to Settings; allow the permissions Minis requests. Run `siboot check` if pairing does not appear.
+## Install siboot
 
-### 2. Download and verify
-
-In the **Minis Linux terminal**, run:
+In the **Open Minis Linux terminal**, check the architecture and install the download tools if needed.
 
 ```sh
 uname -m
 apk add --no-cache curl ca-certificates
-curl -fL --retry 3 -o install-minis.sh.part https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.22.3/install-minis.sh &&
-mv install-minis.sh.part install-minis.sh &&
-sh install-minis.sh
 ```
 
-The installer puts the program at **`$HOME/.siboot/bin/siboot`**. It checks the exact file size and SHA-256 before replacing an existing program. An interrupted download keeps the partial file for the next run; your installed program and app data are preserved.
+Use `siboot-aarch64` when the terminal reports `aarch64`. Standard x86 iSH and the old rootshell WASM host cannot run this file.
+
+Download the installer for this release and run it.
 
 ```sh
-sh install-minis.sh --verify
-"$HOME/.siboot/bin/siboot" --version
+curl -fL --retry 3 -o install-minis.sh.part \
+  https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.22.4/install-minis.sh &&
+  mv install-minis.sh.part install-minis.sh &&
+  sh install-minis.sh
 ```
 
-The output must include `siboot 0.22.3`, `Jay-Void-BA` and `FrizzleM`. All asset digests are in [SHA256SUMS](https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.22.3/SHA256SUMS). If a partial download is corrupt or the server refuses resuming, use `sh install-minis.sh --restart`. The script never launches the program automatically.
+The installer writes `$HOME/.siboot/bin/siboot`. It checks the exact byte count and SHA-256 before replacing the installed executable. If the transfer is interrupted, run `sh install-minis.sh` again to resume. If verification reports a corrupt partial file, run `sh install-minis.sh --restart` to start that download over.
 
-For a manual download, save `siboot-aarch64` and `install-minis.sh` together, then verify before running:
+Verify and launch the installed version explicitly.
 
 ```sh
-sh install-minis.sh --verify ./siboot-aarch64
-chmod +x ./siboot-aarch64
-./siboot-aarch64 --version
+sh install-minis.sh --verify &&
+  "$HOME/.siboot/bin/siboot" --version &&
+  "$HOME/.siboot/bin/siboot" --web
 ```
 
-### 3. Import, pair and install
+The version output should include `siboot 0.22.4`, `Jay-Void-BA`, and `FrizzleM`. Each installer script is pinned to one release. Download the new script when upgrading and use the installed path above. A manually downloaded `./siboot-aarch64` is a separate copy.
+
+<details>
+<summary>Download and verify the executable manually</summary>
+
+Download `siboot-aarch64` and `install-minis.sh` from the same release into the same Minis directory. Verify the binary before giving it execute permission.
 
 ```sh
-"$HOME/.siboot/bin/siboot" --web
+sh install-minis.sh --verify ./siboot-aarch64 &&
+  chmod 700 ./siboot-aarch64 &&
+  ./siboot-aarch64 --version
 ```
 
-Open the local page offered by Minis. On the first interactive installation, the import guide explains how to select an IPA. Choose the file from **Files**; download an iCloud item to the device before selecting it. The page transfers the file into Minis's Linux filesystem. Keep Minis open until import completes.
+If you also downloaded `SHA256SUMS`, run `sha256sum -c SHA256SUMS` from that directory to check both files. When running a manual copy, use that executable's directory for its pairing file and performance logs. [Release files](https://github.com/Jay-Void-BA/SideInstaller/releases/tag/siboot-v0.22.4)
 
-Choose a saved pairing, import an existing **RPPairing** file, or pair automatically. For a new pairing, follow the prompt to open **Settings › Privacy & Security › Developer Mode › Pair with siboot**, enter the device passcode and the pairing code, then return to Minis. No second terminal app is involved.
+</details>
 
-Sign in to Apple when prompted. If you save the login, choose a **separate local vault passphrase**; it is required to unlock the saved login and is never saved. Use the password visibility button on the page, or **Ctrl-V** in the live terminal, to show or hide input. `--plain` uses hidden password input.
+## Install an IPA
 
-For terminal installation, first import the IPA into Minis and supply its Linux path:
+### Choose the IPA
+
+Run `"$HOME/.siboot/bin/siboot" --web` and open the page offered by Minis. Choose **Install a local IPA**, then select it in **Files**. Files sends the archive to Minis's local Linux storage. The Files upload accepts an IPA up to 4 GiB. The archive needs a single app in `Payload`. If the import is interrupted, select the original file again.
+
+To use a file already inside the Linux environment, quote the actual path. This also works for paths with spaces.
 
 ```sh
-"$HOME/.siboot/bin/siboot" --terminal --ipa /home/App.ipa
+"$HOME/.siboot/bin/siboot" --terminal --ipa "/home/My App.ipa"
 ```
 
-Replace the example path with the actual path inside Minis. A path from rootshell, another iOS app or iCloud Drive is not directly a Minis Linux path.
+Use the Files picker for archives in iCloud Drive or another iOS app. Use `--ipa` when you have already copied the archive into the Minis Linux filesystem.
 
-## Usage
+### Pair with the device
 
-Use `"$HOME/.siboot/bin/siboot"` below, or the path where you saved the executable.
+At the **Pairing** step, reuse the saved record, import an existing RPPairing file, or create a new one.
 
-| Command | Action |
+- **Pair in Minis.** Choose **Start pairing**, leave the silence player open, and go to **Settings → Privacy & Security → Developer Mode**. Scroll down and tap **Pair with siboot**. Enter the device passcode and the six-digit *pairing* code displayed by Minis. Return to Minis when Settings confirms pairing. If Minis notifications are off, read the pairing code in Minis.
+- **Import a record.** In the page, choose a file from **Files** or browse the Minis Linux filesystem. From the terminal, run the command below. Use an RPPairing record valid for this device. After the device accepts it, siboot saves a private copy as `rp_pairing_file.plist` beside the actual executable. A failed import preserves the previously saved record.
+
+```sh
+"$HOME/.siboot/bin/siboot" connect --pairing-file "/home/phone.plist"
+```
+
+`connect` stops after pairing and tunnel verification. Run siboot again with your IPA when you are ready to install. The pairing code belongs in iOS Settings. Apple sign-in may ask for a separate verification code later.
+
+### Sign and open the app
+
+After **Connect**, sign in to your Apple Account and complete any requested verification. siboot registers the device with the selected developer team when needed and obtains signing assets. It signs nested executables, including extensions, frameworks, and dylibs, and seals resources such as hidden `.config` files. It verifies the sealed bundle locally and checks uploaded file sizes and symlink targets before asking iOS to install.
+
+Choose **Retry** after correcting a failed step. A failed signing attempt uses a fresh working directory on retry. An install retry in the same run uses the signed bundle and opens a fresh tunnel. Once the app is installed, open it from the Home Screen. If iOS asks you to trust the developer, follow the prompt under **Settings → General → VPN & Device Management** for the account used to sign.
+
+## Apple sign-in
+
+### iCloud Advanced Data Protection
+
+**Try v0.22.4 with Advanced Data Protection still on.** This release adopts FrizzleM's updated Mac client information and matches the anisette identity to that client on a full sign-in. A usable saved developer session can still be tried first. When a full login needs a new identity, Apple may ask for a code again. Keep your vault, pairing file, and cached IPA when upgrading. An iLoader user reported successful sign-in on an Advanced Data Protection account with the same type of client update. That report is from iLoader, and real-account verification on Minis is still pending. [FrizzleM's change](https://github.com/FrizzleM/SideInstaller/commit/9e8d7c167ebfd6347086aa661d659c01371468b5) · [iLoader report](https://github.com/nab138/iloader/issues/1203#issuecomment-7080551523)
+
+If verification still fails on the affected account and you choose to test with standard data protection, **temporarily turn off iCloud Advanced Data Protection**. On a trusted iPhone or iPad signed in to that Apple Account, open **Settings → [your name] → iCloud → Advanced Data Protection → Turn Off Advanced Data Protection**. Return to Minis and start a fresh sign-in. Keep Apple two-factor authentication enabled. This setting applies to the account and returns categories such as iCloud Backup, Photos, and Notes to standard data protection. You can turn Advanced Data Protection back on from the same screen after testing. Future sign-ins may need verification again. [Apple's settings instructions](https://support.apple.com/en-us/108756) · [iCloud data security overview](https://support.apple.com/en-us/102651)
+
+### Verification codes
+
+1. Check Apple devices already signed in to the **same Apple Account**. Approve the notification you initiated and enter its six-digit code in siboot.
+2. If no notification arrives, open **Other ways** and select text or call for a listed trusted number. The choices depend on what Apple supplies for this session. Opening the menu does not request another code.
+3. If Apple shows a rate limit or a refusal, keep the error code for troubleshooting. Wait when Apple requests a cooldown. When the issue persists, check the affected stage before changing any account settings.
+
+The prompt reports request outcomes. It can show Apple error codes from plist or JSON responses even when the HTTP request returned 200. Apple controls delivery. [Apple's verification guidance](https://support.apple.com/en-us/102606)
+
+### Save or update your login
+
+The page's **show password** button or **Ctrl-V** in the live terminal toggles visibility. Password entry starts hidden. Plain terminal mode uses hidden input.
+
+After signing in, you can save the account with a **separate local passphrase** of at least 12 characters, different from the Apple password. siboot derives an encryption key from the passphrase and protects the saved login and related session and signing data. You enter the passphrase to unlock that storage each time. If the Apple password changed, choose **Unlock and update saved password**. **Use another Apple Account once** uses temporary data for that run. **Forget saved login** removes the local vault and signing cache after confirmation. Certificate management is a separate action.
+
+## Renew an app
+
+Run the following command before a Personal Team provisioning profile expires, typically after seven days.
+
+```sh
+"$HOME/.siboot/bin/siboot" renew
+```
+
+The page offers **Quick renew** when it can read the original IPA from the last successful installation. This uses the same developer team and bundle identity, signs the whole app again, and verifies the upload. It reuses the cached original and the pairing record. Keep Wi-Fi and LocalDevVPN active and complete any Apple verification prompted. To switch apps or teams, install the original IPA again with a normal installation. If the cache could not be saved or was moved, import the original again. [Apple Developer account guidance](https://developer.apple.com/help/account/basics/about-your-developer-account)
+
+## Command reference
+
+Here `siboot` means `"$HOME/.siboot/bin/siboot"` or the path to your verified copy.
+
+| Command or option | Behavior |
 | --- | --- |
-| `siboot` | Select a local IPA and run the installation workflow |
-| `siboot --ipa /home/App.ipa` | Install a local IPA already inside Minis |
-| `siboot renew` | Sign and reinstall the last successfully cached app |
-| `siboot check` | Check device connectivity and Minis pairing support |
-| `siboot connect` | Verify pairing and open the device tunnel |
-| `siboot --pairing-file /home/phone.plist` | Verify and import an RPPairing file |
-| `siboot --lang en` / `siboot --lang zh-CN` | Choose English / Simplified Chinese |
-| `siboot --terminal` / `siboot --web` | Choose the live terminal / Minis page |
-| `siboot --check-anisette` | Diagnose default ani endpoints without IPA, Apple login or VPN |
-| `siboot --perf-log` | Write detailed performance measurements |
-| `siboot --jobs 2` | Use two signing workers; supported range is 1–4 |
-| `siboot --help` | Show all options |
+| `siboot` / `siboot --ipa PATH` | Open the app picker or install a local Linux path. |
+| `siboot renew` | Sign and reinstall the cached original. Use the same developer team. |
+| `siboot check` / `siboot connect` | Check Minis, Apple reachability, and the device, or pair and verify the tunnel. |
+| `siboot developer-mode` | Pair, connect, and ask iOS to make its Developer Mode switch available if needed. Use Settings to enable it. |
+| `siboot developer-mode --turn-on` | Request activation and a restart after confirmation. With a device passcode, iOS shows the switch for manual activation. |
+| `siboot connect --pairing-file PATH` | Verify and import an RPPairing record. The path is inside Minis. |
+| `--web` / `--terminal` / `--terminal --plain` | Choose the page, live terminal, or plain terminal. |
+| `--lang en` / `--lang zh-CN` | Choose the terminal language. Chinese is the default. Use the language switch on the page for its own display. |
+| `--anisette URL` / `--check-anisette` | Pin one server, or check only public server metadata. See [network diagnostics](#network-diagnostics). |
+| `--home DIR` | Use a separate state directory. Pairing and performance logs still go beside the executable. |
+| `--device-ip IP` / `--port PORT` | Override the LocalDevVPN endpoint. The defaults are `10.7.0.1` and `49152`. |
+| `--apple-id EMAIL` | Preselect an Apple Account. Enter the password in the prompt. |
+| `--jobs N` / `--perf-log` | Set 1–4 signing workers or record detailed timings. Default worker count is 1. |
+| `--verbose` | Show underlying diagnostics in the terminal. Review the output before sharing. |
+| `--help` / `--version` | Show all flags or the exact running version and credits. |
 
-The interface defaults to Chinese; `--lang en` selects English. A free Apple account usually needs renewal within seven days. Renewal still needs internet, LocalDevVPN and any verification Apple requests. It reuses the original IPA without another import or cache copy; it performs complete signing and upload verification. Use a normal IPA installation to change app or developer team.
+## Troubleshooting
 
-## Performance and diagnostics
+| Symptom or log | What to check |
+| --- | --- |
+| `segmentation fault` at startup, even for `--version` | Run `uname -m` and `sh install-minis.sh --verify` for the actual file. Earlier startup failures came from incomplete downloads. Resume with the current installer, or use `--restart` if the partial file is corrupt. |
+| Download lock remains after closing Minis | Confirm every installer has stopped, then remove the empty lock directory with `rmdir "$HOME/.siboot/bin/.siboot-download.lock"`. Rerun the installer. |
+| Device handshake times out or Settings shows no pairing entry | Reconnect LocalDevVPN, enable Wi-Fi and grant Minis local network access. Run `check`. Open Minis 1.16+ can create a record, or use `connect --pairing-file PATH` with a valid one. |
+| Ani DNS, TLS, timeout, or HTTP error | Run the metadata check below. Look at the failing host. A custom proxy's private CA must be trusted inside Minis. |
+| `gsa.apple.com` returns HTTP 503 | Check the installed version and the URL in the error. v0.22.4 uses the `Mac OS X` spelling in the updated Mac client information. Apple can also return a temporary service error. |
+| Trusted numbers or code request returns 403, or Apple reports `-22410` or `-23782` | Upgrade and start a new sign-in. The current build matches the provisioning identity to the Mac client information. If no code arrives, follow [the verification steps](#verification-codes) and [the Advanced Data Protection instructions](#icloud-advanced-data-protection). |
+| Apple HTTP 429 | Pause sign-in attempts until the limit clears. An HTTP 429 from an anisette endpoint is a separate server limit. |
+| Developer error `1100` after sign-in | The developer session expired. Restart the current version and sign in again. A stale session is normally replaced when Apple rejects it during the saved-session check. |
+| `Directory not empty` on a signing retry | Check for a separately downloaded older executable. Minis versions from 0.22.0 use private signing directories for each attempt. |
+| Installed app fails to open | Verify Developer Mode, developer trust, and the provisioning profile's validity. Renew with the same signing team if the profile expired. |
 
-Minis executes Linux code under emulation. Full signing hashes executable pages and resources; AFC performs many file operations over the local device tunnel; iOS then validates and installs the bundle. The installation screen reports upload, file verification and iOS installation times separately. iOS installation time is controlled by the device.
+### Network diagnostics
+
+```sh
+"$HOME/.siboot/bin/siboot" --check-anisette --terminal
+"$HOME/.siboot/bin/siboot" --check-anisette --anisette https://new.ani.sidestore.io --terminal
+```
+
+This probes public `/v3/client_info` metadata, with up to three requests in flight and a 12-second limit per endpoint. It runs before opening login storage or connecting to the device. A successful check establishes metadata reachability. A full sign-in still needs anisette provisioning, Apple authentication, and developer access. TLS uses bundled public roots alongside Minis's system trust.
+
+Auto selection tries the last successful endpoint first when available. Use `--anisette https://new.ani.sidestore.io` on a normal run to try that endpoint alone. Switching endpoints can require provisioning and a fresh Apple verification.
+
+### Slow signing or installation
 
 ```sh
 "$HOME/.siboot/bin/siboot" renew --perf-log
 ```
 
-Each run writes **`siboot-perf-*.jsonl` beside the actual executable**, including when launched from another directory. With the default installer, this is `$HOME/.siboot/bin/`. Logs contain stage timings, retries, secret-input wait time, extraction counts, hashing/signing durations, upload bytes and file operations, verification, iOS installation progress and a final summary. They accept only code-defined operation names and numeric measurements, without passwords, account names, paths, pairing data or protocol bodies. Detailed records are capped at 16 MiB; normal exit flushes a summary.
+The opt-in `siboot-perf-*.jsonl` file goes beside the executable. Compare `ipa.extract` and `sign.bundle` for archive and CPU work, `install.upload` and `install.verify_upload` for device transfer, and `install.ios` for the system installation phase. The signing worker count affects CPU work. File count, tunnel latency, and iOS validation affect installation separately. Start with the default `--jobs 1` under emulation, and compare the same IPA with `--jobs 2` if signing takes most of the time.
 
-Start with **one signing worker**, the default under emulation. Compare the same IPA with `--jobs 2` if needed; more workers can be slower or use more memory. Version 0.22.0 buffers extraction writes, caches directory creation, isolates signing workspaces, moves CPU-heavy signing off the async device workers, and avoids copying the renewal IPA again. Complete resource sealing and per-file upload checks stay enabled. These changes are tested offline; real-device speed depends on the app, Minis and iOS. No device benchmark is claimed.
+The log contains timing and count fields and caps detailed records at 16 MiB. A normal exit flushes the final summary. For an unresolved failure, share the version, Minis and iOS versions, failing step, relevant HTTP or Apple error, and a reviewed excerpt of `$HOME/.siboot/siboot.log` when available. Keep passwords, codes, pairing files, and vault contents private. [Report an issue](https://github.com/Jay-Void-BA/SideInstaller/issues)
 
-The ordinary error report is saved under `$HOME/.siboot/siboot.log`. Review it before sharing; the separate performance log has stricter data limits.
+## Data and migration
 
-## Anisette connectivity
-
-Version 0.22.1 includes Mozilla public CA certificates for the standalone installer, while retaining system/private CA trust. A minimal Minis filesystem with no CA bundle previously let the Apple preflight pass using its embedded Apple root but failed to construct every anisette HTTP client.
-
-```sh
-"$HOME/.siboot/bin/siboot" --check-anisette --terminal
-"$HOME/.siboot/bin/siboot" --check-anisette --anisette https://ani.iloader.app --terminal
-```
-
-The check probes `/v3/client_info` with at most three concurrent requests and a 12-second limit per server. It prints each endpoint's DNS, TLS, timeout or HTTP error, without opening the login vault, pairing, provisioning an identity or signing in to Apple. A successful check proves metadata connectivity; provisioning and Apple authentication can still fail separately. `--perf-log` records numeric timings for these probes.
-
-For older versions or other tools in Minis, restore the system bundle with `apk add --no-cache ca-certificates` and `update-ca-certificates`. When a custom proxy uses its own CA, install that CA in Minis as well; iOS's trust store is separate. A server-specific HTTP 429 is tried on another endpoint; an Apple account rate limit still stops login attempts.
-
-## Apple sign-in compatibility
-
-Version 0.22.2 incorporates [FrizzleM's sign-in fix](https://github.com/FrizzleM/SideInstaller/commit/8c13fceefebe8fec7475555a9ea50a7df0c372d8) for Apple's November 20 change. The built-in macOS-ADI client and the Apple fallback now report the compatible Catalina `Mac OS X` identity, replacing the `macOS;26.6` / `macOS;27.0` identities associated with HTTP 503. Existing modern-Mac anisette identities remain usable; no login or pairing data needs to be deleted.
-
-The default fallback list includes `anisette.lillq.me`. When another server cannot use that pool's identity, the installer tries a compatible stored identity or provisions a separate one. Failed sign-in setup, HTTP status errors and Apple authentication codes are shown distinctly; HTTP failures from the Apple URL-bag request are checked before XML parsing.
-
-**Check the program you actually run.** Download this release's new install script, then run `"$HOME/.siboot/bin/siboot" --version`. It must show **0.22.3**. A command such as `./siboot-aarch64` may still launch a separately downloaded 0.20.0 file. Each install script is pinned to one release. Upgrading preserves the default encrypted data directory; pairing imports remain available if you move the executable.
-
-A log that says login succeeded and then reports **developer error 1100 while signing** records an expired developer session, rather than a failed password check. Restart the current program and sign in again; do not delete the vault or signing keys. The old **Directory not empty** retry failure used a shared extraction directory and is addressed by private per-attempt workspaces in 0.22.0 and later. A successful `--check-anisette` only proves the metadata endpoint is reachable; it does not test Apple authentication.
-
-## No verification code arrives
-
-A code request does not prove delivery. Since 0.22.3, the Minis prompt no longer claims a device received a code after Apple refused a text or call. Trusted-device requests check both HTTP status and Apple plist/JSON errors; phone requests also preserve service errors returned with HTTP 200. Logs include the request status and any Apple error code without recording the verification code.
-
-Check that the trusted device is signed in to the **same Apple Account** you entered in siboot. Choose **Other ways** to request a text or call to a listed trusted number. If Apple does not provide phone numbers for this session, those options are unavailable and the prompt explains why. Opening or leaving the menu does not resend a code. Avoid repeated requests when Apple reports a limit.
-
-You can cancel and choose an anisette endpoint explicitly, for example `"$HOME/.siboot/bin/siboot" --anisette https://new.ani.sidestore.io`. A working metadata probe or an accepted code request does not guarantee Apple will deliver a code. See [Apple’s verification-code guidance](https://support.apple.com/en-us/102606). Never share your password or verification code in an issue or chat.
-
-## Files and migration
-
-| Location | Contents |
+| Path | Contents |
 | --- | --- |
-| Beside the actual executable | `rp_pairing_file.plist` and opt-in performance logs |
-| `$HOME/.siboot/` (or `--home PATH`) | Encrypted login/signing cache, original IPA for renewal, and error report |
-| Private temporary directory per signing run | Extracted signed bundle; removed when its last owner finishes |
+| `$HOME/.siboot/bin/siboot` | Default installed program. |
+| Beside the actual executable | `rp_pairing_file.plist` and optional `siboot-perf-*.jsonl`. Pairing records contain device trust keys. |
+| `$HOME/.siboot/apple-login.vault` and `isideload/` | Optional encrypted login and signing state. `--home` changes the base path. |
+| `$HOME/.siboot/renewals/` | Original IPA and metadata for the last cached successful install. |
+| `$HOME/.siboot/siboot.log` | Error report for a failed run when available. |
+| Private temporary directory | Extracted signing workspace retained through retries and cleaned up when its owner exits normally. |
 
-Pairing imports are verified with the device before a private copy replaces the saved record. A failed import preserves the source and previous pairing. The page can upload a pairing file from Files or browse Minis's Linux filesystem. Keep pairing records private: they contain device trust keys.
+**Upgrade Minis** by running the new release's installer in the same destination. If you move the executable, keep the pairing alongside it or import it at the new path. Keep the state directory to reuse the saved login and renewal cache.
 
-**From rootshell:** export your original IPA and RPPairing file through Files, import them into Minis, and sign in again. The applications have separate sandboxes; old paths and credentials are not migrated automatically. **From an older Minis release:** the default data directory remains `$HOME/.siboot`. Keep the existing pairing beside the new executable, or import it with `--pairing-file`. Do not delete your data directory to upgrade.
-
-rootshell source and historical releases, including 0.21.4, remain available for reference. They no longer receive runtime support or new WASM releases.
-
-## Troubleshooting
-
-- **`segmentation fault` on startup:** verify the exact file size and SHA-256 first. Earlier reports involved interrupted downloads. Resume with the generated installer; use `--restart` if verification still fails. Check `uname -m` is `aarch64`.
-- **No pairing entry in Settings:** keep LocalDevVPN connected and Wi-Fi enabled, allow Local Network for Minis, and use Open Minis 1.16+. Run `siboot check` or import a working RPPairing record.
-- **Download lock remains after force-closing:** stop every installer, then remove only the empty `$HOME/.siboot/bin/.siboot-download.lock` with `rmdir` and retry.
-- **Slow installation:** use `--perf-log` and compare upload, verification and iOS installation separately. Keep Minis in the foreground and start with `--jobs 1`.
+**Migrate from rootshell** by exporting your original IPA and compatible RPPairing record through Files, opening them in Minis, and signing in again. Each app has its own sandbox. See the [rootshell archive](patches/rootshell/README.md).
 
 ## Development
 
+From the SideInstaller checkout, prepare the pinned siboot source in a new directory and link this checkout's Rust core.
+
 ```sh
-bash scripts/prepare-minis.sh /tmp/siboot-source
-cargo test --manifest-path /tmp/siboot-source/minis/Cargo.toml --locked --all-targets
-cargo clippy --manifest-path /tmp/siboot-source/minis/Cargo.toml --locked --all-targets -- -D warnings
+source_dir="$(mktemp -d)/siboot-source"
+bash scripts/prepare-minis.sh "$source_dir"
+cargo test --locked --manifest-path "$source_dir/minis/Cargo.toml" --all-targets
+cargo clippy --locked --manifest-path "$source_dir/minis/Cargo.toml" --all-targets -- -D warnings
 LOCKED=1 bash scripts/test-rust.sh
 python3 -m unittest discover -s scripts/tests -v
 ```
 
-The preparation script applies the pinned source patch and uses this repository's shared Rust core. CI builds a static `aarch64-unknown-linux-musl` release with Rust 1.100 on an ARM64 runner, executes the CLI and complete offline signing probe, and checks encrypted storage, symlinks and resource tampering. Packaging rejects truncated or dynamic ELF files. Publication consumes that exact successful CI artifact and validates its source commit and digests. iOS source checks remain separate; no Apple login or on-device installation is simulated by the offline probe.
+CI builds a static `aarch64-unknown-linux-musl` executable on ARM64 with Rust 1.100, runs startup and network checks, and verifies complete offline signing with a fixture. The release job verifies the source revision, target, and digests, then publishes that tested executable with its installer and `SHA256SUMS`. Device and Apple Account behavior require a real-device check. Build prerequisites, patch maintenance, and test scope are in the [developer guide](patches/siboot/README.md).
 
 ## Credits and license
 
-Maintained by **Jay-Void-BA**. Original concept and implementation: **[siboot by FrizzleM](https://github.com/FrizzleM/siboot)**. Shared signing and device code derives from **[SideInstaller by FrizzleM](https://github.com/FrizzleM/SideInstaller)** and its credited dependencies.
+Maintained by **Jay-Void-BA**. FrizzleM provided the original idea and implementation for siboot and the SideInstaller code used by its Rust core. [siboot by FrizzleM](https://github.com/FrizzleM/siboot) · [SideInstaller by FrizzleM](https://github.com/FrizzleM/SideInstaller)
 
-The inherited SideInstaller code remains under [LICENSE.md](LICENSE.md); dependency licenses also apply. This repository contains inherited implementation and is **not a clean-room rewrite**, so it is not relabeled as MIT. See the license for its terms.
+The SideInstaller License covers inherited SideInstaller code. The vendored libraries retain their respective licenses and attribution. [License terms](LICENSE.md)

@@ -1,35 +1,69 @@
-# Patched siboot source · Minis ARM64
+# Maintaining siboot for Minis
 
-Maintained by **Jay-Void-BA**. Original concept and implementation: [FrizzleM/siboot](https://github.com/FrizzleM/siboot). The patch is based on `82b808de3a407619be7fbe54b3f313932bb80ade`; original credits and inherited licenses remain.
+This directory connects the siboot installer to this repository's Rust signing and device code. User setup and Apple Account troubleshooting are in the [English README](../../README.md) and [简体中文](../../README.zh-CN.md).
 
-[retry-local-ipa.patch](retry-local-ipa.patch) contains the active Minis installer, shared translations, the offline native probe and source documentation. Historical rootshell source is retained for reference; rootshell is deprecated and is excluded from active runtime checks and releases.
+## Source layout
+
+| Path | Role |
+| --- | --- |
+| `scripts/prepare-minis.sh` | Checks out FrizzleM/siboot at `82b808de3a407619be7fbe54b3f313932bb80ade`, applies the patch, and links the current SideInstaller checkout. |
+| `patches/siboot/retry-local-ipa.patch` | Contains the Minis CLI, page, Chinese catalog, source READMEs, and offline fixture runner. It also holds the historical rootshell changes. |
+| `<prepared>/minis/` | Independent Cargo workspace with a lockfile for the Linux build. See its README after preparing the source. |
+| `rust-core/src/apple_session.rs` | Opens the Apple developer session and checks whether an existing saved session still works. |
+| `rust-core/vendor/isideload/` | Apple authentication, developer resources, archive extraction, and signing orchestration. |
+| `rust-core/vendor/idevice/` | RPPairing, tunnel transport, AFC upload, and installation proxy. |
+| `rust-core/vendor/apple-codesign-quick/` | Mach-O signatures, nested bundles, and resource seals. |
+| `rust-core/vendor/siboot-perf/` | Opt-in local metrics. Test fixtures and release checks use the same event format. |
+
+The prepared source's `SideInstaller` entry points to the checkout being tested. Start from the SideInstaller root so the patch, shared code, and release metadata agree. [Pinned source](https://github.com/FrizzleM/siboot/tree/82b808de3a407619be7fbe54b3f313932bb80ade)
+
+## Build and test locally
+
+Use Git, Bash, a Rust toolchain with Clippy, and Python 3.11 or later. Native Rust dependencies also require a C toolchain, CMake, Perl, Clang, and system headers. Rust 1.100 is the reference release toolchain. Create a new destination for each clean preparation.
 
 ```sh
-bash scripts/prepare-minis.sh /tmp/siboot-source
-cargo test --manifest-path /tmp/siboot-source/minis/Cargo.toml --locked --all-targets
-cargo clippy --manifest-path /tmp/siboot-source/minis/Cargo.toml --locked --all-targets -- -D warnings
+source_dir="$(mktemp -d)/siboot-source"
+bash scripts/prepare-minis.sh "$source_dir"
+cargo test --locked --manifest-path "$source_dir/minis/Cargo.toml" --all-targets
+cargo clippy --locked --manifest-path "$source_dir/minis/Cargo.toml" --all-targets -- -D warnings
+LOCKED=1 bash scripts/test-rust.sh
+python3 -m unittest discover -s scripts/tests -v
 ```
 
-Run these commands from the parent SideInstaller repository. The preparation script links this checkout's `rust-core` so tests and releases use the same signing and device fixes. The release target is static `aarch64-unknown-linux-musl`; CI builds with Rust 1.100 on ARM64 and runs the actual release through `scripts/check-minis-runtime.sh`.
+You can set `SIBOOT_REPOSITORY` to a local Git clone containing the pinned commit. For network-code changes, build the host CLI and run the local TLS fixture against it. The fixture exercises the metadata probe with empty system CA paths and a private CA. It needs `openssl` on the machine running the test.
 
-The native pipeline validates a selected local IPA before remote work, keeps one renewal snapshot and holds a shared vault/cache lock, then performs pairing, login, complete signing and checked AFC upload. Each signing attempt owns a unique private extraction directory through asynchronous work and install retries. Extraction streams bounded data into buffered files and validates the full symlink graph before making links. Quick renewal reuses the original IPA without copying it again.
+```sh
+cargo build --locked --manifest-path "$source_dir/minis/Cargo.toml" --bin siboot
+python3 scripts/check-minis-network.py "$source_dir/minis/target/debug/siboot"
+```
 
-The interface includes English/Chinese, password visibility in the page/live terminal, encrypted login, verified pairing import beside the executable, current-step retry, and optional numeric performance logs in that same directory. No SideInstaller IPA download or update detection is offered. Shared code still signs dylibs and other Mach-O files and seals hidden resources such as `.config`; complete resource and per-file upload checks are retained.
+Run `python3 scripts/check_translations.py --base HEAD` for changes to iOS strings. Minis strings live in `minis/locales/zh-CN.json`. Its tests check that translated strings retain their named placeholders. The page translates display text in `minis/src/i18n.js` and the terminal uses `minis/src/i18n.rs`.
 
-The offline probe signs with a local test-only key, verifies its CSR, confirms CMS signatures and recursive resource seals, detects tampering, rejects escaping/cyclic archives, and exercises encrypted storage, renewal, pairing import and workspace cleanup. It does not contact Apple or install on a real iPhone.
+## Update the pinned patch
 
-See the [English guide](../../README.md) or [中文配置与迁移](../../README.zh-CN.md) for end-user setup. Source export must include new files (`git add -N`) before regenerating the patch with `git diff --binary`.
+1. Make the changes in a prepared source checkout. Keep the root user guides and the prepared source copies in sync. Links to the parent project point through the `SideInstaller` entry in the prepared copies.
+2. Mark added files with `git add -N -- path/to/new/file`. Export the changes under `README.md`, `README.zh-CN.md`, `minis`, and `rootshell` from the pinned baseline using the command below.
+3. Prepare a second directory and run the relevant tests against the applied patch. Test the produced tree so forgotten files and stale patch context show up before CI.
+4. For a release, update `minis/Cargo.toml`, the siboot package version in `minis/Cargo.lock`, `.github/siboot-release.json`, the release notes, and the versioned installer links together.
 
-## Anisette TLS and diagnostics (0.22.1)
+```sh
+git -C "$source_dir" diff --binary 82b808de3a407619be7fbe54b3f313932bb80ade -- \
+  README.md README.zh-CN.md minis rootshell > patches/siboot/retry-local-ipa.patch
+```
 
-The standalone Minis manifest opts into `isideload/bundled-roots`, merging Mozilla public roots with system/private CAs. This fixes HTTP client construction when the Linux filesystem has no CA bundle; native application builds retain platform trust by default. `--check-anisette` probes public client metadata without opening login storage or contacting Apple authentication. It bounds concurrent work and reports each server's full failure. Server HTTP 429 failures fall back; Apple account limits still stop sign-in.
+## Behavior to preserve
 
-The ARM64 release is checked with empty certificate paths and a local TLS fixture that rejects unknown issuers, accepts a configured private CA and reports HTTP failures. Complete signing tests continue under the empty-CA environment.
+- **Input and retries.** Validate the local IPA before device or Apple work. Hold the selected original for the workflow. Give each signing attempt its own private extraction directory and retain the signed bundle while retrying an installation.
+- **Pairing.** Check imports against the target device before replacing `rp_pairing_file.plist`. Resolve that path from the executable. Reopen the tunnel for installation after the Apple login and signing steps.
+- **Login.** Keep the optional vault and signing cache under the state directory lock. Saved sessions are attempted before full password sign-in. For a full Mac sign-in, select an identity provisioned with identical client information. Keep earlier identity files available for their saved sessions. v0.22.4 uses FrizzleM's newer `Mac OS X;26.6` client and matching user agent. [Authentication integration](../../rust-core/vendor/isideload/README.md#current-minis-integration)
+- **Code requests.** Keep the distinction between a request, Apple's refusal, and actual delivery. Show relevant Apple errors without logging codes. For the iCloud Advanced Data Protection fallback, refer to the [user guide](../../README.md#icloud-advanced-data-protection).
+- **Signing and upload.** Sign nested executables, seal resources and symlinks, then check staged files and links on the device before installation. Quick renew uses the cached original with the previous bundle identity.
+- **Logs.** Keep coded operation names and numeric measurements in `siboot-perf-*.jsonl`. Normal failure reports can contain device and protocol context. Filter and review those separately.
 
-## Apple sign-in compatibility (0.22.2)
+## CI and publication
 
-Ports FrizzleM's compatible Catalina client and pool-identity handling, adds the pool to Minis's fallback list, and displays the actual HTTP/authentication failure instead of only `login failed`. Existing encrypted data is preserved. The English/Chinese guides distinguish old executable paths, expired developer sessions and the legacy shared-directory retry failure.
+`checks.yml` runs shared Rust, Minis, translation, and iOS simulator jobs. The ARM64 job builds `siboot` and `offline_check` in the pinned Rust 1.100 Alpine image with static linking. It runs the actual ARM64 executable, checks CLI flags and early invalid-IPA errors, verifies TLS behavior, and tests full CMS and resource signing, links, vault behavior, renewal, and cleanup. The fixture uses a local test key and makes no real Apple Account login or iPhone installation.
 
-## Verification-code reporting (0.22.3)
+The ARM64 job uploads `minis-release-candidate` with `siboot-aarch64`, `install-minis.sh`, `SHA256SUMS`, and `build-info.json`. [Release verification](../../scripts/minis_artifact.py) ties the artifact to the source commit, version, target, and digests. The release workflow publishes the three public assets from that successful main-branch artifact. A release version already published is left in place. [CI workflow](../../.github/workflows/checks.yml) · [Release workflow](../../.github/workflows/release-siboot.yml)
 
-The Minis prompt distinguishes a code request from delivery and renders the legacy shared phone-refusal localization key truthfully. Trusted-device requests classify HTTP status and plist/JSON errors; phone service errors are preserved even on HTTP 200. Chinese warnings, same-account guidance and available phone methods remain visible without automatic resends. Regression checks cover rejected/unknown responses, error codes and the misleading prompt. No real-account delivery is claimed by offline tests.
+Maintained by **Jay-Void-BA**, with the original idea and source by **FrizzleM**. [SideInstaller by FrizzleM](https://github.com/FrizzleM/SideInstaller) · [License](../../LICENSE.md)

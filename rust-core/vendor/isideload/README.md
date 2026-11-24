@@ -2,15 +2,33 @@
 
 Copy of the `isideload/` crate from
 [nab138/isideload](https://github.com/nab138/isideload) @
-`e319d931aa3f9d97fbd132149a3916dcd5c71f09` — the same revision `Cargo.lock`
-pinned for the git dependency in `rust-core/Cargo.toml`, so nothing about the
-auth / App ID / certificate behaviour described there changes. Change 7 swaps
-the signing backend for the one upstream moved to after that revision.
+`e319d931aa3f9d97fbd132149a3916dcd5c71f09`. This is the original revision pinned for the shared Rust core. The local changes below record the authentication, developer portal, extraction, and signing adaptations since that revision.
 
 Vendored so `[patch."https://github.com/nab138/isideload.git"]` can redirect the
 dependency here.
 
+## Current Minis integration
+
+Minis calls the Rust API through `rust-core/src/apple_session.rs`. The sign-in opens a developer session, then isideload obtains the required device registration, App IDs, certificate, and profiles for the signing team. The native installer handles pairing, AFC staging, and iOS installation through idevice. The Minis manifest selects `fs-storage`, `performance`, and `bundled-roots` and disables the library's default install features. [Minis integration](../../../patches/siboot/README.md) · [Device transport](../idevice/README.md)
+
+### Apple sign-in and saved identities
+
+1. `remote_v3` fetches the anisette server's client information and obtains or provisions an identity. The standalone build merges Mozilla CA roots with system trust. `--check-anisette` tests only the public metadata endpoint.
+2. `apple_session::open` can reuse a saved developer session if its lifetime, account, and developer team check succeed. The saved-token path may use an earlier identity. The full password path requires a matching Mac provisioning identity when the client is a current Mac.
+3. In v0.22.4, the built-in Mac client used for older macOS ADI servers is `<MacBookPro18,3> <Mac OS X;26.6;25F84> <com.apple.AuthKit/1 (com.apple.akd/1.0)>` with `AuthKit/1 (Macintosh; OS X 26.6) (com.apple.akd/1.0)`. The GrandSlam Mac fallback uses both values. For a full sign-in, `Slots::fits` compares the complete client information to `provisioned_as` rather than comparing the OS version alone. Older identities remain on disk. If no matching identity works, the provider can safely provision a new one. This addresses the reported `-22410` mismatch after upgrading from an older client. [FrizzleM's compatibility change](https://github.com/FrizzleM/SideInstaller/commit/9e8d7c167ebfd6347086aa661d659c01371468b5) · [iLoader identity report](https://github.com/nab138/iloader/issues/1304)
+4. `AppleAccount` handles Apple's trusted-device, phone, and voice challenges. Request results include HTTP status and Apple service errors. A successful request is only a request acknowledgment. The progress UI does not have a delivery receipt. [Minis verification and Advanced Data Protection steps](../../../README.md#apple-sign-in)
+
+The v0.22.4 compatibility change follows a report of successful sign-in with Advanced Data Protection enabled in iLoader. Test the current Minis build with the affected account before concluding that the account setting is involved. The normal Apple password and verification are still required when Apple asks for them. [Upstream report](https://github.com/nab138/iloader/issues/1203#issuecomment-7080551523)
+
+### Native extraction and signing
+
+The Minis path creates a private extraction directory for each signing attempt. It checks bounded archive reads and link targets, streams file contents to disk, and keeps the workspace alive through upload and installation retries. `apple-codesign-quick` signs nested executable bundles and seals their resources. Minis compares staged file sizes and symlink targets on the device before asking iOS to install. [Signer details](../apple-codesign-quick/README.md)
+
+Run `LOCKED=1 bash scripts/test-rust.sh` in the parent repository to test the vendored crates with the app's feature selections. The `remote_v3` tests exercise matching and migration with local fixtures, and the GrandSlam tests check the fallback request headers. Apple code-request tests cover HTTP errors and errors in successful response bodies. CI also tests the prepared native Minis program. These tests use local fixtures and cover no real Apple Account or live device installation. [Test and release commands](../../../patches/siboot/README.md)
+
 ## Local changes
+
+The following notes record the earlier changes in the order they were introduced. See the integration section above for the current Minis behavior.
 
 **1. `src/sideload/sign.rs` — give each app extension `embedded.mobileprovision`.**
 
@@ -774,15 +792,15 @@ re-vendor from `main` would bring the 503 back.
 Upstream's `README.md` is a symlink to the workspace root, which doesn't exist
 here; this file replaces it, and `readme` in `Cargo.toml` points at it.
 
-## rootshell WASI port (siboot 0.21.0)
+## Historical rootshell WASI port
 
 Maintained by Jay-Void-BA, based on FrizzleM/siboot and this dependency's credited upstream authors. WASI HTTP/WebSocket requests use rootshell-http over the host TLS ABI with certificate validation. RSA/SHA-256 CSR generation uses RustCrypto; native targets retain rcgen. WASI extraction streams files and records link metadata, and avoids unsupported std::env::temp_dir and blocking thread pools. Native targets keep their original transports and scheduling.
 
-The offline release gate runs the pinned original rootshell Worker and checks full CMS signing, links, encrypted storage, HTTP/WebSocket, and software TCP transport. Real Apple Account and iPhone end-to-end installation is not covered by this gate.
+The 0.21.x rootshell gate ran the pinned Worker and checked its signing, file, and network paths. The current pipeline uses the native ARM64 build. [rootshell archive](../../../patches/rootshell/README.md)
 
 ### Minis 0.22.2 sign-in compatibility
 
-Ported the Rust changes from FrizzleM/SideInstaller commit `8c13fceefebe8fec7475555a9ea50a7df0c372d8`: compatible Catalina client information and user agent, the corresponding GrandSlam Mac fallback, and `adi_pb too large` as an incompatible stored identity. Upstream attributes the change to Apple's November 20 refusal of clients whose OS token is `macOS`. Tests retain old modern-Mac identities and pass over pool identities that another server cannot use. The parent installer adds clear HTTP/authentication summaries and checks URL-bag HTTP status before parsing. No real Apple Account was used by this repository's automated tests.
+v0.22.2 ported FrizzleM's Catalina client and handling for `adi_pb too large`. The URL-bag request began reporting HTTP errors before XML parsing. The current build retains the compatible OS spelling and uses the newer client and stricter identity matching described above. [v0.22.2 upstream change](https://github.com/FrizzleM/SideInstaller/commit/8c13fceefebe8fec7475555a9ea50a7df0c372d8)
 
 ### Trusted-device request reporting (siboot 0.22.3)
 

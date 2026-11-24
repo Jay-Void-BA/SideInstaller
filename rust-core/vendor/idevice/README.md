@@ -10,13 +10,19 @@ It is vendored so `[patch."https://github.com/jkcoxson/idevice.git"]` can
 redirect both our direct dependency *and* `idevice-ffi`'s to this copy, which
 keeps cargo unifying a single `idevice` instance.
 
+## How Minis uses this crate
+
+Minis uses the Rust API directly. RPPairing verifies a record or pairs with the local device. The installer opens the CDTunnel through LocalDevVPN, reaches Remote Service Discovery over the userspace TCP stack, and uses AFC and the installation proxy for transfer and installation. A trust record is kept beside the executable after device verification. [Pairing and setup](../../../README.md#pair-with-the-device)
+
+The prepared Minis manifest enables `remote_pairing`, `tunnel_tcp_stack`, `rsd`, `xpc`, `afc`, `installation_proxy`, `house_arrest`, `amfi`, and the `aws-lc` TLS provider. The tunnel stack uses the local jktcp crate. The iOS application also consumes the same crate through `idevice-ffi`. [jktcp](../jktcp/README.md) · [C interface](../idevice-ffi/README.md)
+
+To test integration changes, run `LOCKED=1 bash scripts/test-rust.sh` from the SideInstaller root, followed by the prepared Minis tests for pairing, tunnel, or install changes. During an investigation, use the Minis failure stage and negotiated service errors to distinguish pairing, connection, and upload problems. Review verbose output before sharing it. [Minis developer guide](../../../patches/siboot/README.md)
+
 ## Local changes
 
-Four files differ from upstream: `src/remote_pairing/opack.rs`,
-`src/services/afc/packet.rs`, `src/remote_pairing/mod.rs` and
-`src/remote_pairing/tls_psk.rs`, plus this README. To list them again, diff
-against cargo's checkout of the pinned revision:
-`diff -rq ~/.cargo/git/checkouts/idevice-*/7bd551c/idevice rust-core/vendor/idevice`.
+The original protocol changes below cover `src/remote_pairing/opack.rs`,
+`src/services/afc/packet.rs`, `src/remote_pairing/mod.rs`, and
+`src/remote_pairing/tls_psk.rs`. Compare the vendored crate with the pinned revision before updating it. The manifest and historical WASI transport changes also need review.
 
 **1. `src/remote_pairing/opack.rs` — OPACK back-reference decoding.**
 
@@ -114,8 +120,8 @@ logging is on, but the switch exists for exactly the runs where it is.
 A re-vendor moves the pin in `rust-core/Cargo.toml` and `vendor/idevice-ffi` to
 the same revision.
 
-## rootshell WASI port (siboot 0.21.0)
+## Historical rootshell WASI port
 
 Maintained by Jay-Void-BA, based on FrizzleM/siboot and this dependency's credited upstream authors. WASI Preview 1 uses Tokio timers and rootshell file adapters; browser WASM keeps its JS timers. The vendored jktcp likewise uses Tokio spawning/timers on WASI, enabling a current-thread executor to drive the software TCP tunnel. Existing native and browser APIs remain supported.
 
-The offline release gate runs the pinned original rootshell Worker and checks full CMS signing, links, encrypted storage, HTTP/WebSocket, and software TCP transport. Real Apple Account and iPhone end-to-end installation is not covered by this gate.
+The 0.21.x rootshell checks exercised the WASI transport in the pinned Worker. The current Minis job builds and tests the native ARM64 transport and installer. [rootshell archive](../../../patches/rootshell/README.md)

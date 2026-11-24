@@ -1,3 +1,7 @@
+## siboot 0.22.4
+
+Use FrizzleM's newer `Mac OS X;26.6` client information with its matching user agent. Full sign-ins select an anisette identity provisioned with the same client information. Earlier identities remain available to saved sessions. Expand the English and Simplified Chinese guides with Advanced Data Protection troubleshooting, verified installation, migration, and maintenance instructions. See the [release notes](release-notes/siboot-v0.22.4.md).
+
 ## siboot 0.22.3
 
 Stop claiming verification-code delivery after a rejected phone request. Check trusted-device plist/JSON errors as well as HTTP status, preserve phone service errors on HTTP 200, add Chinese verification guidance and retain warnings when returning from Other ways. See [release notes](release-notes/siboot-v0.22.3.md).

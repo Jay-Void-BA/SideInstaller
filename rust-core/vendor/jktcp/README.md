@@ -9,6 +9,12 @@ The stack handles the TCP handshake, ACK tracking, and retransmission
 so that the rest of your code can work with ordinary `AsyncRead` / `AsyncWrite`
 streams.
 
+## Minis integration
+
+This is the vendored `jktcp` 0.1.6 crate by jkcoxson, licensed under MIT. idevice's `tunnel_tcp_stack` feature uses this copy for traffic inside the device's CDTunnel. The adapter provides streams for Remote Service Discovery, AFC, and the installation proxy. Open Minis provides the Linux sockets used to reach LocalDevVPN. [Upstream](https://github.com/jkcoxson/jktcp) · [Device integration](../idevice/README.md)
+
+For tunnel performance, compare the Minis upload and verification timings from `--perf-log`. The application records sizes and times there. A packet capture, when enabled in the developer build, contains transport data and should be kept private. Native ARM64 CLI and signing checks run as part of the Minis release workflow. [Performance guide](../../../README.md#slow-signing-or-installation) · [Developer checks](../../../patches/siboot/README.md)
+
 ## Features
 
 - **3-way handshake** with SYN retransmission on timeout
@@ -138,6 +144,6 @@ and can be opened directly in Wireshark.
 After the 5th retry the connection is marked `Error(TimedOut)`.  The next read
 or write on the stream will return that error.
 
-## Local WASI adaptation
+## Historical WASI adaptation
 
-Jay-Void-BA / FrizzleM siboot integration: WASI Preview 1 uses Tokio spawn and timers on its current-thread runtime. Browser WASM keeps wasm-bindgen/wasmtimer. Native and browser behavior is preserved. Tests in scripts/check-rootshell-runtime.sh drive this software TCP stack inside the actual rootshell Worker.
+The archived siboot WASI Preview 1 port uses Tokio spawning and timers on the rootshell current-thread runtime. The browser WASM path uses wasm-bindgen and wasmtimer. The archived worker check records how the software TCP stack was exercised on that host. Current Minis uses the Linux build. [rootshell archive](../../../patches/rootshell/README.md) · [Historical check](../../../scripts/check-rootshell-runtime.sh)

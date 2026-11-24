@@ -3,7 +3,7 @@ use plist_macro::plist_to_xml_string;
 use plist_macro::pretty_print_dictionary;
 use reqwest::{
     Certificate, ClientBuilder, StatusCode,
-    header::{HeaderMap, HeaderValue},
+    header::{HeaderMap, HeaderValue, USER_AGENT},
 };
 use rootcause::prelude::*;
 use std::time::Duration;
@@ -304,6 +304,10 @@ impl GrandSlam {
             "X-Mme-Client-Info",
             HeaderValue::from_static(MAC_CLIENT_INFO),
         );
+        headers.insert(
+            USER_AGENT,
+            HeaderValue::from_static(crate::anisette::remote_v3::CURRENT_MAC_USER_AGENT),
+        );
         Ok(headers)
     }
 
@@ -357,7 +361,7 @@ impl GrandSlamErrorChecker for Dictionary {
 #[cfg(test)]
 mod client_info_tests {
     use super::{GrandSlam, MAC_CLIENT_INFO};
-    use crate::anisette::AnisetteClientInfo;
+    use crate::anisette::{AnisetteClientInfo, remote_v3::CURRENT_MAC_USER_AGENT};
     use plist::Dictionary;
 
     const WINDOWS: &str =
@@ -410,13 +414,17 @@ mod client_info_tests {
         assert_eq!(said(grandslam.patch(service).unwrap()), WINDOWS);
 
         let auth = "https://gsa.apple.com/auth";
-        let page = |json, as_mac| {
-            said(grandslam.auth(reqwest::Method::GET, auth, json, as_mac).unwrap())
-        };
-        assert_eq!(page(true, false), WINDOWS);
-        assert_eq!(page(false, false), WINDOWS);
-        assert_eq!(page(true, true), MAC_CLIENT_INFO);
-        assert_eq!(page(false, true), MAC_CLIENT_INFO);
+        for json in [true, false] {
+            for (as_mac, expected_client, expected_agent) in [
+                (false, WINDOWS, grandslam.client_info.user_agent.as_str()),
+                (true, MAC_CLIENT_INFO, CURRENT_MAC_USER_AGENT),
+            ] {
+                let request = grandslam.auth(reqwest::Method::GET, auth, json, as_mac)
+                    .unwrap().build().unwrap();
+                assert_eq!(request.headers()["X-Mme-Client-Info"], expected_client);
+                assert_eq!(request.headers()[reqwest::header::USER_AGENT], expected_agent);
+            }
+        }
     }
 
     #[test]
