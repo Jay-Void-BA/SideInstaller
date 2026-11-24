@@ -4,7 +4,7 @@
 
 [English](README.md) · **简体中文**
 
-[下载 v0.22.4](https://github.com/Jay-Void-BA/SideInstaller/releases/tag/siboot-v0.22.4) · [更新记录](CHANGELOG.md) · [持续集成](https://github.com/Jay-Void-BA/SideInstaller/actions/workflows/checks.yml)
+[最新发布](https://github.com/Jay-Void-BA/SideInstaller/releases/latest) · [更新记录](CHANGELOG.md) · [持续集成](https://github.com/Jay-Void-BA/SideInstaller/actions/workflows/checks.yml)
 
 siboot 从本地 IPA 开始，完成设备配对、Apple 账户验证、开发者签名和安装。可以在 Minis 页面从“文件”导入 IPA、选择已有配对记录，或快速续签上次安装的应用。终端也提供完整的签名安装流程。
 
@@ -42,11 +42,11 @@ apk add --no-cache curl ca-certificates
 
 确认输出为 `aarch64` 后使用 `siboot-aarch64`。普通 x86 iSH 和旧 rootshell 的 WASM 环境无法运行这个文件。
 
-下载并运行本版本的安装脚本。
+下载并运行最新公开版本的安装脚本。
 
 ```sh
 curl -fL --retry 3 -o install-minis.sh.part \
-  https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.22.4/install-minis.sh &&
+  https://github.com/Jay-Void-BA/SideInstaller/releases/latest/download/install-minis.sh &&
   mv install-minis.sh.part install-minis.sh &&
   sh install-minis.sh
 ```
@@ -61,7 +61,7 @@ sh install-minis.sh --verify &&
   "$HOME/.siboot/bin/siboot" --web
 ```
 
-版本输出应包含 `siboot 0.22.4`、`Jay-Void-BA` 和 `FrizzleM`。安装脚本固定对应一个版本。升级时下载新版脚本，并使用上面的安装路径启动。自行下载的 `./siboot-aarch64` 是另一份程序。
+版本输出应与下载的发布版本一致，并显示 `Jay-Void-BA` 和 `FrizzleM`。安装脚本固定对应一个版本。升级时下载新版脚本，并使用上面的安装路径启动。自行下载的 `./siboot-aarch64` 是另一份程序。
 
 <details>
 <summary>手动下载和校验可执行文件</summary>
@@ -74,7 +74,7 @@ sh install-minis.sh --verify ./siboot-aarch64 &&
   ./siboot-aarch64 --version
 ```
 
-若同时下载了 `SHA256SUMS`，可在该目录运行 `sha256sum -c SHA256SUMS`，一起核对脚本和二进制文件。使用手动下载的程序时，配对和性能日志以它所在的目录为准。[发布文件](https://github.com/Jay-Void-BA/SideInstaller/releases/tag/siboot-v0.22.4)
+若同时下载了 `SHA256SUMS`，可在该目录运行 `sha256sum -c SHA256SUMS`，一起核对脚本和二进制文件。使用手动下载的程序时，配对和性能日志以它所在的目录为准。[发布文件](https://github.com/Jay-Void-BA/SideInstaller/releases/latest)
 
 </details>
 
@@ -115,7 +115,7 @@ IPA 已在 Minis 文件系统中时，传入实际路径。有空格的路径用
 
 ### iCloud 高级数据保护
 
-**请先保持 iCloud 高级数据保护开启，并使用 v0.22.4 登录。** 本版移植 FrizzleM 的较新 Mac 客户端标识，完整登录会选择与该标识匹配的 anisette 身份。已有会话仍可先尝试复用。需要建立新身份时，Apple 可能再次发送验证请求。升级时保留保险库、配对记录和 IPA 缓存。iLoader 有用户报告，在启用高级数据保护的账户上采用同类客户端修复后成功登录。该记录来自 iLoader，Minis 版仍需用真实账户验证。[FrizzleM 的修复](https://github.com/FrizzleM/SideInstaller/commit/9e8d7c167ebfd6347086aa661d659c01371468b5) · [iLoader 验证记录](https://github.com/nab138/iloader/issues/1203#issuecomment-7080551523)
+**请先保持 iCloud 高级数据保护开启，并使用 v0.22.4 或更新版本登录。** 0.22.4 移植 FrizzleM 的较新 Mac 客户端标识，完整登录会选择与该标识匹配的 anisette 身份。已有会话仍可先尝试复用。需要建立新身份时，Apple 可能再次发送验证请求。升级时保留保险库、配对记录和 IPA 缓存。iLoader 有用户报告，在启用高级数据保护的账户上采用同类客户端修复后成功登录。该记录来自 iLoader，Minis 版仍需用真实账户验证。[FrizzleM 的修复](https://github.com/FrizzleM/SideInstaller/commit/9e8d7c167ebfd6347086aa661d659c01371468b5) · [iLoader 验证记录](https://github.com/nab138/iloader/issues/1203#issuecomment-7080551523)
 
 如果该账户仍无法通过验证，并且你愿意用标准数据保护排查，可以**暂时关闭 iCloud 高级数据保护**。在已登录同一 Apple 账户的受信任 iPhone 或 iPad 上，进入 **设置 → [你的姓名] → iCloud → 高级数据保护 → 关闭高级数据保护**，再返回 Minis 发起一次新登录。请保留 Apple 双重认证。关闭高级数据保护会让整个账户恢复标准数据保护，iCloud 云备份、照片、备忘录等将失去这项额外的端对端加密保护。测试后可从同一页面重新打开。以后登录时仍可能需要验证。[Apple 设置说明](https://support.apple.com/zh-cn/108756) · [iCloud 数据安全概览](https://support.apple.com/zh-cn/102651)
 

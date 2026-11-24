@@ -4,7 +4,7 @@ Sign, install, and renew local iPhone and iPad apps from Open Minis.
 
 **English** · [简体中文](README.zh-CN.md)
 
-[Download v0.22.4](https://github.com/Jay-Void-BA/SideInstaller/releases/tag/siboot-v0.22.4) · [Changelog](CHANGELOG.md) · [CI](https://github.com/Jay-Void-BA/SideInstaller/actions/workflows/checks.yml)
+[Latest release](https://github.com/Jay-Void-BA/SideInstaller/releases/latest) · [Changelog](CHANGELOG.md) · [CI](https://github.com/Jay-Void-BA/SideInstaller/actions/workflows/checks.yml)
 
 siboot takes a local IPA, pairs with the device, signs with your Apple developer team, and installs the result. The Minis page can import from Files, verify an existing pairing record, and renew the last installed app. The terminal offers the same signing and installation workflow.
 
@@ -42,11 +42,11 @@ apk add --no-cache curl ca-certificates
 
 Use `siboot-aarch64` when the terminal reports `aarch64`. Standard x86 iSH and the old rootshell WASM host cannot run this file.
 
-Download the installer for this release and run it.
+Download and run the installer for the latest published release.
 
 ```sh
 curl -fL --retry 3 -o install-minis.sh.part \
-  https://github.com/Jay-Void-BA/SideInstaller/releases/download/siboot-v0.22.4/install-minis.sh &&
+  https://github.com/Jay-Void-BA/SideInstaller/releases/latest/download/install-minis.sh &&
   mv install-minis.sh.part install-minis.sh &&
   sh install-minis.sh
 ```
@@ -61,7 +61,7 @@ sh install-minis.sh --verify &&
   "$HOME/.siboot/bin/siboot" --web
 ```
 
-The version output should include `siboot 0.22.4`, `Jay-Void-BA`, and `FrizzleM`. Each installer script is pinned to one release. Download the new script when upgrading and use the installed path above. A manually downloaded `./siboot-aarch64` is a separate copy.
+The version output should match the downloaded release and include `Jay-Void-BA` and `FrizzleM`. Each installer script is pinned to one release. Download the new script when upgrading and use the installed path above. A manually downloaded `./siboot-aarch64` is a separate copy.
 
 <details>
 <summary>Download and verify the executable manually</summary>
@@ -74,7 +74,7 @@ sh install-minis.sh --verify ./siboot-aarch64 &&
   ./siboot-aarch64 --version
 ```
 
-If you also downloaded `SHA256SUMS`, run `sha256sum -c SHA256SUMS` from that directory to check both files. When running a manual copy, use that executable's directory for its pairing file and performance logs. [Release files](https://github.com/Jay-Void-BA/SideInstaller/releases/tag/siboot-v0.22.4)
+If you also downloaded `SHA256SUMS`, run `sha256sum -c SHA256SUMS` from that directory to check both files. When running a manual copy, use that executable's directory for its pairing file and performance logs. [Release files](https://github.com/Jay-Void-BA/SideInstaller/releases/latest)
 
 </details>
 
@@ -115,7 +115,7 @@ Choose **Retry** after correcting a failed step. A failed signing attempt uses a
 
 ### iCloud Advanced Data Protection
 
-**Try v0.22.4 with Advanced Data Protection still on.** This release adopts FrizzleM's updated Mac client information and matches the anisette identity to that client on a full sign-in. A usable saved developer session can still be tried first. When a full login needs a new identity, Apple may ask for a code again. Keep your vault, pairing file, and cached IPA when upgrading. An iLoader user reported successful sign-in on an Advanced Data Protection account with the same type of client update. That report is from iLoader, and real-account verification on Minis is still pending. [FrizzleM's change](https://github.com/FrizzleM/SideInstaller/commit/9e8d7c167ebfd6347086aa661d659c01371468b5) · [iLoader report](https://github.com/nab138/iloader/issues/1203#issuecomment-7080551523)
+**Try v0.22.4 or later with Advanced Data Protection still on.** Version 0.22.4 adopts FrizzleM's updated Mac client information and matches the anisette identity to that client on a full sign-in. A usable saved developer session can still be tried first. When a full login needs a new identity, Apple may ask for a code again. Keep your vault, pairing file, and cached IPA when upgrading. An iLoader user reported successful sign-in on an Advanced Data Protection account with the same type of client update. That report is from iLoader, and real-account verification on Minis is still pending. [FrizzleM's change](https://github.com/FrizzleM/SideInstaller/commit/9e8d7c167ebfd6347086aa661d659c01371468b5) · [iLoader report](https://github.com/nab138/iloader/issues/1203#issuecomment-7080551523)
 
 If verification still fails on the affected account and you choose to test with standard data protection, **temporarily turn off iCloud Advanced Data Protection**. On a trusted iPhone or iPad signed in to that Apple Account, open **Settings → [your name] → iCloud → Advanced Data Protection → Turn Off Advanced Data Protection**. Return to Minis and start a fresh sign-in. Keep Apple two-factor authentication enabled. This setting applies to the account and returns categories such as iCloud Backup, Photos, and Notes to standard data protection. You can turn Advanced Data Protection back on from the same screen after testing. Future sign-ins may need verification again. [Apple's settings instructions](https://support.apple.com/en-us/108756) · [iCloud data security overview](https://support.apple.com/en-us/102651)
 

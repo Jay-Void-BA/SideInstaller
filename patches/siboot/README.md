@@ -44,7 +44,7 @@ Run `python3 scripts/check_translations.py --base HEAD` for changes to iOS strin
 1. Make the changes in a prepared source checkout. Keep the root user guides and the prepared source copies in sync. Links to the parent project point through the `SideInstaller` entry in the prepared copies.
 2. Mark added files with `git add -N -- path/to/new/file`. Export the changes under `README.md`, `README.zh-CN.md`, `minis`, and `rootshell` from the pinned baseline using the command below.
 3. Prepare a second directory and run the relevant tests against the applied patch. Test the produced tree so forgotten files and stale patch context show up before CI.
-4. For a release, update `minis/Cargo.toml`, the siboot package version in `minis/Cargo.lock`, `.github/siboot-release.json`, the release notes, and the versioned installer links together.
+4. For a release, update `minis/Cargo.toml`, the siboot package version in `minis/Cargo.lock`, `.github/siboot-release.json`, the release notes, and any version-specific guidance together. The user guides link to the latest published installer. The generated script still pins an exact version and digest.
 
 ```sh
 git -C "$source_dir" diff --binary 82b808de3a407619be7fbe54b3f313932bb80ade -- \
