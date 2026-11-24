@@ -41,6 +41,8 @@ Run `python3 scripts/check_translations.py --base HEAD` for changes to iOS strin
 
 ## Update the pinned patch
 
+Update the root English and Simplified Chinese READMEs with each change. Update the affected component README as well. [Repository instructions](../../AGENTS.md)
+
 1. Make the changes in a prepared source checkout. Keep the root user guides and the prepared source copies in sync. Links to the parent project point through the `SideInstaller` entry in the prepared copies.
 2. Mark added files with `git add -N -- path/to/new/file`. Export the changes under `README.md`, `README.zh-CN.md`, `minis`, and `rootshell` from the pinned baseline using the command below.
 3. Prepare a second directory and run the relevant tests against the applied patch. Test the produced tree so forgotten files and stale patch context show up before CI.

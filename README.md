@@ -218,6 +218,8 @@ The log contains timing and count fields and caps detailed records at 16 MiB. A 
 
 ## Development
 
+Update the English and Simplified Chinese READMEs in the same commit as each change. Update any affected component README and keep the guides in the prepared source in sync. For internal changes, record the relevant development or verification details. [Repository instructions](AGENTS.md)
+
 From the SideInstaller checkout, prepare the pinned siboot source in a new directory and link this checkout's Rust core.
 
 ```sh
