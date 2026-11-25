@@ -1,8 +1,8 @@
 diff --git a/README.md b/README.md
-index 683de33..4cd334c 100644
+index 683de33..7591253 100644
 --- a/README.md
 +++ b/README.md
-@@ -1,3 +1,240 @@
+@@ -1,3 +1,243 @@
 -To use it, follow the following instructions: https://sideinstaller.net/install.html
 +# siboot
  
@@ -103,7 +103,7 @@ index 683de33..4cd334c 100644
 +
 +At the **Pairing** step, reuse the saved record, import an existing RPPairing file, or create a new one.
 +
-+- **Pair in Minis.** Choose **Start pairing**, leave the silence player open, and go to **Settings → Privacy & Security → Developer Mode**. Scroll down and tap **Pair with siboot**. Enter the device passcode and the six-digit *pairing* code displayed by Minis. Return to Minis when Settings confirms pairing. If Minis notifications are off, read the pairing code in Minis.
++- **Pair in Minis.** Choose **Start pairing** and stay in Minis until it says to switch to Settings. Allow Minis notifications if iOS asks. Silent audio keeps Minis running while you open **Settings → Privacy & Security → Developer Mode**. Scroll down and tap **Pair with siboot**. Enter your device passcode when asked. The six-digit *pairing* code is shown in Minis and may appear as a notification. Return to Minis after Settings confirms pairing.
 +- **Import a record.** In the page, choose a file from **Files** or browse the Minis Linux filesystem. From the terminal, run the command below. Use an RPPairing record valid for this device. After the device accepts it, siboot saves a private copy as `rp_pairing_file.plist` beside the actual executable. A failed import preserves the previously saved record.
 +
 +```sh
@@ -111,6 +111,8 @@ index 683de33..4cd334c 100644
 +```
 +
 +`connect` stops after pairing and tunnel verification. Run siboot again with your IPA when you are ready to install. The pairing code belongs in iOS Settings. Apple sign-in may ask for a separate verification code later.
++
++**Six-digit field open and no banner?** Keep the field and the current siboot run open. Switch back to Minis and read **Pairing code** on the page or live terminal. If the large audio panel covers it, dismiss that panel and leave the small player running. Switch back to the same field in Settings and enter the code. v0.22.5 prepares notification permission in the foreground and keeps the active code visible through notification errors. You can enable banners under **Settings → Notifications → Open Minis** for future attempts.
 +
 +### Sign and open the app
 +
@@ -179,6 +181,7 @@ index 683de33..4cd334c 100644
 +| `segmentation fault` at startup, even for `--version` | Run `uname -m` and `sh install-minis.sh --verify` for the actual file. Earlier startup failures came from incomplete downloads. Resume with the current installer, or use `--restart` if the partial file is corrupt. |
 +| Download lock remains after closing Minis | Confirm every installer has stopped, then remove the empty lock directory with `rmdir "$HOME/.siboot/bin/.siboot-download.lock"`. Rerun the installer. |
 +| Device handshake times out or Settings shows no pairing entry | Reconnect LocalDevVPN, enable Wi-Fi and grant Minis local network access. Run `check`. Open Minis 1.16+ can create a record, or use `connect --pairing-file PATH` with a valid one. |
++| The pairing code field is open but no banner arrives | Switch back to Minis to read the active code, keeping the Settings field and small player running. See [pairing instructions](#pair-with-the-device). |
 +| Ani DNS, TLS, timeout, or HTTP error | Run the metadata check below. Look at the failing host. A custom proxy's private CA must be trusted inside Minis. |
 +| `gsa.apple.com` returns HTTP 503 | Check the installed version and the URL in the error. v0.22.4 uses the `Mac OS X` spelling in the updated Mac client information. Apple can also return a temporary service error. |
 +| Trusted numbers or code request returns 403, or Apple reports `-22410` or `-23782` | Upgrade and start a new sign-in. The current build matches the provisioning identity to the Mac client information. If no code arrives, follow [the verification steps](#verification-codes) and [the Advanced Data Protection instructions](#icloud-advanced-data-protection). |
@@ -247,10 +250,10 @@ index 683de33..4cd334c 100644
 +The SideInstaller License covers inherited SideInstaller code. The vendored libraries retain their respective licenses and attribution. [License terms](SideInstaller/LICENSE.md)
 diff --git a/README.zh-CN.md b/README.zh-CN.md
 new file mode 100644
-index 0000000..7ddca3e
+index 0000000..95e9d54
 --- /dev/null
 +++ b/README.zh-CN.md
-@@ -0,0 +1,240 @@
+@@ -0,0 +1,243 @@
 +# siboot
 +
 +在 Open Minis 中为 iPhone 和 iPad 签名、安装和续签本地 IPA。
@@ -349,7 +352,7 @@ index 0000000..7ddca3e
 +
 +在**配对**步骤，选择复用已保存的记录、导入 RPPairing 文件，或创建新配对。
 +
-+- **在 Minis 内配对。** 点**开始配对**，保持静音播放器打开。前往 **设置 → 隐私与安全性 → 开发者模式**，滚动到底部并点 **Pair with siboot**。输入设备锁屏密码和 Minis 显示的六位*配对码*。设置确认配对后返回 Minis。如果 Minis 通知已关闭，回到 Minis 查看配对码。
++- **在 Minis 内配对。** 点**开始配对**，留在 Minis 等待提示可以切换到设置。如果 iOS 询问，允许 Minis 通知。保持静音播放，前往 **设置 → 隐私与安全性 → 开发者模式**，滚动到底部点 **Pair with siboot**。按提示输入设备锁屏密码。六位*配对码*会在 Minis 内显示，也可能通过通知送达。设置确认配对后返回 Minis。
 +- **导入已有配对。** 页面支持从“文件”选取，也可浏览 Minis 内的 Linux 文件。终端可使用下面的命令。请选择适用于这台设备的 RPPairing 记录。设备验证通过后，siboot 将副本保存为实际程序同目录的 `rp_pairing_file.plist`。导入失败会保留之前有效的记录。
 +
 +```sh
@@ -357,6 +360,8 @@ index 0000000..7ddca3e
 +```
 +
 +`connect` 在配对和隧道验证完成后停止。准备好 IPA 后，再运行 siboot 进行安装。配对码填入 iOS 设置，稍后的 Apple 账户验证码填入 siboot 的登录界面。
++
++**已经显示六位输入框，却没收到横幅？** 保留输入框和当前 siboot 流程，切回 Minis，在页面或实时终端查看**配对码**。如果大音频面板挡住页面，收起大面板并让小播放器继续播放。再切回设置中原来的输入框填入配对码。0.22.5 起，首次通知授权会在 Minis 前台处理，通知失败时仍会显示当前配对码。下次配对前，也可以在 **设置 → 通知 → Open Minis** 打开横幅。
 +
 +### 签名并打开应用
 +
@@ -425,6 +430,7 @@ index 0000000..7ddca3e
 +| 启动立即报 `segmentation fault`，连 `--version` 也失败 | 确认 `uname -m` 输出为 `aarch64`，用 `sh install-minis.sh --verify` 校验实际运行的文件。以往的此类报告涉及下载中断。用新版脚本续传，分片损坏时用 `--restart`。 |
 +| 关闭 Minis 后下载锁残留 | 确认所有安装脚本都已停止，用 `rmdir "$HOME/.siboot/bin/.siboot-download.lock"` 移除空的锁目录，再运行脚本。 |
 +| 设备握手超时，或设置里没有配对入口 | 重连 LocalDevVPN，打开 Wi-Fi，允许 Minis 本地网络访问。运行 `check`。在 Open Minis 1.16+ 创建配对，或用 `connect --pairing-file PATH` 导入有效记录。 |
++| 六位配对码输入框已出现，但没有通知 | 保留当前输入框，切回 Minis 查看配对码，保持小播放器运行后再切回设置。见[配对步骤](#配对设备)。 |
 +| ani 报 DNS、TLS、超时或 HTTP 错误 | 运行下方的客户端信息检测，看报错来自哪个主机。自定义代理的私有 CA 也需要在 Minis 中受信任。 |
 +| `gsa.apple.com` 返回 HTTP 503 | 核对实际版本和错误里的 URL。v0.22.4 的较新 Mac 客户端仍使用兼容的 `Mac OS X` 字样。Apple 服务本身也可能临时出错。 |
 +| 受信任号码或发码请求报 403，或 Apple 报 `-22410`、`-23782` | 升级后重新登录。新版会匹配客户端与配置身份。仍收不到验证码时，依次查看[验证步骤](#收不到验证码)和[高级数据保护说明](#icloud-高级数据保护)。 |
@@ -492,7 +498,7 @@ index 0000000..7ddca3e
 +
 +继承的 SideInstaller 代码适用 SideInstaller 许可证，随仓库提供的依赖保留各自的许可证和署名。[许可证条款](SideInstaller/LICENSE.md)
 diff --git a/minis/Cargo.lock b/minis/Cargo.lock
-index 3254ab0..bb5cfbb 100644
+index 3254ab0..c4cd1f3 100644
 --- a/minis/Cargo.lock
 +++ b/minis/Cargo.lock
 @@ -76,10 +76,12 @@ dependencies = [
@@ -582,7 +588,7 @@ index 3254ab0..bb5cfbb 100644
  [[package]]
  name = "siboot"
 -version = "0.18.1"
-+version = "0.22.4"
++version = "0.22.5"
  dependencies = [
 + "apple-codesign-quick",
   "base64 0.22.1",
@@ -621,14 +627,14 @@ index 3254ab0..bb5cfbb 100644
  
  [[package]]
 diff --git a/minis/Cargo.toml b/minis/Cargo.toml
-index 38ec01e..e214164 100644
+index 38ec01e..54d2b31 100644
 --- a/minis/Cargo.toml
 +++ b/minis/Cargo.toml
 @@ -1,8 +1,8 @@
  [package]
  name = "siboot"
 -version = "0.18.1"
-+version = "0.22.4"
++version = "0.22.5"
  edition = "2021"
 -description = "PC-free bootstrap that pairs and installs SideInstaller onto the iPhone it runs on, from Open Minis's Linux shell"
 +description = "Local IPA signing and installation in Minis by Jay-Void-BA, based on FrizzleM/siboot"
@@ -708,10 +714,10 @@ index 38ec01e..e214164 100644
 +codegen-units = 1
  strip = true
 diff --git a/minis/README.md b/minis/README.md
-index 163b7d0..fb83689 100644
+index 163b7d0..27a8065 100644
 --- a/minis/README.md
 +++ b/minis/README.md
-@@ -1,388 +1,41 @@
+@@ -1,388 +1,43 @@
  # siboot for Open Minis
  
 -Installs SideInstaller onto the iPhone it runs on, signed with your own Apple
@@ -730,7 +736,7 @@ index 163b7d0..fb83689 100644
 +| --- | --- |
 +| Install from Files | Run the installed `siboot --web` in Minis. Choose **Install a local IPA** and select a downloaded file. |
 +| Install from the Linux filesystem | Run `siboot --terminal --ipa PATH` with the actual Minis path. |
-+| Pair or import a record | Pair in Minis 1.16 or later, or use `siboot connect --pairing-file PATH` to verify a record. The saved copy is beside the executable. |
++| Pair or import a record | Start pairing in Minis 1.16 or later and wait for the ready message before switching to Settings. If the code banner is missing, keep the Settings field open and read the code in Minis. Use `siboot connect --pairing-file PATH` to verify an existing record. The saved copy is beside the executable. |
 +| Renew | Run `siboot renew` or select **Quick renew** on the page when the cached original is readable. Use the previous developer team. |
 +| Check connectivity | Run `siboot check` for the device and Apple reachability, or `siboot --check-anisette` for anisette metadata. |
 +| Compare performance | Run the same installation with `--perf-log`. The log goes beside the executable. Start with `--jobs 1`. |
@@ -780,10 +786,10 @@ index 163b7d0..fb83689 100644
 -SHA-256 the script carries, keeps it at `~/.siboot/bin/siboot` (and
 -`/usr/local/bin/siboot`), and runs it. After that, `siboot` on its own runs it
 -again without downloading.
-+## Build and validate
++New pairing prepares any first notification prompt in the foreground, then confirms silent playback before instructing the user to switch apps. The code stays on the page and live terminal during the exchange. Pairing continues while Minis schedules the optional notification. [Pairing guide](../README.md#pair-with-the-device) · [中文](../README.zh-CN.md#配对设备)
  
 -## The screen
-+Run the parent repository's `scripts/prepare-minis.sh` from the SideInstaller root. It applies the current patch and makes the `SideInstaller` entry point to the matching shared code. Build the Minis crate with its own `Cargo.lock`. The prepared root's [developer guide](../SideInstaller/patches/siboot/README.md) has commands for local tests, patch updates, and release verification.
++## Build and validate
  
 -With `--terminal`, siboot keeps a small live area under what it has printed:
 -the steps of the run, the running one with a spinner, what it's doing and for
@@ -791,13 +797,13 @@ index 163b7d0..fb83689 100644
 -finished step stays as one line with what came of it, and a warning stays where
 -it happened, so scrolling back reads as a log of the run. It ends in a box: what
 -to do next, or why it stopped.
-+To check the same paths exercised in CI, run the Minis Rust tests and Clippy, the local TLS fixture, and the offline signing probe. The offline probe tests CMS signatures, a large resource directory, signed dylibs, symlinks, the vault, renewal, and private workspace cleanup. The ARM64 release check runs the built `siboot` and the probe as native processes on the ARM runner. Test fixture credentials and certificates are local. A real-device sign-in and install exercise the remaining network and platform behavior.
++Run the parent repository's `scripts/prepare-minis.sh` from the SideInstaller root. It applies the current patch and makes the `SideInstaller` entry point to the matching shared code. Build the Minis crate with its own `Cargo.lock`. The prepared root's [developer guide](../SideInstaller/patches/siboot/README.md) has commands for local tests, patch updates, and release verification.
  
 -Under all of it, dim, is **A project by Frizzle**: from the first screen, under
 -every step and question, and still the last line once siboot exits. On a screen
 -too short for it and a blank line above it, it makes way for the run's own
 -lines. Plain output has it after the version.
-+The original `bin/` and `install.sh` remain in the pinned source as historical files. Get supported binaries from the [current releases](https://github.com/Jay-Void-BA/SideInstaller/releases). The [rootshell directory](../rootshell/README.md) is an archive.
++To check the same paths exercised in CI, run the Minis Rust tests and Clippy, the local TLS fixture, and the offline signing probe. The offline probe tests CMS signatures, a large resource directory, signed dylibs, symlinks, the vault, renewal, and private workspace cleanup. The ARM64 release check runs the built `siboot` and the probe as native processes on the ARM runner. Test fixture credentials and certificates are local. A real-device sign-in and install exercise the remaining network and platform behavior.
  
 -Questions are asked in place, and read keys as they're typed: the email in a
 -field, the password as dots, the transfer and verification codes in boxes that
@@ -807,7 +813,8 @@ index 163b7d0..fb83689 100644
 -Before pairing, what to do in Settings is printed, and **Start pairing?** is a
 -yes or no; the pairing code then shows in large digits, three rows tall.
 -Esc steps back or stops; Ctrl-C stops.
--
++The original `bin/` and `install.sh` remain in the pinned source as historical files. Get supported binaries from the [current releases](https://github.com/Jay-Void-BA/SideInstaller/releases). The [rootshell directory](../rootshell/README.md) is an archive.
+ 
 -Every line is cut or wrapped to the terminal's width (an iPhone upright gives
 -about 45 columns), and the live area kept shorter than the screen, so it redraws
 -in place. With `--plain` or `--verbose`, `TERM=dumb`, `SIBOOT_PLAIN` set, or
@@ -1369,7 +1376,7 @@ index 0000000..2337ac0
 +    println!("PRIVATE_WORKSPACE_CLEANUP_OK");
 +}
 diff --git a/minis/examples/screens.rs b/minis/examples/screens.rs
-index 160bcfa..9d3490c 100644
+index 160bcfa..ddccceb 100644
 --- a/minis/examples/screens.rs
 +++ b/minis/examples/screens.rs
 @@ -6,6 +6,8 @@
@@ -1533,12 +1540,47 @@ index 160bcfa..9d3490c 100644
          ),
          (
              "reaching Apple's sign-in server",
+@@ -344,26 +445,26 @@ fn pair_here() -> bool {
+     if !ui::get_ready(
+         "Pair this iPhone with siboot",
+         &[
++            "Stay in Minis until pairing is ready. Allow notifications if iOS asks.",
+             "Open Settings › Privacy & Security › Developer Mode, and scroll to the bottom.",
+             "Tap Pair with siboot. It can take a few seconds to show.",
+-            "Enter your iPhone passcode, then the 6-digit code siboot shows. It comes as a \
+-             notification too.",
++            "Enter your device passcode when asked. The six-digit pairing code then appears in Minis.",
++            "No banner? Keep the six-digit field open and return to Minis to read the code.",
+             "Come back to Minis once Settings says it's paired.",
+         ],
+-        &["When you start, a player opens over Minis. It plays silence, which keeps Minis \
+-           running while you're in Settings: leave it open. siboot closes it once you're back."],
++        &["The silent audio keeps Minis running in Settings. You can dismiss the large \
++           player panel and leave the small player running."],
+         "Start pairing",
+     ) {
+         ui::failure("Stopped before pairing.", "");
+         return false;
+     }
+-    ui::ok("Pair with siboot is up in Settings");
+-    ui::status("waiting for Pair with siboot in Settings (up to 10 minutes)");
++    ui::status("Ready to switch to Settings. Tap Pair with siboot (up to 10 minutes).");
+     wait(2500);
+     ui::status("Settings connected: waiting for it to ask for a code");
+     wait(600);
+-    ui::status("waiting for the code to be typed into Settings");
+-    ui::show_code("975088", "Type it into Settings. It came as a notification too.");
++    ui::status("Pairing code ready in Minis. Enter it in Settings.");
++    ui::show_code("975088", "Enter this code in the open pairing prompt in Settings.");
+     wait(5000);
+     ui::code_gone();
+     ui::status("paired: go back to Minis to carry on");
 diff --git a/minis/locales/zh-CN.json b/minis/locales/zh-CN.json
 new file mode 100644
-index 0000000..caf4d58
+index 0000000..a83893d
 --- /dev/null
 +++ b/minis/locales/zh-CN.json
-@@ -0,0 +1,493 @@
+@@ -0,0 +1,512 @@
 +{
 +  "1. Open Files > Browse > On My iPhone / iPad > rootshell.": "1. 打开“文件”>“浏览”>“我的 iPhone／iPad”>“rootshell”。",
 +  "2. Copy your .ipa into the rootshell folder. A file in iCloud Drive or Downloads must be copied here first.": "2. 将 .ipa 复制到 rootshell 文件夹。位于 iCloud 云盘或“下载”中的文件也需要先复制到这里。",
@@ -1547,6 +1589,7 @@ index 0000000..caf4d58
 +  "6-digit code; m for other methods; q to cancel: ": "输入六位验证码；输入 m 选择其他方式，q 取消：",
 +  "A text was requested for {number}": "已请求向 {number} 发送短信，请确认是否收到",
 +  "A verification call was requested for {number}": "已请求拨打 {number} 告知验证码，请确认是否来电",
++  "Allow Minis notifications if iOS asks. Stay in Minis for now.": "如果 iOS 询问，允许 Minis 通知。先留在 Minis。",
 +  "Anisette check stopped unexpectedly.": "ani 连接检测意外停止。",
 +  "Anisette servers reachable: {reachable}/{count}": "可连接的 ani 服务器：{reachable}/{count}",
 +  "Announcing \"Pair with {name}\" {dots}": "正在广播“与 {name} 配对” {dots}",
@@ -1666,6 +1709,9 @@ index 0000000..caf4d58
 +  "Encrypt the saved login": "加密保存登录",
 +  "Encrypting dummy login and signing data": "加密测试登录与签名数据",
 +  "Enter the 6-digit code.": "请输入六位验证码。",
++  "Enter this code in Settings": "请在设置中输入此配对码",
++  "Enter this code in the open pairing prompt in Settings.": "请回到设置，在仍打开的配对输入框中输入此码。",
++  "Enter your device passcode when asked. The six-digit pairing code then appears in Minis.": "按提示输入设备锁屏密码，六位配对码随后会显示在 Minis 内。",
 +  "Enter your iPhone passcode, then the 6-digit code siboot shows. It comes as a notification too.": "输入 iPhone 锁屏密码，再输入 siboot 显示的 6 位配对码，配对码也会通过通知显示。",
 +  "Enter your iPhone passcode, then the 6-digit code siboot shows. Minis's notifications are off, so come back to Minis to read it.": "输入 iPhone 锁屏密码，再输入 siboot 显示的 6 位配对码。Minis 通知已关闭，请返回 Minis 查看配对码。",
 +  "Enter your passcode, then the 6-digit code. It arrives as a notification.": "输入设备密码，然后输入程序通知中显示的六位配对码。",
@@ -1704,6 +1750,10 @@ index 0000000..caf4d58
 +  "Local Discovery is off in Open Minis. Turn it on in Minis's Settings › Network, then start again.": "Open Minis 的本地发现已关闭，请在“Minis 设置 › 网络”中开启后重试。",
 +  "Local IPA and retry preview (no install).": "本地 IPA 与重试预览（不执行安装）。",
 +  "Local secret input preview. Use dummy credentials only.": "本地秘密输入预览，仅使用测试凭据。",
++  "Minis can ask for notification permission when pairing starts.": "开始配对时，Minis 可以请求通知权限。",
++  "Minis couldn't schedule the notification. The pairing code is shown in Minis.": "Minis 未能安排通知，请在 Minis 内查看配对码。",
++  "Minis has permission to show notification alerts.": "Minis 已获准显示通知提醒。",
++  "Minis notifications may arrive without a banner.": "Minis 通知可能不会显示横幅。",
 +  "Minis put Pair with siboot up under another name, which Settings won't pair with. Run siboot again.": "Minis 广播的配对名称不正确，设置无法配对，请重试。",
 +  "Minis's notifications are off, so the pairing code will show only in Minis.": "Minis 的通知已关闭，配对码只会在 Minis 内显示。",
 +  "New unlock passphrase": "新解锁口令",
@@ -1714,6 +1764,7 @@ index 0000000..caf4d58
 +  "No anisette server could be reached. Check the DNS, proxy and certificate errors above.": "所有 ani 服务器均无法连接。请查看上方的 DNS、代理或证书错误。",
 +  "No app is cached for quick renew. Install a local IPA first.": "还没有可续签的应用，请先安装一次本地 IPA。",
 +  "No app selected.": "未选择应用。",
++  "No banner? Keep the six-digit field open and return to Minis to read the code.": "未收到横幅？保留六位配对码输入框，返回 Minis 查看配对码。",
 +  "No code? Choose Other ways to request a text or call to a trusted number.": "未收到验证码？点“其他方式”，选择向受信任号码发送短信或拨打电话。",
 +  "No device or Apple contact. The generated preview files will be removed.": "未联系设备或 Apple，生成的预览文件将被删除。",
 +  "No pairing file given.": "未提供配对文件。",
@@ -1756,6 +1807,8 @@ index 0000000..caf4d58
 +  "Pairing and encrypted-login preview. Use dummy credentials only.": "配对与加密登录预览，仅使用测试凭据。",
 +  "Pairing cancelled.": "已取消配对。",
 +  "Pairing code": "配对码",
++  "Pairing code:": "配对码：",
++  "Pairing code ready in Minis. Enter it in Settings.": "配对码已在 Minis 中显示，请在设置中输入。",
 +  "Pairing didn't finish. Run siboot again, and tap the entry again in Settings.": "配对未完成，请重试并再次点击设置中的配对条目。",
 +  "Pairing failed. Check Local Network access and Location Diary Mode in rootshell.": "配对失败。请检查 rootshell 的本地网络权限和 Location Diary Mode 保活设置。",
 +  "Pairing file": "配对文件",
@@ -1764,6 +1817,7 @@ index 0000000..caf4d58
 +  "Pairing file path:": "配对文件路径：",
 +  "Pairing file saved: Files › rootshell › {file}": "配对文件已保存：文件 › rootshell › {file}",
 +  "Pairing file selection cancelled.": "已取消选择配对文件。",
++  "Pairing notifications are unavailable. Read the code in Minis.": "配对通知不可用，请在 Minis 内查看配对码。",
 +  "Pairing saved": "配对文件已保存",
 +  "Pairing stopped before it finished. Tap the entry in Settings again.": "配对尚未完成就中断了，请重新点击系统设置中的配对项。",
 +  "Pairing this iPhone with siboot": "将这台 iPhone 与 siboot 配对",
@@ -1775,6 +1829,7 @@ index 0000000..caf4d58
 +  "Performance log saved: {path}": "性能日志已保存：{path}",
 +  "Performance log:": "性能日志：",
 +  "Plain output or protocol error details": "纯文本输出或显示协议错误详情",
++  "Preparing pairing. Stay in Minis for now.": "正在准备配对，请先留在 Minis。",
 +  "Preparing the IPA": "准备 IPA",
 +  "Press Return after copying the IPA, or type q to cancel: ": "复制 IPA 后按回车继续，或输入 q 取消：",
 +  "Press return here to open it again.": "按回车可重新打开页面。",
@@ -1789,6 +1844,7 @@ index 0000000..caf4d58
 +  "Ready": "已就绪",
 +  "Ready for quick renew: run siboot renew next time.": "已准备快速续签，下次可运行 siboot renew。",
 +  "Ready to install": "准备安装",
++  "Ready to switch to Settings. Tap Pair with {name} (up to {duration}).": "已就绪。请切换到设置，点击“与 {name} 配对”（最多 {duration}）。",
 +  "Retry step": "重试此步骤",
 +  "Retry this step?": "重试当前步骤？",
 +  "Run siboot --ipa /path/to/App.ipa to install a local IPA.": "运行 siboot --ipa /path/to/App.ipa 安装本地 IPA。",
@@ -1821,6 +1877,7 @@ index 0000000..caf4d58
 +  "Something at {addr} took the connection but didn't answer as an iPhone. Turn on Developer Mode (Settings › Privacy & Security › Developer Mode) and check LocalDevVPN is the VPN that's on.": "{addr} 接受了连接，但未正确响应为 iPhone。请开启开发者模式，并确认当前连接的是 LocalDevVPN。",
 +  "Start pairing": "开始配对",
 +  "Start pairing?": "开始配对？",
++  "Stay in Minis until pairing is ready. Allow notifications if iOS asks.": "在 Minis 等待配对准备完成。如果 iOS 询问，允许通知。",
 +  "Still waiting for Settings…": "继续等待系统设置连接……",
 +  "Stop": "停止",
 +  "Stopped": "已停止",
@@ -1863,6 +1920,7 @@ index 0000000..caf4d58
 +  "The signed app has no bundle identifier.": "签名应用缺少应用标识。",
 +  "The signed app has no folder name.": "签名应用没有有效的目录名称。",
 +  "The signed app has no readable Info.plist.": "签名应用中没有可读取的 Info.plist。",
++  "The silent audio keeps Minis running in Settings. You can dismiss the large player panel and leave the small player running.": "静音音频让 Minis 在你切换到设置后继续运行。可以收起大播放器面板，请让小播放器继续播放。",
 +  "The tunnel came up, but RSD inside it didn't answer.": "隧道已建立，但 RSD 未响应。",
 +  "The tunnel disconnected during the upload.": "隧道在上传过程中断开。",
 +  "The tunnel reported an address siboot can't read.": "隧道返回了无法识别的地址。",
@@ -1920,6 +1978,7 @@ index 0000000..caf4d58
 +  "Wi-Fi address for a new pairing; otherwise read ifconfig.txt": "新配对使用的 Wi-Fi 地址，默认从 ifconfig.txt 读取",
 +  "With developer-mode: request a restart to enable it": "配合 developer-mode 使用，申请重启以启用开发者模式",
 +  "Yes": "是",
++  "You can read the pairing code in Minis.": "可以在 Minis 内查看配对码。",
 +  "already on": "已开启",
 +  "and run siboot --terminal.": "再使用 --terminal 选项运行。",
 +  "asking lockdownd about this iPhone": "正在通过 lockdownd 读取设备信息",
@@ -1986,7 +2045,9 @@ index 0000000..caf4d58
 +  "siboot is done. You can close this page.": "siboot 已完成，可以关闭此页面。",
 +  "siboot isn't answering. It runs in Minis's terminal, and iOS pauses Minis when you leave it: go back to Minis to carry on.": "siboot 未响应。iOS 会暂停后台 Minis，请返回 Minis 继续。",
 +  "siboot paired this iPhone": "siboot 已与这台 iPhone 配对",
++  "siboot pairing": "siboot 配对",
 +  "siboot pairing code": "siboot 配对码",
++  "siboot restarted silent playback. Leave the small player running in Settings.": "siboot 已恢复静音播放。切换到设置时，请保持小播放器播放。",
 +  "sign in to your Apple Account": "登录 Apple 账号",
 +  "signed in — team {team}": "已登录，团队 {team}",
 +  "signed {name} as {id}": "已签名 {name}，标识 {id}",
@@ -2667,6 +2728,156 @@ index b778e40..e4a8f91 100644
          assert!(stops_sign_in(apple_session::ANDROID_ADI_SKIP).is_none());
      }
  
+diff --git a/minis/src/bridge.rs b/minis/src/bridge.rs
+index 8f3587e..b17b71d 100644
+--- a/minis/src/bridge.rs
++++ b/minis/src/bridge.rs
+@@ -139,6 +139,20 @@ pub struct Listing {
+     pub app_in_background: bool,
+ }
+ 
++#[derive(Clone, Copy, Debug, PartialEq, Eq)]
++pub enum NotificationAccess {
++    Alerts,
++    Quiet,
++    NeedsPermission,
++    Unavailable,
++}
++
++impl NotificationAccess {
++    pub fn can_schedule(self) -> bool {
++        matches!(self, Self::Alerts | Self::Quiet)
++    }
++}
++
+ impl Bridge {
+     /// `SIBOOT_MINIS_BIN` names a folder to take the commands from (for tests
+     /// with stand-ins); otherwise they come from `$PATH`.
+@@ -282,24 +296,33 @@ impl Bridge {
+ 
+     // MARK: apple-notification
+ 
+-    /// `authorized`, `denied`, `not_determined`, `provisional` or `ephemeral`.
+-    pub async fn notification_status(&self) -> Result<String, BridgeError> {
++    /// Permission and alert presentation are separate iOS settings.
++    pub async fn notification_access(&self) -> Result<NotificationAccess, BridgeError> {
+         let data = self.call("apple-notification", &["settings"]).await?;
+-        Ok(data
+-            .get("authorization_status")
+-            .and_then(Value::as_str)
+-            .unwrap_or("unknown")
+-            .to_string())
++        let alerts = data["alert_enabled"].as_bool() == Some(true);
++        Ok(match data["authorization_status"].as_str() {
++            Some("authorized" | "ephemeral") if alerts => NotificationAccess::Alerts,
++            Some("authorized" | "ephemeral" | "provisional") => NotificationAccess::Quiet,
++            Some("not_determined") => NotificationAccess::NeedsPermission,
++            _ => NotificationAccess::Unavailable,
++        })
+     }
+ 
+     /// A local notification a second from now, so it shows over Settings.
+     pub async fn notify(&self, title: &str, body: &str) -> Result<(), BridgeError> {
+-        self.call(
+-            "apple-notification",
+-            &["schedule", "--title", title, "--body", body, "--after", "1"],
+-        )
+-        .await
+-        .map(|_| ())
++        let data = self
++            .call(
++                "apple-notification",
++                &["schedule", "--title", title, "--body", body, "--after", "1"],
++            )
++            .await?;
++        if data["id"].as_str().is_some_and(|id| !id.is_empty()) {
++            Ok(())
++        } else {
++            Err(BridgeError::Unreadable(
++                "notification response has no id".into(),
++            ))
++        }
+     }
+ 
+     // MARK: apple-player
+@@ -322,8 +345,7 @@ impl Bridge {
+             .map(|_| ())
+     }
+ 
+-    /// `playing` or `paused`. Refused once the player's sheet has been closed,
+-    /// which ends its session.
++    /// `playing` or `paused`. The bridge refuses unknown sessions.
+     pub async fn player_status(&self, session: &str) -> Result<String, BridgeError> {
+         let data = self.call("apple-player", &["status", session]).await?;
+         Ok(data
+diff --git a/minis/src/fake_iphone.rs b/minis/src/fake_iphone.rs
+index aec2460..009d2b7 100644
+--- a/minis/src/fake_iphone.rs
++++ b/minis/src/fake_iphone.rs
+@@ -352,7 +352,8 @@ fn opack_dict(entries: &[(&str, Opack)]) -> Vec<u8> {
+ /// it before Local Network access is allowed (and the file goes); with
+ /// `<home>/minis-undeclared`, this Minis doesn't declare the pairing type;
+ /// with `<home>/minis-player-closed`, the player's sheet was closed, until
+-/// the next `play`.
++/// the next `play`. Notification marker files simulate permission, alert
++/// settings, and a bridge refusal even after authorization.
+ pub fn minis_stub(home: &Path) -> PathBuf {
+     let dir = home.join("stub-bin");
+     std::fs::create_dir_all(&dir).unwrap();
+@@ -368,6 +369,7 @@ pub fn minis_stub(home: &Path) -> PathBuf {
+     let leftover = leftover.to_string_lossy();
+     let closed = home.join("minis-player-closed");
+     let closed = closed.to_string_lossy();
++    let guest_home = home.display();
+     let scripts = [
+         (
+             "minis-bonjour",
+@@ -393,8 +395,18 @@ esac"#,
+         (
+             "apple-notification",
+             r#"case "$1" in
+-settings) echo '{"ok":true,"tool":"apple-notification","action":"settings","data":{"authorization_status":"authorized"}}' ;;
+-*) echo '{"ok":true,"tool":"apple-notification","action":"schedule","data":{"id":"n-1"}}' ;;
++settings) auth=authorized; alerts=true
++  if [ -e "$NOTIFICATION_DENIED" ]; then auth=denied; alerts=false
++  elif [ -e "$NOTIFICATION_UNASKED" ]; then auth=not_determined; alerts=false
++  elif [ -e "$NOTIFICATION_QUIET" ]; then alerts=false; fi
++  printf '{"ok":true,"tool":"apple-notification","action":"settings","data":{"authorization_status":"%s","alert_enabled":%s}}\n' "$auth" "$alerts" ;;
++schedule) if [ -e "$NOTIFICATION_DENIED" ] || { [ -e "$NOTIFICATION_UNASKED" ] && [ -e "$BACKGROUND" ]; }; then
++    echo '{"ok":false,"tool":"apple-notification","action":"schedule","error":{"code":"authorization_denied","message":"Notification permission not granted"}}'; exit 3
++  elif [ -e "$NOTIFICATION_ERROR" ]; then
++    echo '{"ok":false,"tool":"apple-notification","action":"schedule","error":{"code":"not_available","message":"Scheduling failed"}}'; exit 1
++  fi
++  rm -f "$NOTIFICATION_UNASKED"
++  echo '{"ok":true,"tool":"apple-notification","action":"schedule","data":{"id":"n-1"}}' ;;
+ esac"#,
+         ),
+         (
+@@ -417,6 +429,10 @@ esac"#,
+             format!(
+                 "#!/bin/sh\nBACKGROUND='{background}'\nDENY='{deny}'\nUNDECLARED='{undeclared}'\n\
+                  LEFTOVER='{leftover}'\nPLAYER_CLOSED='{closed}'\n\
++                 NOTIFICATION_UNASKED='{guest_home}/minis-notification-unasked'\n\
++                 NOTIFICATION_DENIED='{guest_home}/minis-notification-denied'\n\
++                 NOTIFICATION_QUIET='{guest_home}/minis-notification-quiet'\n\
++                 NOTIFICATION_ERROR='{guest_home}/minis-notification-error'\n\
+                  echo \"{name} $*\" >> '{log}'\n{body}\n"
+             ),
+         )
+@@ -446,8 +462,11 @@ mod tests {
+         let advertised = wait_for_line(&log, "minis-bonjour advertise").await;
+         let port: u16 = advertised.split(' ').nth(4).unwrap().parse().unwrap();
+         let pin = async {
+-            let posted =
+-                wait_for_line(&log, "apple-notification schedule --title siboot pairing code").await;
++            let posted = wait_for_line(
++                &log,
++                "apple-notification schedule --title siboot pairing code",
++            )
++            .await;
+             let body = posted.split("--body ").nth(1).unwrap();
+             body.chars()
+                 .filter(char::is_ascii_digit)
 diff --git a/minis/src/i18n.js b/minis/src/i18n.js
 new file mode 100644
 index 0000000..b998f8f
@@ -3727,6 +3938,69 @@ index 0000000..3ee57cc
 +        std::fs::remove_dir_all(folder).unwrap();
 +    }
 +}
+diff --git a/minis/src/keepalive.rs b/minis/src/keepalive.rs
+index 0118469..b4c6eb8 100644
+--- a/minis/src/keepalive.rs
++++ b/minis/src/keepalive.rs
+@@ -52,7 +52,8 @@ pub struct KeepAlive {
+ }
+ 
+ impl KeepAlive {
+-    /// Write the silence into `home` (once) and start playing it.
++    /// Write the silence into `home` (once) and wait for playback. The Minis
++    /// play command can acknowledge the session before loading its audio.
+     pub async fn start(bridge: &Bridge, home: &Path, seconds: u32) -> Result<Self, String> {
+         let file = silence_file(home, seconds);
+         let wanted = 44 + u64::from(SAMPLE_RATE * seconds);
+@@ -65,15 +66,32 @@ impl KeepAlive {
+             BridgeError::Missing(_) => "Minis's apple-player command isn't here".to_string(),
+             other => other.to_string(),
+         })?;
+-        Ok(Self {
++        let playing = Self {
+             bridge: bridge.clone(),
+             file,
+             session: Some(session),
++        };
++        let session = playing.session.as_deref().expect("new player session");
++        tokio::time::timeout(std::time::Duration::from_secs(10), async {
++            loop {
++                if bridge
++                    .player_status(session)
++                    .await
++                    .map_err(|e| e.to_string())?
++                    == "playing"
++                {
++                    return Ok::<_, String>(());
++                }
++                tokio::time::sleep(std::time::Duration::from_millis(200)).await;
++            }
+         })
++        .await
++        .map_err(|_| "Minis did not start playing the silence within 10 seconds".to_string())??;
++        Ok(playing)
+     }
+ 
+-    /// Whether the silence still plays, and if it doesn't (its sheet was
+-    /// closed, which ends the player, or it was paused), start it again.
++    /// Whether the silence still plays, and if the session ended or paused,
++    /// start it again.
+     /// Ok(true) when it had to. Minis has to be in front for that: the
+     /// player opens as a sheet.
+     pub async fn revive(&mut self) -> Result<bool, String> {
+@@ -89,7 +107,11 @@ impl KeepAlive {
+                 .map(|()| true)
+                 .map_err(|e| e.to_string()),
+             Err(BridgeError::Refused { .. }) => {
+-                let again = self.bridge.play(&self.file).await.map_err(|e| e.to_string())?;
++                let again = self
++                    .bridge
++                    .play(&self.file)
++                    .await
++                    .map_err(|e| e.to_string())?;
+                 self.session = Some(again);
+                 Ok(true)
+             }
 diff --git a/minis/src/main.rs b/minis/src/main.rs
 index c61bcfe..239ad93 100644
 --- a/minis/src/main.rs
@@ -4775,10 +5049,10 @@ index 0000000..dd71412
 +    Ok(())
 +}
 diff --git a/minis/src/pairing.rs b/minis/src/pairing.rs
-index 048e534..d59e312 100644
+index 048e534..857affa 100644
 --- a/minis/src/pairing.rs
 +++ b/minis/src/pairing.rs
-@@ -17,24 +17,28 @@
+@@ -17,41 +17,41 @@
  //!
  //! The pairing comes from, in order:
  //! 1. the file saved on an earlier run, while the iPhone accepts it;
@@ -4812,8 +5086,9 @@ index 048e534..d59e312 100644
 +#[cfg(test)]
  use tokio::time::timeout;
  
- use crate::bridge::{Advertisement, Bridge, BridgeError, PAIRABLE_HOST_TYPE};
-@@ -42,16 +46,12 @@ use crate::fail::{chain, Fail, Result};
+-use crate::bridge::{Advertisement, Bridge, BridgeError, PAIRABLE_HOST_TYPE};
++use crate::bridge::{Advertisement, Bridge, BridgeError, NotificationAccess, PAIRABLE_HOST_TYPE};
+ use crate::fail::{chain, Fail, Result};
  use crate::keepalive::{self, KeepAlive};
  use crate::{tunnel, ui, Args};
  
@@ -4935,7 +5210,7 @@ index 048e534..d59e312 100644
                  ui::detail(&f.raw);
                  saved_refused = Some(f);
              }
-@@ -123,41 +185,14 @@ pub async fn ensure(args: &Args, path: &Path) -> Result<Source> {
+@@ -123,49 +185,25 @@ pub async fn ensure(args: &Args, path: &Path) -> Result<Source> {
      ui::activity("checking that Open Minis can pair this iPhone");
      let here = can_pair_here(&bridge).await;
  
@@ -4966,8 +5241,10 @@ index 048e534..d59e312 100644
 -        Taken::Cancelled | Taken::NotOffered => {}
 -    }
 -
-     let notify = match here {
-         Ok(notify) => notify,
+-    let notify = match here {
+-        Ok(notify) => notify,
++    let notifications = match here {
++        Ok(notifications) => notifications,
          Err(why) => {
              let raw = match saved_refused {
                  Some(f) => format!("the saved pairing file was refused: {}", f.raw),
@@ -4979,7 +5256,8 @@ index 048e534..d59e312 100644
          }
      };
      ui::ok("Open Minis can pair this iPhone");
-@@ -165,7 +200,10 @@ pub async fn ensure(args: &Args, path: &Path) -> Result<Source> {
+-    pair_here(args, path, &bridge, notify).await?;
++    pair_here(args, path, &bridge, notifications).await?;
      ui::activity("checking the new pairing with this iPhone");
      tunnel::verify(args.device, path).await.map_err(|f| {
          Fail::new(
@@ -4991,7 +5269,15 @@ index 048e534..d59e312 100644
              f.raw,
          )
      })?;
-@@ -179,8 +217,10 @@ pub async fn can_pair_here(bridge: &Bridge) -> std::result::Result<bool, String>
+@@ -173,14 +211,15 @@ pub async fn ensure(args: &Args, path: &Path) -> Result<Source> {
+     Ok(Source::Minis)
+ }
+ 
+-/// Whether this Open Minis can advertise a pairing host: Ok with whether it
+-/// can post the code as a notification too, or why it can't pair.
+-pub async fn can_pair_here(bridge: &Bridge) -> std::result::Result<bool, String> {
++/// Check pairing support and read the notification settings without prompting.
++pub async fn can_pair_here(bridge: &Bridge) -> std::result::Result<NotificationAccess, String> {
      let types = match bridge.bonjour_types().await {
          Ok(types) => types,
          Err(BridgeError::Missing(_)) => {
@@ -5004,7 +5290,7 @@ index 048e534..d59e312 100644
          }
          Err(e) => return Err(format!("Open Minis's minis-bonjour didn't answer ({e}).")),
      };
-@@ -190,7 +230,11 @@ pub async fn can_pair_here(bridge: &Bridge) -> std::result::Result<bool, String>
+@@ -190,25 +229,55 @@ pub async fn can_pair_here(bridge: &Bridge) -> std::result::Result<bool, String>
      ui::detail(&format!(
          "minis-bonjour can advertise {PAIRABLE_HOST_TYPE} ({} types declared, {})",
          types.types.len(),
@@ -5015,9 +5301,89 @@ index 048e534..d59e312 100644
 +            "any type allowed"
 +        }
      ));
-     let notify = match bridge.notification_status().await {
-         Ok(status) => {
-@@ -326,7 +370,11 @@ pub async fn run_host(
+-    let notify = match bridge.notification_status().await {
+-        Ok(status) => {
+-            ui::detail(&format!("Minis's notifications: {status}"));
+-            status != "denied"
++    Ok(notification_access(bridge).await)
++}
++
++async fn notification_access(bridge: &Bridge) -> NotificationAccess {
++    match bridge.notification_access().await {
++        Ok(access) => {
++            ui::detail(&format!("Minis's notification access: {access:?}"));
++            access
+         }
+         Err(e) => {
+             ui::detail(&format!("couldn't read Minis's notification settings: {e}"));
+-            false
++            NotificationAccess::Unavailable
+         }
+-    };
+-    Ok(notify)
++    }
++}
++
++/// Minis can request iOS notification permission when scheduling its first
++/// notification. Finish that request in the foreground before asking the
++/// user to switch apps. Permission is optional because the code is shown
++/// locally for the whole exchange.
++async fn prepare_notifications(bridge: &Bridge, access: NotificationAccess) -> NotificationAccess {
++    if access != NotificationAccess::NeedsPermission {
++        return access;
++    }
++    ui::status("Allow Minis notifications if iOS asks. Stay in Minis for now.");
++    let title = crate::i18n::tr("siboot pairing");
++    let body = crate::i18n::tr("You can read the pairing code in Minis.");
++    if let Err(error) = bridge.notify(&title, &body).await {
++        ui::detail(&format!("couldn't prepare pairing notifications: {error}"));
++        return NotificationAccess::Unavailable;
++    }
++    notification_access(bridge).await
+ }
+ 
+ // ---------------------------------------------------------------- pairing here
+ 
+ /// Pair this iPhone with siboot, here in Minis, into `path`.
+-async fn pair_here(args: &Args, path: &Path, bridge: &Bridge, notify: bool) -> Result<()> {
++async fn pair_here(
++    args: &Args,
++    path: &Path,
++    bridge: &Bridge,
++    notifications: NotificationAccess,
++) -> Result<()> {
+     let identity = Identity::load(path, &args.home).await;
+     let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0))
+         .await
+@@ -218,7 +287,7 @@ async fn pair_here(args: &Args, path: &Path, bridge: &Bridge, notify: bool) -> R
+         advertise: true,
+         name: HOST_NAME.to_string(),
+         keepalive_dir: Some(args.home.clone()),
+-        notify,
++        notifications,
+         limits: LIMITS,
+         pin_hook: None,
+         player_check: PLAYER_CHECK,
+@@ -277,8 +346,7 @@ pub struct HostSetup {
+     pub name: String,
+     /// Play silence from here while waiting.
+     pub keepalive_dir: Option<PathBuf>,
+-    /// Post the code as a Minis notification.
+-    pub notify: bool,
++    pub notifications: NotificationAccess,
+     pub limits: Limits,
+     /// Tests: receives the code as it's shown.
+     pub pin_hook: Option<mpsc::UnboundedSender<String>>,
+@@ -301,7 +369,7 @@ pub struct Paired {
+ /// end with this call, however it ends.
+ pub async fn run_host(
+     listener: TcpListener,
+-    setup: HostSetup,
++    mut setup: HostSetup,
+     identity: Identity,
+     out_path: &Path,
+     home: &Path,
+@@ -326,7 +394,11 @@ pub async fn run_host(
      // ready, and asked again after a refusal they can fix.
      let steps = ready_steps(&setup);
      let steps: Vec<&str> = steps.iter().map(String::as_str).collect();
@@ -5030,7 +5396,108 @@ index 048e534..d59e312 100644
      if setup.advertise {
          withdraw_leftovers(&setup.bridge).await;
      }
-@@ -466,7 +514,10 @@ pub async fn run_host(
+@@ -338,6 +410,7 @@ pub async fn run_host(
+         if !setup.advertise {
+             break None;
+         }
++        ui::status("Preparing pairing. Stay in Minis for now.");
+         match publish(&setup, &service_id, port, &txt).await {
+             Ok(advert) => break Some(advert),
+             Err(e) => match fixable(&e) {
+@@ -350,14 +423,9 @@ pub async fn run_host(
+         }
+     };
+ 
+-    if setup.notify && setup.advertise {
+-        // Posted while Minis is still in front, so iOS can ask for permission
+-        // first, if it hasn't yet: behind Settings it couldn't.
+-        notify(
+-            &setup.bridge,
+-            &format!("Pair with {} is ready", setup.name),
+-            "Settings › Privacy & Security › Developer Mode, at the bottom.",
+-        );
++    setup.notifications = prepare_notifications(&setup.bridge, setup.notifications).await;
++    if setup.notifications != NotificationAccess::Alerts {
++        ui::note(PIN_FALLBACK);
+     }
+     let mut keepalive = match &setup.keepalive_dir {
+         Some(dir) => match KeepAlive::start(&setup.bridge, dir, keepalive::PAIRING_SECONDS).await {
+@@ -377,11 +445,19 @@ pub async fn run_host(
+         None => None,
+     };
+ 
+-    let waiting = format!(
+-        "waiting for Pair with {} in Settings (up to {})",
+-        setup.name,
+-        spoken(setup.limits.device)
+-    );
++    let waiting = if keepalive.is_some() {
++        format!(
++            "Ready to switch to Settings. Tap Pair with {} (up to {}).",
++            setup.name,
++            spoken(setup.limits.device)
++        )
++    } else {
++        format!(
++            "waiting for Pair with {} in Settings (up to {})",
++            setup.name,
++            spoken(setup.limits.device)
++        )
++    };
+     ui::status(&waiting);
+     let deadline = tokio::time::Instant::now() + setup.limits.device;
+     let mut attempt = 0;
+@@ -427,46 +503,38 @@ pub async fn run_host(
+         let socket = RpPairingSocket::new_device(stream);
+         let mut host = PairableHost::new(socket, host_info.clone());
+         let (code_shown_tx, code_shown) = oneshot::channel();
+-        let (code_seen_tx, mut code_seen) = oneshot::channel::<()>();
+-        let bridge = setup.bridge.clone();
+-        let posts = setup.notify;
++        let mut code_was_seen = false;
++        let seen = &mut code_was_seen;
+         let hook = setup.pin_hook.clone();
+         let ended = {
+             let conversation = host.accept(&mut pairing_file, move |pin: String| async move {
+-                ui::status("waiting for the code to be typed into Settings");
++                ui::status("Pairing code ready in Minis. Enter it in Settings.");
+                 ui::show_code(
+                     &pin,
+-                    if posts {
+-                        "Type it into Settings. It came as a notification too."
+-                    } else {
+-                        "Type it into Settings."
+-                    },
++                    "Enter this code in the open pairing prompt in Settings.",
+                 );
+-                if posts {
+-                    notify(
+-                        &bridge,
+-                        "siboot pairing code",
+-                        &format!("{} — type it into Settings", ui::spaced(&pin)),
+-                    );
+-                }
++                *seen = true;
+                 if let Some(hook) = hook {
+-                    let _ = hook.send(pin);
++                    let _ = hook.send(pin.clone());
+                 }
+-                let _ = code_seen_tx.send(());
+-                let _ = code_shown_tx.send(());
++                let _ = code_shown_tx.send(pin);
+             });
+-            within_limits(conversation, code_shown, setup.limits).await
++            within_limits(conversation, code_shown, &setup).await
+         };
+-        ui::code_gone();
++        if code_was_seen {
++            ui::code_gone();
++        }
+         // A stray or aborted connection, a mistyped code, a cancel in
+         // Settings: the user can tap the entry again, and the advertisement is
+         // still up, so the run waits for that rather than ending.
+-        let code_was_seen = code_seen.try_recv().is_ok();
+         let (failure, note) = match ended {
              Ok(Ok(peer)) => break peer,
              // The code wasn't typed in time: waiting longer won't help.
              Err(timeout) if code_was_seen => return Err(timeout),
@@ -5042,7 +5509,60 @@ index 048e534..d59e312 100644
              Ok(Err(e)) if !code_was_seen => (
                  pairing_failed(&e),
                  "That connection closed before asking for a code.",
-@@ -610,8 +661,15 @@ async fn withdraw_leftovers(bridge: &Bridge) {
+@@ -518,27 +586,22 @@ pub async fn run_host(
+ }
+ 
+ const READY_TITLE: &str = "Pair this iPhone with siboot";
+-const PLAYER_NOTE: &str = "When you start, a player opens over Minis. It plays silence, which \
+-     keeps Minis running while you're in Settings: leave it open. siboot closes it once you're \
+-     back.";
++const PLAYER_NOTE: &str = "The silent audio keeps Minis running in Settings. You can dismiss the large player panel and leave the small player running.";
++pub const PIN_FALLBACK: &str =
++    "No banner? Keep the six-digit field open and return to Minis to read the code.";
+ 
+ /// What the user does in Settings, in order.
+ fn ready_steps(setup: &HostSetup) -> Vec<String> {
+     vec![
++        "Stay in Minis until pairing is ready. Allow notifications if iOS asks.".into(),
+         "Open Settings › Privacy & Security › Developer Mode, and scroll to the bottom.".into(),
+         format!(
+             "Tap Pair with {}. It can take a few seconds to show.",
+             setup.name
+         ),
+-        if setup.notify {
+-            "Enter your iPhone passcode, then the 6-digit code siboot shows. It comes as a \
+-             notification too."
+-                .into()
+-        } else {
+-            "Enter your iPhone passcode, then the 6-digit code siboot shows. Minis's \
+-             notifications are off, so come back to Minis to read it."
+-                .into()
+-        },
++        "Enter your device passcode when asked. The six-digit pairing code then appears in Minis."
++            .into(),
++        PIN_FALLBACK.into(),
+         "Come back to Minis once Settings says it's paired.".into(),
+     ]
+ }
+@@ -563,7 +626,6 @@ async fn publish(
+             message: format!("asked for {service_id}, got {}", a.name),
+         });
+     }
+-    ui::ok(&format!("Pair with {} is up in Settings", setup.name));
+     ui::detail(&format!(
+         "{PAIRABLE_HOST_TYPE} {} on Minis's port {} → port {port} here",
+         a.name,
+@@ -593,8 +655,7 @@ async fn keep_playing(keepalive: &mut KeepAlive, setup: &HostSetup) {
+     match keepalive.revive().await {
+         Ok(false) => {}
+         Ok(true) => ui::warn(
+-            "The player was closed. It keeps Minis running while you're in Settings, so siboot \
+-             opened it again: leave it open.",
++            "siboot restarted silent playback. Leave the small player running in Settings.",
+         ),
+         Err(e) => ui::detail(&format!("couldn't start the silence again: {e}")),
+     }
+@@ -610,8 +671,15 @@ async fn withdraw_leftovers(bridge: &Bridge) {
              return;
          }
      };
@@ -5060,7 +5580,7 @@ index 048e534..d59e312 100644
          if let Err(e) = bridge.stop_advert(&advert.id).await {
              ui::detail(&format!("couldn't withdraw {}: {e}", advert.id));
          }
-@@ -637,12 +695,14 @@ fn fixable(e: &BridgeError) -> Option<&'static str> {
+@@ -637,12 +705,14 @@ fn fixable(e: &BridgeError) -> Option<&'static str> {
  fn advertise_failed(e: BridgeError) -> Fail {
      let advice = match e.code() {
          Some("not_declared") => {
@@ -5077,7 +5597,95 @@ index 048e534..d59e312 100644
      };
      Fail::new(advice, e.to_string())
  }
-@@ -764,6 +824,7 @@ fn parse_alt_irk(text: &str) -> Option<[u8; 16]> {
+@@ -677,7 +747,7 @@ async fn wait_for_return(setup: &HostSetup) {
+         return;
+     }
+     ui::status("paired: go back to Minis to carry on");
+-    if setup.notify {
++    if setup.notifications.can_schedule() {
+         notify(
+             &setup.bridge,
+             "siboot paired this iPhone",
+@@ -713,16 +783,17 @@ fn is_wrong_code(e: &idevice::IdeviceError) -> bool {
+ /// `code_request` until the code is shown, then `code_entry` until it ends.
+ async fn within_limits<T>(
+     conversation: impl Future<Output = T>,
+-    code_shown: oneshot::Receiver<()>,
+-    limits: Limits,
++    code_shown: oneshot::Receiver<String>,
++    setup: &HostSetup,
+ ) -> Result<T> {
++    let limits = setup.limits;
+     tokio::pin!(conversation);
+-    tokio::select! {
++    let pin = tokio::select! {
+         biased;
+         done = &mut conversation => return Ok(done),
+         // An error means the PIN callback was dropped uncalled, which only
+         // happens as the conversation ends, so it disables this branch.
+-        Ok(()) = code_shown => {}
++        Ok(pin) = code_shown => pin,
+         () = tokio::time::sleep(limits.code_request) => {
+             return Err(Fail::new(
+                 "The iPhone connected but stopped before asking for a code. Tap the entry in \
+@@ -730,18 +801,44 @@ async fn within_limits<T>(
+                 format!("no code request within {}", spoken(limits.code_request)),
+             ));
+         }
+-    }
+-    tokio::time::timeout(limits.code_entry, conversation)
+-        .await
+-        .map_err(|_| {
+-            Fail::new(
+-                format!(
+-                    "The code wasn't entered within {}. Run siboot again for a new one.",
+-                    spoken(limits.code_entry)
+-                ),
+-                "code entry timed out",
+-            )
+-        })
++    };
++    let entry = tokio::time::timeout(limits.code_entry, conversation);
++    tokio::pin!(entry);
++    let ended = if setup.notifications.can_schedule() {
++        // Continue the protocol even when the notification bridge is slow.
++        // End its wait when this exchange finishes or times out.
++        let notification = async {
++            let title = crate::i18n::tr("siboot pairing code");
++            let hint = crate::i18n::tr("Enter this code in Settings");
++            let body = format!("{} · {hint}", ui::spaced(&pin));
++            match setup.bridge.notify(&title, &body).await {
++                Ok(()) => ui::detail("Minis accepted the pairing notification request"),
++                Err(error) => {
++                    ui::warn("Minis couldn't schedule the notification. The pairing code is shown in Minis.");
++                    // Bridge output can include the notification body.
++                    ui::detail(&format!(
++                        "pairing notification failed ({})",
++                        error.code().unwrap_or("bridge error"),
++                    ));
++                }
++            }
++        };
++        tokio::select! {
++            ended = &mut entry => ended,
++            () = notification => entry.await,
++        }
++    } else {
++        entry.await
++    };
++    ended.map_err(|_| {
++        Fail::new(
++            format!(
++                "The code wasn't entered within {}. Run siboot again for a new one.",
++                spoken(limits.code_entry)
++            ),
++            "code entry timed out",
++        )
++    })
+ }
+ 
+ /// "30 seconds", "10 minutes".
+@@ -764,6 +861,7 @@ fn parse_alt_irk(text: &str) -> Option<[u8; 16]> {
  
  /// What came of rootshell's offer.
  #[derive(Debug, PartialEq, Eq)]
@@ -5085,7 +5693,7 @@ index 048e534..d59e312 100644
  enum Taken {
      /// The file, saved.
      File,
-@@ -774,6 +835,7 @@ enum Taken {
+@@ -774,6 +872,7 @@ enum Taken {
  }
  
  /// siboot-pair's answer to one code.
@@ -5093,7 +5701,7 @@ index 048e534..d59e312 100644
  enum Reply {
      File(Vec<u8>),
      WrongCode,
-@@ -782,8 +844,11 @@ enum Reply {
+@@ -782,8 +881,11 @@ enum Reply {
  
  /// Send one code on `stream` and read siboot-pair's answer: `NO`, or
  /// `OK <length>` and the file.
@@ -5106,7 +5714,7 @@ index 048e534..d59e312 100644
      let mut reader = BufReader::new(stream);
      let mut answer = String::new();
      if reader.read_line(&mut answer).await? == 0 {
-@@ -796,7 +861,10 @@ async fn exchange(stream: &mut TcpStream, code: &str) -> std::io::Result<Reply>
+@@ -796,7 +898,10 @@ async fn exchange(stream: &mut TcpStream, code: &str) -> std::io::Result<Reply>
      if answer == "NO" {
          return Ok(Reply::WrongCode);
      }
@@ -5118,7 +5726,7 @@ index 048e534..d59e312 100644
          return Ok(Reply::Unexpected(answer.to_string()));
      };
      if len == 0 || len > MAX_FILE {
-@@ -810,6 +878,7 @@ async fn exchange(stream: &mut TcpStream, code: &str) -> std::io::Result<Reply>
+@@ -810,6 +915,7 @@ async fn exchange(stream: &mut TcpStream, code: &str) -> std::io::Result<Reply>
  /// Take the pairing file siboot-pair is offering at `offer`, for the transfer
  /// code it shows, into `path`. The code proves the request comes from the
  /// person at the iPhone, not another app. Each answer may take up to `wait`.
@@ -5126,7 +5734,7 @@ index 048e534..d59e312 100644
  async fn take(
      offer: SocketAddr,
      path: &Path,
-@@ -830,53 +899,60 @@ async fn take(
+@@ -830,53 +936,60 @@ async fn take(
          ui::activity("sending the code to rootshell");
          // siboot-pair answers one request per connection.
          if attempt > 1 {
@@ -5221,7 +5829,7 @@ index 048e534..d59e312 100644
          return Ok(Taken::File);
      }
      Err(Fail::new(
-@@ -887,16 +963,13 @@ async fn take(
+@@ -887,16 +1000,13 @@ async fn take(
  
  /// Write the pairing file, readable by this user only: it holds the private key.
  fn save(path: &Path, file: &[u8]) -> Result<()> {
@@ -5245,7 +5853,35 @@ index 048e534..d59e312 100644
      Ok(())
  }
  
-@@ -971,7 +1044,12 @@ mod tests {
+@@ -932,13 +1042,26 @@ mod tests {
+             advertise,
+             name: "siboot test".into(),
+             keepalive_dir: None,
+-            notify: false,
++            notifications: NotificationAccess::Unavailable,
+             limits: QUICK_LIMITS,
+             pin_hook,
+             player_check: Duration::from_millis(200),
+         }
+     }
+ 
++    async fn wait_for_call(log: &Path, call: &str) {
++        timeout(Duration::from_secs(10), async {
++            while !std::fs::read_to_string(log)
++                .unwrap_or_default()
++                .contains(call)
++            {
++                tokio::time::sleep(Duration::from_millis(25)).await;
++            }
++        })
++        .await
++        .unwrap_or_else(|_| panic!("bridge didn't run {call}"));
++    }
++
+     /// A whole pairing, the fake iPhone dialling the listener straight away,
+     /// as Settings dials the advertised port.
+     async fn pair_once(home: &Path, bridge: Option<Bridge>) -> (Paired, fake_iphone::Outcome) {
+@@ -971,7 +1094,12 @@ mod tests {
          // …the iPhone's altIRK came back in M5 and was kept…
          assert_eq!(saved.alt_irk.as_deref(), Some(&fake_iphone::ALT_IRK[..]));
          // …and the host's own altIRK was kept for the next run.
@@ -5259,7 +5895,7 @@ index 048e534..d59e312 100644
          #[cfg(unix)]
          {
              use std::os::unix::fs::PermissionsExt;
-@@ -991,7 +1069,10 @@ mod tests {
+@@ -991,7 +1119,10 @@ mod tests {
          let (_, second) = pair_once(&home, None).await;
          assert_eq!(first.host_identifier, second.host_identifier);
          assert_eq!(first.host_public_key, second.host_public_key);
@@ -5271,7 +5907,7 @@ index 048e534..d59e312 100644
      }
  
      #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-@@ -1009,8 +1090,19 @@ mod tests {
+@@ -1009,8 +1140,19 @@ mod tests {
          let words: Vec<&str> = advertise.split(' ').collect();
          // advertise <type> <name> <port> key=value…
          assert_eq!(words[2], PAIRABLE_HOST_TYPE);
@@ -5293,7 +5929,7 @@ index 048e534..d59e312 100644
              assert!(
                  words.iter().any(|w| w.starts_with(&format!("{key}="))),
                  "TXT {key} missing: {advertise}"
-@@ -1018,7 +1110,9 @@ mod tests {
+@@ -1018,7 +1160,9 @@ mod tests {
          }
          assert!(words.contains(&format!("identifier={}", phone.host_identifier).as_str()));
          assert!(
@@ -5304,7 +5940,7 @@ index 048e534..d59e312 100644
              "the advertisement wasn't withdrawn: {calls}"
          );
      }
-@@ -1030,7 +1124,9 @@ mod tests {
+@@ -1030,7 +1174,9 @@ mod tests {
          std::fs::write(home.join("minis-leftover"), b"").unwrap();
          pair_once(&home, Some(Bridge::in_dir(&stub))).await;
          let calls = std::fs::read_to_string(home.join("minis-calls.log")).unwrap();
@@ -5315,7 +5951,7 @@ index 048e534..d59e312 100644
          let advertised = calls.find("minis-bonjour advertise").unwrap();
          assert!(withdrawn < advertised, "{calls}");
      }
-@@ -1045,7 +1141,11 @@ mod tests {
+@@ -1045,7 +1191,11 @@ mod tests {
          std::fs::write(home.join("minis-deny-once"), b"").unwrap();
          pair_once(&home, Some(Bridge::in_dir(&stub))).await;
          let calls = std::fs::read_to_string(home.join("minis-calls.log")).unwrap();
@@ -5328,7 +5964,7 @@ index 048e534..d59e312 100644
          assert!(!home.join("minis-deny-once").exists());
      }
  
-@@ -1058,8 +1158,15 @@ mod tests {
+@@ -1058,8 +1208,15 @@ mod tests {
          let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
          let setup = test_setup(Bridge::in_dir(&stub), true, None);
          let identity = Identity::load(&out, &home).await;
@@ -5346,7 +5982,47 @@ index 048e534..d59e312 100644
          assert!(failure.advice.contains("1.16"), "{}", failure.advice);
      }
  
-@@ -1096,12 +1203,23 @@ mod tests {
+@@ -1068,19 +1225,36 @@ mod tests {
+         let home = temp_home("back");
+         let stub = fake_iphone::minis_stub(&home);
+         let marker = home.join("minis-background");
+-        std::fs::write(&marker, b"").unwrap();
++        let permission = home.join("minis-notification-unasked");
++        std::fs::write(&permission, b"").unwrap();
+         let out = home.join("rp_pairing_file.plist");
+         let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+         let addr = listener.local_addr().unwrap();
+         let (pin_tx, mut pin_rx) = mpsc::unbounded_channel();
+         let mut setup = test_setup(Bridge::in_dir(&stub), true, Some(pin_tx));
+         setup.keepalive_dir = Some(home.clone());
+-        setup.notify = true;
++        setup.notifications = can_pair_here(&setup.bridge).await.unwrap();
++        assert_eq!(setup.notifications, NotificationAccess::NeedsPermission);
+         let identity = Identity::load(&out, &home).await;
+         let host = run_host(listener, setup, identity, &out, &home);
+         let log = home.join("minis-calls.log");
+         let phone = async {
+-            let paired = fake_iphone::pair(addr, async move { pin_rx.recv().await.unwrap() }).await;
++            wait_for_call(&log, "apple-player status").await;
++            assert!(
++                !permission.exists(),
++                "permission resolved before switching apps"
++            );
++            std::fs::write(&marker, b"").unwrap();
++            let paired = fake_iphone::pair(addr, async {
++                let pin = pin_rx.recv().await.unwrap();
++                wait_for_call(
++                    &log,
++                    "apple-notification schedule --title siboot pairing code",
++                )
++                .await;
++                pin
++            })
++            .await;
+             // Still in Settings for a moment after typing the code.
+             tokio::time::sleep(Duration::from_millis(1500)).await;
+             let calls = std::fs::read_to_string(&log).unwrap();
+@@ -1096,13 +1270,56 @@ mod tests {
          phone.expect("phone paired");
          let calls = std::fs::read_to_string(&log).unwrap();
          let played = calls.find("apple-player play").expect("the silence played");
@@ -5369,13 +6045,47 @@ index 048e534..d59e312 100644
 +        );
          // The first notification went out while Minis was still in front.
 -        let ready = calls.find("--title Pair with siboot test is ready").expect("said it's ready");
-+        let ready = calls
-+            .find("--title Pair with siboot test is ready")
-+            .expect("said it's ready");
-         assert!(ready < code, "{calls}");
+-        assert!(ready < code, "{calls}");
++        let requested = calls
++            .find("--title siboot pairing --body")
++            .expect("prepared notification permission");
++        assert!(requested < played, "{calls}");
++    }
++
++    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
++    async fn the_pin_in_minis_works_when_scheduling_is_refused() {
++        let home = temp_home("notification-refused");
++        let stub = fake_iphone::minis_stub(&home);
++        std::fs::write(home.join("minis-notification-error"), b"").unwrap();
++        let out = home.join("rp_pairing_file.plist");
++        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
++        let addr = listener.local_addr().unwrap();
++        let (pin_tx, mut pin_rx) = mpsc::unbounded_channel();
++        let bridge = Bridge::in_dir(&stub);
++        let mut setup = test_setup(bridge, true, Some(pin_tx));
++        setup.notifications = can_pair_here(&setup.bridge).await.unwrap();
++        assert_eq!(setup.notifications, NotificationAccess::Alerts);
++        let identity = Identity::load(&out, &home).await;
++        let host = run_host(listener, setup, identity, &out, &home);
++        let log = home.join("minis-calls.log");
++        let phone = fake_iphone::pair(addr, async {
++            let pin = pin_rx.recv().await.unwrap();
++            assert!(pin.len() == 6 && pin.bytes().all(|c| c.is_ascii_digit()));
++            wait_for_call(
++                &log,
++                "apple-notification schedule --title siboot pairing code",
++            )
++            .await;
++            pin
++        });
++        let (host, phone) = tokio::join!(host, phone);
++        phone.expect("phone paired using the local code");
++        host.expect("notification refusal does not stop the exchange");
++        assert!(out.exists());
      }
  
-@@ -1127,9 +1245,19 @@ mod tests {
+     /// The player's sheet swiped away while siboot waits for Settings: it's
+@@ -1127,9 +1344,21 @@ mod tests {
                  .count()
          };
          let phone = async {
@@ -5383,12 +6093,14 @@ index 048e534..d59e312 100644
 -                tokio::time::sleep(Duration::from_millis(50)).await;
 -            }
 +            // The stub logs `play` before clearing its closed marker. Wait
-+            // for the host's first status check so startup has completed;
++            // for the host's next status check after confirming playback;
 +            // otherwise that startup can erase the close simulated here.
 +            tokio::time::timeout(Duration::from_secs(10), async {
-+                while !std::fs::read_to_string(&log)
++                while std::fs::read_to_string(&log)
 +                    .unwrap_or_default()
-+                    .contains("apple-player status")
++                    .matches("apple-player status")
++                    .count()
++                    < 2
 +                {
 +                    tokio::time::sleep(Duration::from_millis(50)).await;
 +                }
@@ -5398,7 +6110,7 @@ index 048e534..d59e312 100644
              std::fs::write(home.join("minis-player-closed"), b"").unwrap();
              for _ in 0..100 {
                  if plays(&log) >= 2 {
-@@ -1165,7 +1293,10 @@ mod tests {
+@@ -1165,7 +1394,10 @@ mod tests {
          let (host, (first, second)) = tokio::join!(host, phones);
          assert!(first.is_err(), "the first phone typed a wrong code");
          second.expect("the second try paired");
@@ -5410,7 +6122,7 @@ index 048e534..d59e312 100644
          assert!(out.exists());
      }
  
-@@ -1186,7 +1317,11 @@ mod tests {
+@@ -1186,7 +1418,11 @@ mod tests {
          };
          let (host, ()) = tokio::join!(host, phones);
          let failure = host.err().expect("host should give up");
@@ -5423,7 +6135,7 @@ index 048e534..d59e312 100644
          assert!(!out.exists(), "no pairing file for a failed pairing");
      }
  
-@@ -1204,7 +1339,10 @@ mod tests {
+@@ -1204,7 +1440,10 @@ mod tests {
          let host = run_host(listener, setup, identity, &out, &home);
          let phone = fake_iphone::pair(addr, async move { pin_rx.recv().await.unwrap() });
          let (host, phone) = tokio::join!(host, phone);
@@ -5435,7 +6147,7 @@ index 048e534..d59e312 100644
          phone.expect("phone paired");
          assert!(out.exists());
      }
-@@ -1217,8 +1355,15 @@ mod tests {
+@@ -1217,8 +1456,15 @@ mod tests {
          let mut setup = test_setup(Bridge::default(), false, None);
          setup.limits.device = Duration::from_millis(200);
          let identity = Identity::load(&out, &home).await;
@@ -5453,7 +6165,29 @@ index 048e534..d59e312 100644
      }
  
      #[tokio::test]
-@@ -1241,7 +1386,10 @@ mod tests {
+@@ -1230,7 +1476,20 @@ mod tests {
+         assert!(why.contains("1.16"), "{why}");
+ 
+         let stub = fake_iphone::minis_stub(&home);
+-        assert_eq!(can_pair_here(&Bridge::in_dir(&stub)).await, Ok(true));
++        assert_eq!(
++            can_pair_here(&Bridge::in_dir(&stub)).await,
++            Ok(NotificationAccess::Alerts)
++        );
++        std::fs::write(home.join("minis-notification-quiet"), b"").unwrap();
++        assert_eq!(
++            can_pair_here(&Bridge::in_dir(&stub)).await,
++            Ok(NotificationAccess::Quiet)
++        );
++        std::fs::write(home.join("minis-notification-denied"), b"").unwrap();
++        assert_eq!(
++            can_pair_here(&Bridge::in_dir(&stub)).await,
++            Ok(NotificationAccess::Unavailable)
++        );
+         std::fs::write(home.join("minis-undeclared"), b"").unwrap();
+         let why = can_pair_here(&Bridge::in_dir(&stub)).await.err().unwrap();
+         assert!(why.contains("can't advertise"), "{why}");
+@@ -1241,7 +1500,10 @@ mod tests {
          assert_eq!(spoken(LIMITS.device), "10 minutes");
          assert_eq!(spoken(LIMITS.code_request), "30 seconds");
          assert_eq!(spoken(Duration::from_secs(60)), "1 minute");
@@ -5465,7 +6199,7 @@ index 048e534..d59e312 100644
          assert!(parse_alt_irk("0011").is_none());
          assert!(parse_alt_irk("zz112233445566778899aabbccddeeff").is_none());
      }
-@@ -1261,9 +1409,14 @@ mod tests {
+@@ -1261,9 +1523,14 @@ mod tests {
              loop {
                  let (mut conn, _) = listener.accept().await.unwrap();
                  let mut asked = String::new();
@@ -5482,7 +6216,7 @@ index 048e534..d59e312 100644
                      conn.write_all(&file).await.unwrap();
                      return;
                  }
-@@ -1284,12 +1437,20 @@ mod tests {
+@@ -1284,12 +1551,20 @@ mod tests {
          let path = home.join("rp_pairing_file.plist");
          let file = a_pairing_file();
          let offer = rootshell_offering("481516", file.clone()).await;
@@ -5505,7 +6239,7 @@ index 048e534..d59e312 100644
          }
      }
  
-@@ -1298,7 +1459,9 @@ mod tests {
+@@ -1298,7 +1573,9 @@ mod tests {
          let home = temp_home("retry");
          let path = home.join("rp_pairing_file.plist");
          let offer = rootshell_offering("481516", a_pairing_file()).await;
@@ -5516,7 +6250,7 @@ index 048e534..d59e312 100644
          assert_eq!(taken, Taken::File);
          assert!(path.exists());
      }
-@@ -1309,8 +1472,15 @@ mod tests {
+@@ -1309,8 +1586,15 @@ mod tests {
          let path = home.join("rp_pairing_file.plist");
          std::fs::write(&path, b"the old file").unwrap();
          let offer = rootshell_offering("481516", a_pairing_file()).await;
@@ -5534,7 +6268,7 @@ index 048e534..d59e312 100644
          assert_eq!(std::fs::read(&path).unwrap(), b"the old file");
      }
  
-@@ -1319,8 +1489,15 @@ mod tests {
+@@ -1319,8 +1603,15 @@ mod tests {
          let home = temp_home("junk");
          let path = home.join("rp_pairing_file.plist");
          let offer = rootshell_offering("481516", b"not a plist".to_vec()).await;
@@ -5552,7 +6286,7 @@ index 048e534..d59e312 100644
          assert!(!path.exists());
      }
  
-@@ -1338,12 +1515,20 @@ mod tests {
+@@ -1338,12 +1629,20 @@ mod tests {
              drop(conn);
          });
          let started = std::time::Instant::now();
@@ -5578,7 +6312,7 @@ index 048e534..d59e312 100644
          assert!(!path.exists());
          held.abort();
      }
-@@ -1356,7 +1541,10 @@ mod tests {
+@@ -1356,7 +1655,10 @@ mod tests {
              let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
              listener.local_addr().unwrap()
          };
@@ -5590,7 +6324,7 @@ index 048e534..d59e312 100644
          assert!(!path.exists());
      }
  
-@@ -1366,7 +1554,10 @@ mod tests {
+@@ -1366,7 +1668,10 @@ mod tests {
          let home = temp_home("cancel");
          let path = home.join("rp_pairing_file.plist");
          let offer = rootshell_offering("481516", a_pairing_file()).await;
@@ -5965,7 +6699,7 @@ index 0000000..d9b534d
 +    }
 +}
 diff --git a/minis/src/preflight.rs b/minis/src/preflight.rs
-index bbd0adc..5070ba2 100644
+index bbd0adc..e873c23 100644
 --- a/minis/src/preflight.rs
 +++ b/minis/src/preflight.rs
 @@ -1,7 +1,7 @@
@@ -5977,7 +6711,12 @@ index bbd0adc..5070ba2 100644
  //! which carries everything to this iPhone. `siboot check` also says whether
  //! this Open Minis can pair the iPhone.
  
-@@ -16,10 +16,6 @@ use crate::bridge::{Bridge, BridgeError};
+@@ -12,14 +12,10 @@ use idevice::remote_pairing::{RemotePairingClient, RpPairingSocket};
+ use tokio::net::TcpStream;
+ use tokio::time::timeout;
+ 
+-use crate::bridge::{Bridge, BridgeError};
++use crate::bridge::{Bridge, BridgeError, NotificationAccess};
  use crate::fail::{chain, Fail, Result};
  use crate::{ui, Args, Command};
  
@@ -6010,8 +6749,29 @@ index bbd0adc..5070ba2 100644
      }
      ui::activity(&format!("reaching this iPhone at {}", args.device));
      let found = probe(args.device).await?;
-@@ -56,7 +55,7 @@ pub async fn run(args: &Args) -> Result<bool> {
-                 ui::warn("Minis's notifications are off, so the pairing code will show only in Minis.");
+@@ -50,13 +49,25 @@ pub async fn run(args: &Args) -> Result<bool> {
+     if args.command == Command::Check {
+         ui::activity("checking that Open Minis can pair this iPhone");
+         match crate::pairing::can_pair_here(&crate::bridge::Bridge::from_env()).await {
+-            Ok(true) => ui::ok("Open Minis can pair this iPhone, and post the code as a notification"),
+-            Ok(false) => {
++            Ok(access) => {
+                 ui::ok("Open Minis can pair this iPhone");
+-                ui::warn("Minis's notifications are off, so the pairing code will show only in Minis.");
++                match access {
++                    NotificationAccess::Alerts => {
++                        ui::note("Minis has permission to show notification alerts.")
++                    }
++                    NotificationAccess::NeedsPermission => {
++                        ui::note("Minis can ask for notification permission when pairing starts.")
++                    }
++                    NotificationAccess::Quiet => {
++                        ui::note("Minis notifications may arrive without a banner.")
++                    }
++                    NotificationAccess::Unavailable => {
++                        ui::note("Pairing notifications are unavailable. Read the code in Minis.")
++                    }
++                }
              }
              Err(why) => ui::warn(&format!(
 -                "{why} The pairing then has to come from a file saved before, or from rootshell."
@@ -6019,13 +6779,15 @@ index bbd0adc..5070ba2 100644
              )),
          }
      }
-@@ -72,17 +71,16 @@ pub async fn run(args: &Args) -> Result<bool> {
+@@ -71,18 +82,15 @@ pub async fn run(args: &Args) -> Result<bool> {
+ /// `minis-bonjour` either.
  pub async fn check_minis(bridge: &Bridge) -> Result<()> {
      match bridge.bonjour_types().await {
-         Err(BridgeError::Missing(_)) => {
+-        Err(BridgeError::Missing(_)) => {
 -            ui::link("Update Open Minis", MINIS_APP_STORE);
-             Err(Fail::known(OLD_MINIS))
-         }
+-            Err(Fail::known(OLD_MINIS))
+-        }
++        Err(BridgeError::Missing(_)) => Err(Fail::known(OLD_MINIS)),
          _ => Ok(()),
      }
  }
@@ -6039,7 +6801,7 @@ index bbd0adc..5070ba2 100644
      let apple_root = reqwest::Certificate::from_der(isideload::sideload::cert_identity::APPLE_ROOT)
          .map_err(|e| Fail::new("Couldn't load Apple's root certificate.", e.to_string()))?;
      let client = reqwest::Client::builder()
-@@ -92,30 +90,6 @@ async fn check_online(args: &Args) -> Result<()> {
+@@ -92,30 +100,6 @@ async fn check_online(args: &Args) -> Result<()> {
          .build()
          .map_err(|e| Fail::new("Couldn't start an HTTPS client.", e.to_string()))?;
  
@@ -6795,7 +7557,7 @@ index 273443f..8edb04c 100644
          )),
          Err(_) => Err(Fail::new(
 diff --git a/minis/src/ui.rs b/minis/src/ui.rs
-index 96b7dc1..a2a6447 100644
+index 96b7dc1..f77fade 100644
 --- a/minis/src/ui.rs
 +++ b/minis/src/ui.rs
 @@ -59,7 +59,7 @@ const BOX_MAX: usize = 60;
@@ -7074,36 +7836,59 @@ index 96b7dc1..a2a6447 100644
      }
      lines.push(String::new());
      ui.paint(&lines);
-@@ -924,7 +1022,12 @@ pub fn show_code(code: &str, note: &str) {
-     let max = line_width();
-     let mut lines = vec![String::new()];
+@@ -918,28 +1016,37 @@ pub fn show_code(code: &str, note: &str) {
+             ui.style(BOLD, &spaced(code))
+         );
+         ui.plain(&line);
+-        ui.plain(&format!("{INDENT}{note}"));
++        ui.plain(&format!("{INDENT}{}", crate::i18n::tr(note)));
+         return;
+     }
+-    let max = line_width();
+-    let mut lines = vec![String::new()];
++    let mut lines = vec![Line::new()
++        .add(NONE, "    ")
++        .add(STRONG, crate::i18n::tr("Pairing code:").as_ref())
++        .add(NONE, " ")
++        .add(BOLD, spaced(code))];
      for row in big_digits(code) {
 -        lines.push(Line::new().add(NONE, "    ").add(STRONG, row).render(max, ui.color));
-+        lines.push(
-+            Line::new()
-+                .add(NONE, "    ")
-+                .add(STRONG, row)
-+                .render(max, ui.color),
-+        );
++        lines.push(Line::new().add(NONE, "    ").add(STRONG, row));
      }
-     lines.push(
-         Line::new()
-@@ -932,7 +1035,13 @@ pub fn show_code(code: &str, note: &str) {
-             .add(DIM, spaced(code))
-             .render(max, ui.color),
-     );
+-    lines.push(
+-        Line::new()
+-            .add(NONE, "    ")
+-            .add(DIM, spaced(code))
+-            .render(max, ui.color),
+-    );
 -    lines.extend(hanging(&Line::new().add(NONE, "    "), NONE, note, max, ui.color));
-+    lines.extend(hanging(
-+        &Line::new().add(NONE, "    "),
-+        NONE,
-+        note,
-+        max,
-+        ui.color,
-+    ));
-     lines.push(String::new());
-     ui.paint(&lines);
+-    lines.push(String::new());
+-    ui.paint(&lines);
++    let hint = crate::i18n::tr(note);
++    for line in wrap(&hint, line_width().saturating_sub(4).max(1)) {
++        lines.push(Line::new().add(NONE, "    ").add(DIM, line));
++    }
++    // Keep the code visible across live redraws and bridge warnings.
++    ui.dialog = Some(Dialog {
++        lines,
++        cursor: None,
++    });
++    ui.paint(&[]);
  }
-@@ -988,12 +1097,30 @@ fn big_digits(code: &str) -> [String; 3] {
+ 
+-/// The code from `show_code` is done with: the page takes its card away.
++/// Clear the active pairing code from the page and the live terminal.
+ pub fn code_gone() {
+     web::send(json!({"t": "pin_end"}));
++    let mut ui = ui();
++    if ui.mode == Mode::Live {
++        ui.dialog = None;
++        ui.paint(&[]);
++    }
+ }
+ 
+ /// "481516" as "481 516".
+@@ -988,12 +1095,30 @@ fn big_digits(code: &str) -> [String; 3] {
  /// One of `options`, while the running step shows `title`: the arrows move,
  /// a digit or return picks. None when the user backs out (Esc).
  pub fn choose(title: &str, options: &[String]) -> Option<usize> {
@@ -7135,7 +7920,7 @@ index 96b7dc1..a2a6447 100644
      picked
  }
  
-@@ -1004,7 +1131,7 @@ fn choose_prompt(title: &str, options: &[String]) -> Option<usize> {
+@@ -1004,7 +1129,7 @@ fn choose_prompt(title: &str, options: &[String]) -> Option<usize> {
      if !is_live() {
          println!("{INDENT}{}", capitalized(title));
          for (i, option) in options.iter().enumerate() {
@@ -7144,7 +7929,7 @@ index 96b7dc1..a2a6447 100644
          }
          let line = ask("Number (empty to stop): ")?;
          return line
-@@ -1081,7 +1208,7 @@ pub fn ask(prompt: &str) -> Option<String> {
+@@ -1081,7 +1206,7 @@ pub fn ask(prompt: &str) -> Option<String> {
      if let Some(page) = web::page() {
          return page.line(prompt);
      }
@@ -7153,7 +7938,7 @@ index 96b7dc1..a2a6447 100644
      flush();
      let mut line = String::new();
      match io::stdin().lock().read_line(&mut line) {
-@@ -1102,13 +1229,18 @@ fn field(label: &str, placeholder: &str, secret: bool) -> Asked<Option<String>>
+@@ -1102,13 +1227,18 @@ fn field(label: &str, placeholder: &str, secret: bool) -> Asked<Option<String>>
          degrade();
          return Asked::NoKeys;
      };
@@ -7173,7 +7958,7 @@ index 96b7dc1..a2a6447 100644
                  "•".repeat(value.chars().count())
              } else {
                  value.clone()
-@@ -1130,28 +1262,46 @@ fn field(label: &str, placeholder: &str, secret: bool) -> Asked<Option<String>>
+@@ -1130,28 +1260,46 @@ fn field(label: &str, placeholder: &str, secret: bool) -> Asked<Option<String>>
              };
              lines.push(line);
              let row = lines.len() - 1;
@@ -7222,7 +8007,7 @@ index 96b7dc1..a2a6447 100644
      drop(keys);
      let mut ui = ui();
      if let Some(value) = &given {
-@@ -1267,6 +1417,7 @@ fn interrupt() -> ! {
+@@ -1267,6 +1415,7 @@ fn interrupt() -> ! {
  /// screen and, with the page, the signal or the page's Stop. After a run has
  /// already stopped (at the question about the log), it only leaves.
  pub fn stop_now(reason: &str) -> ! {
@@ -7230,7 +8015,7 @@ index 96b7dc1..a2a6447 100644
      {
          let mut ui = ui();
          if !ui.stopped {
-@@ -1354,7 +1505,7 @@ impl Ui {
+@@ -1354,7 +1503,7 @@ impl Ui {
      }
  
      fn style(&self, style: &str, text: &str) -> String {
@@ -7239,7 +8024,7 @@ index 96b7dc1..a2a6447 100644
      }
  
      /// Redraw the live area, after printing `above` over it: lines that stay.
-@@ -1887,6 +2038,8 @@ pub fn width(text: &str) -> usize {
+@@ -1887,6 +2036,8 @@ pub fn width(text: &str) -> usize {
  
  /// `text`, then spaces to `columns`.
  fn pad(text: &str, columns: usize) -> String {
@@ -7248,7 +8033,7 @@ index 96b7dc1..a2a6447 100644
      let gap = columns.saturating_sub(width(text));
      format!(
          "{text}{}",
-@@ -1896,6 +2049,8 @@ fn pad(text: &str, columns: usize) -> String {
+@@ -1896,6 +2047,8 @@ fn pad(text: &str, columns: usize) -> String {
  
  /// Words in lines of at most `room` columns; a longer word (a URL) is cut.
  fn wrap(text: &str, room: usize) -> Vec<String> {
@@ -7257,7 +8042,7 @@ index 96b7dc1..a2a6447 100644
      let room = room.max(1);
      let mut lines = Vec::new();
      let mut line = String::new();
-@@ -1949,8 +2104,31 @@ fn keep_end(text: &str, room: usize) -> String {
+@@ -1949,8 +2102,31 @@ fn keep_end(text: &str, room: usize) -> String {
      std::iter::once('…').chain(kept.into_iter().rev()).collect()
  }
  
@@ -7290,7 +8075,7 @@ index 96b7dc1..a2a6447 100644
      match chars.next() {
          Some(first) => first.to_uppercase().chain(chars).collect(),
          None => String::new(),
-@@ -1999,6 +2177,8 @@ enum Key {
+@@ -1999,6 +2175,8 @@ enum Key {
      ClearLine,
      /// Ctrl-W.
      DeleteWord,
@@ -7299,7 +8084,7 @@ index 96b7dc1..a2a6447 100644
      Ignored,
  }
  
-@@ -2044,6 +2224,7 @@ fn parse_keys(bytes: &[u8]) -> (Vec<Key>, usize) {
+@@ -2044,6 +2222,7 @@ fn parse_keys(bytes: &[u8]) -> (Vec<Key>, usize) {
              0x04 => (Key::End, 1),
              0x15 => (Key::ClearLine, 1),
              0x17 => (Key::DeleteWord, 1),
@@ -7307,7 +8092,7 @@ index 96b7dc1..a2a6447 100644
              b'\t' => (Key::Tab, 1),
              0x00..=0x1f => (Key::Ignored, 1),
              lead => {
-@@ -2494,7 +2675,10 @@ mod tests {
+@@ -2494,7 +2673,10 @@ mod tests {
          // On a narrow one it's cut like any other line (to 20 columns at least).
          let (lines, _) = ui.compose(20, 40);
          assert!(lines.iter().all(|l| width(l) <= 20), "{lines:#?}");

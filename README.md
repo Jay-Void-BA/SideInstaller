@@ -96,7 +96,7 @@ Use the Files picker for archives in iCloud Drive or another iOS app. Use `--ipa
 
 At the **Pairing** step, reuse the saved record, import an existing RPPairing file, or create a new one.
 
-- **Pair in Minis.** Choose **Start pairing**, leave the silence player open, and go to **Settings → Privacy & Security → Developer Mode**. Scroll down and tap **Pair with siboot**. Enter the device passcode and the six-digit *pairing* code displayed by Minis. Return to Minis when Settings confirms pairing. If Minis notifications are off, read the pairing code in Minis.
+- **Pair in Minis.** Choose **Start pairing** and stay in Minis until it says to switch to Settings. Allow Minis notifications if iOS asks. Silent audio keeps Minis running while you open **Settings → Privacy & Security → Developer Mode**. Scroll down and tap **Pair with siboot**. Enter your device passcode when asked. The six-digit *pairing* code is shown in Minis and may appear as a notification. Return to Minis after Settings confirms pairing.
 - **Import a record.** In the page, choose a file from **Files** or browse the Minis Linux filesystem. From the terminal, run the command below. Use an RPPairing record valid for this device. After the device accepts it, siboot saves a private copy as `rp_pairing_file.plist` beside the actual executable. A failed import preserves the previously saved record.
 
 ```sh
@@ -104,6 +104,8 @@ At the **Pairing** step, reuse the saved record, import an existing RPPairing fi
 ```
 
 `connect` stops after pairing and tunnel verification. Run siboot again with your IPA when you are ready to install. The pairing code belongs in iOS Settings. Apple sign-in may ask for a separate verification code later.
+
+**Six-digit field open and no banner?** Keep the field and the current siboot run open. Switch back to Minis and read **Pairing code** on the page or live terminal. If the large audio panel covers it, dismiss that panel and leave the small player running. Switch back to the same field in Settings and enter the code. v0.22.5 prepares notification permission in the foreground and keeps the active code visible through notification errors. You can enable banners under **Settings → Notifications → Open Minis** for future attempts.
 
 ### Sign and open the app
 
@@ -172,6 +174,7 @@ Here `siboot` means `"$HOME/.siboot/bin/siboot"` or the path to your verified co
 | `segmentation fault` at startup, even for `--version` | Run `uname -m` and `sh install-minis.sh --verify` for the actual file. Earlier startup failures came from incomplete downloads. Resume with the current installer, or use `--restart` if the partial file is corrupt. |
 | Download lock remains after closing Minis | Confirm every installer has stopped, then remove the empty lock directory with `rmdir "$HOME/.siboot/bin/.siboot-download.lock"`. Rerun the installer. |
 | Device handshake times out or Settings shows no pairing entry | Reconnect LocalDevVPN, enable Wi-Fi and grant Minis local network access. Run `check`. Open Minis 1.16+ can create a record, or use `connect --pairing-file PATH` with a valid one. |
+| The pairing code field is open but no banner arrives | Switch back to Minis to read the active code, keeping the Settings field and small player running. See [pairing instructions](#pair-with-the-device). |
 | Ani DNS, TLS, timeout, or HTTP error | Run the metadata check below. Look at the failing host. A custom proxy's private CA must be trusted inside Minis. |
 | `gsa.apple.com` returns HTTP 503 | Check the installed version and the URL in the error. v0.22.4 uses the `Mac OS X` spelling in the updated Mac client information. Apple can also return a temporary service error. |
 | Trusted numbers or code request returns 403, or Apple reports `-22410` or `-23782` | Upgrade and start a new sign-in. The current build matches the provisioning identity to the Mac client information. If no code arrives, follow [the verification steps](#verification-codes) and [the Advanced Data Protection instructions](#icloud-advanced-data-protection). |
